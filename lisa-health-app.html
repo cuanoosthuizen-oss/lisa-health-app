@@ -1,0 +1,1522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0d0d0f">
+<title>Lisa — Health Journal</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0f;
+    --surface: #16161a;
+    --surface2: #1e1e24;
+    --border: #2a2a33;
+    --text: #f0eff4;
+    --muted: #7a7a8c;
+    --accent: #c084fc;
+    --accent2: #f472b6;
+    --accent3: #34d399;
+    --warn: #fb923c;
+    --danger: #f87171;
+    --good: #34d399;
+    --radius: 16px;
+    --font-serif: 'DM Serif Display', Georgia, serif;
+    --font-sans: 'DM Sans', system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  html, body {
+    height: 100%;
+    font-family: var(--font-sans);
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+  }
+
+  #app {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    max-width: 480px;
+    margin: 0 auto;
+    position: relative;
+  }
+
+  /* Header */
+  .header {
+    padding: 20px 24px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    position: relative;
+    z-index: 10;
+  }
+
+  .header-title {
+    font-family: var(--font-serif);
+    font-size: 22px;
+    color: var(--text);
+    letter-spacing: -0.3px;
+  }
+
+  .header-title span { color: var(--accent); font-style: italic; }
+
+  .header-date {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 300;
+  }
+
+  .streak-badge {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    letter-spacing: 0.3px;
+  }
+
+  /* Main content scroll area */
+  .main {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 90px;
+  }
+
+  .main::-webkit-scrollbar { display: none; }
+
+  /* Bottom nav */
+  .nav {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 480px;
+    background: rgba(13, 13, 15, 0.95);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid var(--border);
+    display: flex;
+    padding: 12px 8px 20px;
+    z-index: 100;
+  }
+
+  .nav-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px 4px;
+    color: var(--muted);
+    font-family: var(--font-sans);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    transition: color 0.2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .nav-btn.active { color: var(--accent); }
+  .nav-btn svg { width: 22px; height: 22px; }
+
+  /* Views */
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* Cards */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin: 0 16px 12px;
+  }
+
+  .card-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    font-weight: 600;
+    margin-bottom: 14px;
+  }
+
+  /* Score ring */
+  .score-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin: 0 16px 12px;
+  }
+
+  .score-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 10px;
+    text-align: center;
+  }
+
+  .score-value {
+    font-family: var(--font-serif);
+    font-size: 28px;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .score-label {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+
+  .score-value.good { color: var(--good); }
+  .score-value.mid { color: var(--warn); }
+  .score-value.bad { color: var(--danger); }
+
+  /* Mini trend chart */
+  .mini-chart {
+    height: 40px;
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+  }
+
+  .mini-bar {
+    flex: 1;
+    border-radius: 3px 3px 0 0;
+    min-height: 4px;
+    transition: height 0.3s;
+  }
+
+  /* Symptom tags */
+  .tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  .tag {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .tag.active {
+    background: rgba(192, 132, 252, 0.15);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .tag.warn {
+    background: rgba(251, 146, 60, 0.1);
+    border-color: var(--warn);
+    color: var(--warn);
+  }
+
+  /* Check-in form */
+  .section-heading {
+    font-family: var(--font-serif);
+    font-size: 20px;
+    padding: 20px 24px 12px;
+    color: var(--text);
+  }
+
+  .section-heading em { color: var(--accent); font-style: italic; }
+
+  .form-group {
+    margin: 0 16px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+  }
+
+  .form-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 12px;
+    display: block;
+  }
+
+  .form-label small {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 300;
+    margin-top: 2px;
+  }
+
+  /* Slider */
+  .slider-wrap { position: relative; }
+
+  .score-slider {
+    width: 100%;
+    -webkit-appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--border);
+    outline: none;
+    cursor: pointer;
+  }
+
+  .score-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    box-shadow: 0 0 0 4px rgba(192,132,252,0.2);
+  }
+
+  .slider-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  .slider-value {
+    font-family: var(--font-serif);
+    font-size: 28px;
+    color: var(--accent);
+    text-align: center;
+    margin-bottom: 8px;
+  }
+
+  /* Multi-select */
+  .multi-select { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  .ms-option {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 12px;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  .ms-option.selected {
+    background: rgba(192, 132, 252, 0.15);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Text input */
+  .text-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    outline: none;
+    resize: none;
+    transition: border-color 0.2s;
+  }
+
+  .text-input:focus { border-color: var(--accent); }
+  .text-input::placeholder { color: var(--muted); }
+
+  /* Number input */
+  .num-input {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .num-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .num-val {
+    font-family: var(--font-serif);
+    font-size: 24px;
+    color: var(--accent);
+    min-width: 30px;
+    text-align: center;
+  }
+
+  /* Submit button */
+  .submit-btn {
+    width: calc(100% - 32px);
+    margin: 16px 16px 8px;
+    padding: 16px;
+    border-radius: var(--radius);
+    border: none;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff;
+    font-family: var(--font-sans);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.3px;
+    -webkit-tap-highlight-color: transparent;
+    transition: opacity 0.2s;
+  }
+
+  .submit-btn:active { opacity: 0.85; }
+
+  /* Dashboard */
+  .chart-container {
+    height: 160px;
+    position: relative;
+    margin-top: 8px;
+  }
+
+  canvas { width: 100% !important; }
+
+  /* AI Insights */
+  .insight-card {
+    background: linear-gradient(135deg, rgba(192,132,252,0.08), rgba(244,114,182,0.05));
+    border: 1px solid rgba(192,132,252,0.25);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin: 0 16px 12px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .insight-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+  }
+
+  .insight-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+
+  .insight-text {
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--text);
+  }
+
+  .insight-loading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .dot-pulse {
+    display: flex;
+    gap: 4px;
+  }
+
+  .dot-pulse span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+
+  .dot-pulse span:nth-child(2) { animation-delay: 0.2s; }
+  .dot-pulse span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes pulse {
+    0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+    40% { opacity: 1; transform: scale(1); }
+  }
+
+  /* Red flag indicator */
+  .red-flag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(248, 113, 113, 0.1);
+    border: 1px solid rgba(248, 113, 113, 0.3);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    color: var(--danger);
+    margin-bottom: 12px;
+  }
+
+  /* Today's entry check */
+  .today-done {
+    background: rgba(52, 211, 153, 0.08);
+    border: 1px solid rgba(52, 211, 153, 0.25);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin: 16px 16px 0;
+    text-align: center;
+    font-size: 14px;
+    color: var(--good);
+  }
+
+  /* History list */
+  .history-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin: 0 16px 8px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+  }
+
+  .history-item.red { border-color: rgba(248,113,113,0.3); }
+
+  .history-score {
+    font-family: var(--font-serif);
+    font-size: 26px;
+    min-width: 36px;
+    text-align: center;
+  }
+
+  .history-meta { flex: 1; }
+  .history-date { font-size: 12px; color: var(--muted); margin-bottom: 2px; }
+  .history-symptoms { font-size: 13px; color: var(--text); }
+
+  /* Share view */
+  .share-section { padding: 20px 24px 8px; }
+  .share-section h2 {
+    font-family: var(--font-serif);
+    font-size: 20px;
+    margin-bottom: 6px;
+  }
+  .share-section p { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+  .share-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin: 12px 16px;
+  }
+
+  .share-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+
+  .share-row:last-child { border-bottom: none; }
+  .share-row-label { color: var(--muted); font-size: 13px; }
+  .share-row-val { font-weight: 500; }
+
+  .copy-btn {
+    width: calc(100% - 32px);
+    margin: 0 16px 12px;
+    padding: 14px;
+    border-radius: var(--radius);
+    border: 1px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Onboarding/empty states */
+  .empty {
+    text-align: center;
+    padding: 48px 32px;
+    color: var(--muted);
+  }
+
+  .empty h3 {
+    font-family: var(--font-serif);
+    font-size: 20px;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+
+  .empty p { font-size: 14px; line-height: 1.6; }
+
+  /* Success toast */
+  .toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-80px);
+    background: var(--good);
+    color: #0d0d0f;
+    padding: 12px 24px;
+    border-radius: 30px;
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 1000;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    white-space: nowrap;
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* Scrollbar for desktop preview */
+  @media (min-width: 481px) {
+    .main::-webkit-scrollbar { width: 4px; display: block; }
+    .main::-webkit-scrollbar-track { background: transparent; }
+    .main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  }
+
+  /* Checkin submitted overlay */
+  .submitted-state {
+    display: none;
+    text-align: center;
+    padding: 60px 32px;
+  }
+
+  .submitted-state.show { display: block; }
+
+  .submitted-icon {
+    width: 72px;
+    height: 72px;
+    background: rgba(52, 211, 153, 0.1);
+    border: 2px solid var(--good);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 28px;
+  }
+
+  .submitted-state h2 {
+    font-family: var(--font-serif);
+    font-size: 24px;
+    margin-bottom: 10px;
+  }
+
+  .submitted-state p { font-size: 14px; color: var(--muted); line-height: 1.6; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div>
+      <div class="header-title">Lisa's <span>Journal</span></div>
+      <div class="header-date" id="header-date"></div>
+    </div>
+    <div class="streak-badge" id="streak-badge">— day streak</div>
+  </div>
+
+  <!-- HOME VIEW -->
+  <div class="view active main" id="view-home">
+    <div id="today-banner"></div>
+
+    <!-- Latest scores -->
+    <div style="padding: 16px 0 4px 24px;">
+      <div class="card-title">Latest check-in</div>
+    </div>
+    <div class="score-grid" id="latest-scores"></div>
+
+    <!-- 7-day mini charts -->
+    <div class="card">
+      <div class="card-title">7-day wellbeing</div>
+      <div class="mini-chart" id="mini-chart"></div>
+    </div>
+
+    <!-- AI insight -->
+    <div class="insight-card" id="insight-card">
+      <div class="insight-label">AI insight</div>
+      <div class="insight-loading">
+        <div class="dot-pulse"><span></span><span></span><span></span></div>
+        Analysing your recent data...
+      </div>
+    </div>
+
+    <!-- Recent red flags -->
+    <div class="card" id="red-flag-card" style="display:none;">
+      <div class="card-title">Recent alerts</div>
+      <div id="red-flag-list"></div>
+    </div>
+  </div>
+
+  <!-- CHECK-IN VIEW -->
+  <div class="view main" id="view-checkin">
+    <div class="section-heading">How are you <em>today?</em></div>
+
+    <div id="form-inner">
+      <!-- Scores section -->
+      <div class="form-group">
+        <label class="form-label">Overall wellbeing<small>1 = very poor, 10 = great</small></label>
+        <div class="slider-value" id="val-wellbeing">5</div>
+        <input class="score-slider" type="range" min="1" max="10" value="5" id="sl-wellbeing"
+          oninput="document.getElementById('val-wellbeing').textContent=this.value">
+        <div class="slider-labels"><span>Poor</span><span>Great</span></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Heart health<small>1 = very bad, 10 = no issues</small></label>
+        <div class="slider-value" id="val-heart">5</div>
+        <input class="score-slider" type="range" min="1" max="10" value="5" id="sl-heart"
+          oninput="document.getElementById('val-heart').textContent=this.value">
+        <div class="slider-labels"><span>Bad</span><span>Good</span></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Spinal health<small>1 = severe pain, 10 = no pain</small></label>
+        <div class="slider-value" id="val-spinal">5</div>
+        <input class="score-slider" type="range" min="1" max="10" value="5" id="sl-spinal"
+          oninput="document.getElementById('val-spinal').textContent=this.value">
+        <div class="slider-labels"><span>Severe</span><span>None</span></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Head / migraine<small>1 = severe, 10 = none</small></label>
+        <div class="slider-value" id="val-headache">5</div>
+        <input class="score-slider" type="range" min="1" max="10" value="5" id="sl-headache"
+          oninput="document.getElementById('val-headache').textContent=this.value">
+        <div class="slider-labels"><span>Severe</span><span>None</span></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Stomach health<small>1 = very bad, 10 = great</small></label>
+        <div class="slider-value" id="val-stomach">5</div>
+        <input class="score-slider" type="range" min="1" max="10" value="5" id="sl-stomach"
+          oninput="document.getElementById('val-stomach').textContent=this.value">
+        <div class="slider-labels"><span>Bad</span><span>Great</span></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Gut health<small>1 = very bad, 10 = great</small></label>
+        <div class="slider-value" id="val-gut">5</div>
+        <input class="score-slider" type="range" min="1" max="10" value="5" id="sl-gut"
+          oninput="document.getElementById('val-gut').textContent=this.value">
+        <div class="slider-labels"><span>Bad</span><span>Great</span></div>
+      </div>
+
+      <!-- Menstrual -->
+      <div class="form-group">
+        <label class="form-label">Cycle day</label>
+        <div class="num-input">
+          <button class="num-btn" onclick="changeNum('cycle_day',-1)">−</button>
+          <div class="num-val" id="num-cycle_day">1</div>
+          <button class="num-btn" onclick="changeNum('cycle_day',1)">+</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Menstrual pain<small>1 = severe, 10 = none, 0 = N/A</small></label>
+        <div class="slider-value" id="val-menstrual">0</div>
+        <input class="score-slider" type="range" min="0" max="10" value="0" id="sl-menstrual"
+          oninput="document.getElementById('val-menstrual').textContent=this.value">
+        <div class="slider-labels"><span>Severe</span><span>None / N/A</span></div>
+      </div>
+
+      <!-- Mental health -->
+      <div class="form-group">
+        <label class="form-label">Mental health</label>
+        <div class="multi-select" id="ms-mental">
+          <div class="ms-option" onclick="toggleMs(this,'mental')">Anxious</div>
+          <div class="ms-option" onclick="toggleMs(this,'mental')">Happy</div>
+          <div class="ms-option" onclick="toggleMs(this,'mental')">Sad</div>
+          <div class="ms-option" onclick="toggleMs(this,'mental')">Neutral</div>
+          <div class="ms-option" onclick="toggleMs(this,'mental')">Worried</div>
+          <div class="ms-option" onclick="toggleMs(this,'mental')">Excited</div>
+          <div class="ms-option" onclick="toggleMs(this,'mental')">Fatigued</div>
+        </div>
+      </div>
+
+      <!-- Heart symptoms -->
+      <div class="form-group">
+        <label class="form-label">Heart symptoms</label>
+        <div class="multi-select" id="ms-heart">
+          <div class="ms-option" onclick="toggleMs(this,'heart')">Racing heart</div>
+          <div class="ms-option" onclick="toggleMs(this,'heart')">Chest pain</div>
+          <div class="ms-option" onclick="toggleMs(this,'heart')">Heart burn</div>
+          <div class="ms-option" onclick="toggleMs(this,'heart')">Palpitations</div>
+          <div class="ms-option" onclick="toggleMs(this,'heart')">Shortness of breath</div>
+          <div class="ms-option" onclick="toggleMs(this,'heart')">None</div>
+        </div>
+      </div>
+
+      <!-- Spinal -->
+      <div class="form-group">
+        <label class="form-label">Spinal / body pain areas</label>
+        <div class="multi-select" id="ms-spinal">
+          <div class="ms-option" onclick="toggleMs(this,'spinal')">Neck</div>
+          <div class="ms-option" onclick="toggleMs(this,'spinal')">Shoulders</div>
+          <div class="ms-option" onclick="toggleMs(this,'spinal')">Upper back</div>
+          <div class="ms-option" onclick="toggleMs(this,'spinal')">Lower back</div>
+          <div class="ms-option" onclick="toggleMs(this,'spinal')">Left leg</div>
+          <div class="ms-option" onclick="toggleMs(this,'spinal')">Right leg</div>
+          <div class="ms-option" onclick="toggleMs(this,'spinal')">Left arm</div>
+          <div class="ms-option" onclick="toggleMs(this,'spinal')">Right arm</div>
+          <div class="ms-option" onclick="toggleMs(this,'spinal')">None</div>
+        </div>
+      </div>
+
+      <!-- Headache -->
+      <div class="form-group">
+        <label class="form-label">Headache location</label>
+        <div class="multi-select" id="ms-headache">
+          <div class="ms-option" onclick="toggleMs(this,'headache')">Left side</div>
+          <div class="ms-option" onclick="toggleMs(this,'headache')">Right side</div>
+          <div class="ms-option" onclick="toggleMs(this,'headache')">Forehead</div>
+          <div class="ms-option" onclick="toggleMs(this,'headache')">Back of head</div>
+          <div class="ms-option" onclick="toggleMs(this,'headache')">Whole head</div>
+          <div class="ms-option" onclick="toggleMs(this,'headache')">None</div>
+        </div>
+      </div>
+
+      <!-- Stomach -->
+      <div class="form-group">
+        <label class="form-label">Stomach symptoms</label>
+        <div class="multi-select" id="ms-stomach">
+          <div class="ms-option" onclick="toggleMs(this,'stomach')">Stomach ache</div>
+          <div class="ms-option" onclick="toggleMs(this,'stomach')">Nauseous</div>
+          <div class="ms-option" onclick="toggleMs(this,'stomach')">Indigestion</div>
+          <div class="ms-option" onclick="toggleMs(this,'stomach')">Cramping</div>
+          <div class="ms-option" onclick="toggleMs(this,'stomach')">Bloating</div>
+          <div class="ms-option" onclick="toggleMs(this,'stomach')">None</div>
+        </div>
+      </div>
+
+      <!-- Cycle -->
+      <div class="form-group">
+        <label class="form-label">Cycle / bleeding</label>
+        <div class="multi-select" id="ms-cycle">
+          <div class="ms-option" onclick="toggleMs(this,'cycle')">No bleeding</div>
+          <div class="ms-option" onclick="toggleMs(this,'cycle')">Spotting</div>
+          <div class="ms-option" onclick="toggleMs(this,'cycle')">Light bleeding</div>
+          <div class="ms-option" onclick="toggleMs(this,'cycle')">Heavy bleeding</div>
+          <div class="ms-option" onclick="toggleMs(this,'cycle')">Cramps</div>
+          <div class="ms-option" onclick="toggleMs(this,'cycle')">Moody</div>
+          <div class="ms-option" onclick="toggleMs(this,'cycle')">Dark blood</div>
+        </div>
+      </div>
+
+      <!-- Gut -->
+      <div class="form-group">
+        <label class="form-label">Gut / bowel</label>
+        <div class="multi-select" id="ms-gut">
+          <div class="ms-option" onclick="toggleMs(this,'gut')">Normal</div>
+          <div class="ms-option" onclick="toggleMs(this,'gut')">No movement</div>
+          <div class="ms-option" onclick="toggleMs(this,'gut')">Loose</div>
+          <div class="ms-option" onclick="toggleMs(this,'gut')">Constipated</div>
+          <div class="ms-option" onclick="toggleMs(this,'gut')">Diarrhoea</div>
+        </div>
+      </div>
+
+      <!-- Medications -->
+      <div class="form-group">
+        <label class="form-label">Medications taken</label>
+        <div class="multi-select" id="ms-meds">
+          <div class="ms-option" onclick="toggleMs(this,'meds')">CBD</div>
+          <div class="ms-option" onclick="toggleMs(this,'meds')">Neurofen</div>
+          <div class="ms-option" onclick="toggleMs(this,'meds')">Panadol</div>
+          <div class="ms-option" onclick="toggleMs(this,'meds')">Heart burn tablet</div>
+          <div class="ms-option" onclick="toggleMs(this,'meds')">Magnesium</div>
+          <div class="ms-option" onclick="toggleMs(this,'meds')">Antihistamine</div>
+          <div class="ms-option" onclick="toggleMs(this,'meds')">Zantac</div>
+          <div class="ms-option" onclick="toggleMs(this,'meds')">None</div>
+        </div>
+        <div style="margin-top:10px;">
+          <input class="text-input" placeholder="Other medications..." id="meds-other">
+        </div>
+      </div>
+
+      <!-- Diet -->
+      <div class="form-group">
+        <label class="form-label">Diet today</label>
+        <div class="multi-select" id="ms-diet">
+          <div class="ms-option" onclick="toggleMs(this,'diet')">1-2 coffees</div>
+          <div class="ms-option" onclick="toggleMs(this,'diet')">3+ coffees</div>
+          <div class="ms-option" onclick="toggleMs(this,'diet')">Under 2L water</div>
+          <div class="ms-option" onclick="toggleMs(this,'diet')">2L+ water</div>
+          <div class="ms-option" onclick="toggleMs(this,'diet')">Sugar</div>
+          <div class="ms-option" onclick="toggleMs(this,'diet')">Gluten</div>
+          <div class="ms-option" onclick="toggleMs(this,'diet')">Dairy</div>
+          <div class="ms-option" onclick="toggleMs(this,'diet')">Soy</div>
+          <div class="ms-option" onclick="toggleMs(this,'diet')">Alcohol</div>
+          <div class="ms-option" onclick="toggleMs(this,'diet')">Take away</div>
+          <div class="ms-option" onclick="toggleMs(this,'diet')">Protein</div>
+        </div>
+        <div style="margin-top:10px;">
+          <textarea class="text-input" rows="2" placeholder="Anything else worth noting about diet..." id="diet-notes"></textarea>
+        </div>
+      </div>
+
+      <!-- Extra notes -->
+      <div class="form-group">
+        <label class="form-label">Any other notes</label>
+        <textarea class="text-input" rows="3" id="extra-notes" placeholder="Anything else that happened today..."></textarea>
+      </div>
+
+      <button class="submit-btn" onclick="submitCheckin()">Save today's check-in</button>
+    </div>
+
+    <div class="submitted-state" id="submitted-state">
+      <div class="submitted-icon">✓</div>
+      <h2>All done, Lisa.</h2>
+      <p>Your check-in has been saved.<br>Keep it up — the more data, the better the insights.</p>
+      <br>
+      <button class="submit-btn" style="width:auto;padding:14px 32px;" onclick="newEntry()">Add another entry</button>
+    </div>
+  </div>
+
+  <!-- TRENDS VIEW -->
+  <div class="view main" id="view-trends">
+    <div class="section-heading">Trends & <em>patterns</em></div>
+
+    <div class="card">
+      <div class="card-title">Wellbeing over time</div>
+      <div class="chart-container">
+        <canvas id="chart-wellbeing"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Key health scores</div>
+      <div class="chart-container">
+        <canvas id="chart-scores"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Menstrual pain vs cycle day</div>
+      <div class="chart-container">
+        <canvas id="chart-cycle"></canvas>
+      </div>
+    </div>
+
+    <div class="card" id="triggers-card">
+      <div class="card-title">Common diet on bad days</div>
+      <div id="triggers-list"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Symptom frequency</div>
+      <div class="chart-container">
+        <canvas id="chart-symptoms"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHARE VIEW -->
+  <div class="view main" id="view-share">
+    <div class="share-section">
+      <h2>Doctor's summary</h2>
+      <p>A clear, clinical summary of Lisa's recent health data to share with her health team.</p>
+    </div>
+
+    <div class="share-card" id="doctor-summary"></div>
+
+    <div class="insight-card" id="doctor-insight" style="margin-top:4px;">
+      <div class="insight-label">AI clinical summary</div>
+      <div class="insight-loading">
+        <div class="dot-pulse"><span></span><span></span><span></span></div>
+        Generating summary...
+      </div>
+    </div>
+
+    <button class="copy-btn" onclick="copyReport()">Copy report to clipboard</button>
+  </div>
+
+  <!-- Bottom nav -->
+  <nav class="nav">
+    <button class="nav-btn active" onclick="showView('home',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Home
+    </button>
+    <button class="nav-btn" onclick="showView('checkin',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      Check-in
+    </button>
+    <button class="nav-btn" onclick="showView('trends',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Trends
+    </button>
+    <button class="nav-btn" onclick="showView('share',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+      Share
+    </button>
+  </nav>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+// ── SEED DATA FROM SPREADSHEET ──────────────────────────────────────────────
+const SEED_DATA = [{"date":"2025-07-29","wellbeing":4,"spinal":3,"heart":3,"headache":5,"stomach":4,"gut":4,"cycle_day":19,"menstrual_pain":1,"num_medications":1,"num_vitamins":0.0,"heart_notes":"","mental_notes":"Felt / feeling anxious","spinal_notes":"Neck pain","headache_notes":"Right side head ache","stomach_notes":"Nauseous","cycle_notes":"No bleeding","gut_notes":"No poo","body_notes":"Left leg","medication_notes":"Magnesium","diet_notes":"1-2 Coffee","red_flag":true},{"date":"2025-07-29","wellbeing":5,"spinal":5,"heart":6,"headache":4,"stomach":7,"gut":6,"cycle_day":3,"menstrual_pain":2,"num_medications":0,"num_vitamins":2.0,"heart_notes":"Racing heart, Heart Burn, Struggled to sleep, racing heart","mental_notes":"Happy, Took the day off","spinal_notes":"Neck pain, Lower back pain, Great neck rub","headache_notes":"Whole head, head ache, no medication","stomach_notes":"no problem","cycle_notes":"No bleeding, no problems","gut_notes":"Normal poo, Finally","body_notes":"Left leg, thigh","medication_notes":"CBD","diet_notes":"1-2 Coffee, not very hungry","red_flag":true},{"date":"2025-07-29","wellbeing":7,"spinal":5,"heart":9,"headache":7,"stomach":8,"gut":8,"cycle_day":20,"menstrual_pain":0,"num_medications":1,"num_vitamins":0.0,"heart_notes":"","mental_notes":"Felt / feeling anxious","spinal_notes":"Neck pain, Shoulder pain, Slight neck pain ","headache_notes":"","stomach_notes":"Bit sore in the morning before toilet ","cycle_notes":"","gut_notes":"Normal poo","body_notes":"Left leg, When I stand up","medication_notes":"CBD","diet_notes":"More than 2 coffee, Two were half strength ","red_flag":false},{"date":"2025-07-30","wellbeing":8,"spinal":6,"heart":9,"headache":7,"stomach":7,"gut":7,"cycle_day":21,"menstrual_pain":1,"num_medications":0,"num_vitamins":1.0,"heart_notes":"","mental_notes":"Happy, Neutral","spinal_notes":"Neck pain, Slight in morning ","headache_notes":"","stomach_notes":"","cycle_notes":"","gut_notes":"No poo","body_notes":"Right leg","medication_notes":"CBD","diet_notes":"1-2 Coffee, Less than 2L water","red_flag":false},{"date":"2025-08-02","wellbeing":7,"spinal":8,"heart":6,"headache":7,"stomach":7,"gut":7,"cycle_day":23,"menstrual_pain":3,"num_medications":1,"num_vitamins":0.0,"heart_notes":"Racing heart","mental_notes":"Neutral","spinal_notes":"","headache_notes":"","stomach_notes":"Stomach ache, Mild and temporary ","cycle_notes":"No bleeding, Moody","gut_notes":"No poo","body_notes":"","medication_notes":"CBD","diet_notes":"More than 2 coffee, More than 2L water, Sugar, Biltong, toast with marmalade, meatballs and rice, froyo ","red_flag":false},{"date":"2025-08-02","wellbeing":7,"spinal":8,"heart":6,"headache":9,"stomach":7,"gut":7,"cycle_day":24,"menstrual_pain":0,"num_medications":1,"num_vitamins":0.0,"heart_notes":"Racing heart, Chest pain, Could be anxiety ","mental_notes":"Felt / feeling anxious, Not all day, just at the end ","spinal_notes":"","headache_notes":"","stomach_notes":"","cycle_notes":"","gut_notes":"No poo","body_notes":"","medication_notes":"CBD","diet_notes":"More than 2 coffee, Less than 2L water, Dairy","red_flag":false},{"date":"2025-08-03","wellbeing":7,"spinal":8,"heart":7,"headache":1,"stomach":7,"gut":8,"cycle_day":24,"menstrual_pain":0,"num_medications":0,"num_vitamins":0.0,"heart_notes":"Racing heart, Chest pain, Heart Burn, Dunno which one, just a fluttering feeling again ","mental_notes":"Felt / feeling anxious, Maybe anxiety with the fluttering maybe not ","spinal_notes":"Back pain, Middle back pain","headache_notes":"","stomach_notes":"","cycle_notes":"Moody","gut_notes":"Normal poo","body_notes":"","medication_notes":"","diet_notes":"1-2 Coffee, Less than 2L water, Sugar, Gluten, Pizza, scone, coffee, tea, 1.5lt water ","red_flag":true},{"date":"2025-08-04","wellbeing":8,"spinal":8,"heart":8,"headache":8,"stomach":8,"gut":8,"cycle_day":25,"menstrual_pain":4,"num_medications":5,"num_vitamins":0.0,"heart_notes":"Racing heart, Slightly racing in the morning ","mental_notes":"Neutral","spinal_notes":"","headache_notes":"","stomach_notes":"","cycle_notes":"Cramps, Sore lower back ","gut_notes":"No poo","body_notes":"Cold sore ","medication_notes":"Neurofen, Cold sore pills","diet_notes":"More than 2 coffee, More than 2L water, Sugar, Gluten, Dairy","red_flag":true},{"date":"2025-08-06","wellbeing":7,"spinal":7,"heart":6,"headache":8,"stomach":7,"gut":7,"cycle_day":1,"menstrual_pain":7,"num_medications":1,"num_vitamins":0.0,"heart_notes":"Heart Burn, Took medication for heart health, Just heart burn tablet ","mental_notes":"Sad, Neutral","spinal_notes":"","headache_notes":"","stomach_notes":"Indigestion","cycle_notes":"Light bleeding, Cramps, Bloating, Extremely heavy. ","gut_notes":"No poo","body_notes":"","medication_notes":"Heart burn","diet_notes":"1-2 Coffee, More than 2L water, Sugar, Gluten, Soy ","red_flag":true},{"date":"2025-08-08","wellbeing":8,"spinal":6,"heart":7,"headache":6,"stomach":7,"gut":7,"cycle_day":3,"menstrual_pain":3,"num_medications":0,"num_vitamins":0.0,"heart_notes":"Racing heart","mental_notes":"Happy, Neutral","spinal_notes":"Neck pain","headache_notes":"Left side head ache","stomach_notes":"","cycle_notes":"Light bleeding","gut_notes":"No poo","body_notes":"Left leg","medication_notes":"","diet_notes":"More than 2 coffee, 4 x half coffees with soy ","red_flag":false},{"date":"2025-08-10","wellbeing":5,"spinal":3,"heart":9,"headache":4,"stomach":8,"gut":8,"cycle_day":4,"menstrual_pain":7,"num_medications":7,"num_vitamins":0.0,"heart_notes":"","mental_notes":"Happy, Neutral","spinal_notes":"Neck pain, Shoulder pain, Back pain, Took medication for spinal health","headache_notes":"Left side head ache, Back head, head ache, Took medication for head ache / migraine","stomach_notes":"","cycle_notes":"Heavy bleeding, Light bleeding","gut_notes":"No poo","body_notes":"","medication_notes":"Neurofen, CBD","diet_notes":"1-2 Coffee, More than 2L water, Take away","red_flag":true},{"date":"2025-08-10","wellbeing":7,"spinal":4,"heart":5,"headache":6,"stomach":5,"gut":6,"cycle_day":5,"menstrual_pain":5,"num_medications":0,"num_vitamins":0.0,"heart_notes":"Racing heart, Heart Burn, Not sure what it is. Very reactive today ","mental_notes":"Felt / feeling anxious, Neutral","spinal_notes":"Neck pain, Shoulder pain, Back pain","headache_notes":"Left side head ache, Back head, head ache","stomach_notes":"Stomach ache","cycle_notes":"Spotting, Dark blood ","gut_notes":"No poo","body_notes":"","medication_notes":"","diet_notes":"1-2 Coffee, More than 2L water, Alcohol, Sugar, Dairy","red_flag":true},{"date":"2025-08-11","wellbeing":6,"spinal":4,"heart":6,"headache":5,"stomach":7,"gut":6,"cycle_day":6,"menstrual_pain":8,"num_medications":1,"num_vitamins":0.0,"heart_notes":"Heart Burn","mental_notes":"Felt / feeling anxious","spinal_notes":"Neck pain, Shoulder pain, Back pain, Lower back pain, Took medication for spinal health","headache_notes":"Left side head ache, Right side head ache, Back head, head ache, Took medication for head ache / migraine","stomach_notes":"Indigestion, Took medication for stomach","cycle_notes":"Light bleeding","gut_notes":"Normal poo","body_notes":"","medication_notes":"Neurofen, Heart burn","diet_notes":"1-2 Coffee, Less than 2L water, Gluten","red_flag":true},{"date":"2025-08-22","wellbeing":6,"spinal":7,"heart":6,"headache":7,"stomach":7,"gut":4,"cycle_day":20,"menstrual_pain":0,"num_medications":0,"num_vitamins":0.0,"heart_notes":"Chest pain, Hadn\u2019t eaten for almost 24 hours ","mental_notes":"Neutral","spinal_notes":"Neck pain, Lower back pain","headache_notes":"Whole head, head ache, Slight headache nothing terrible ","stomach_notes":"Stomach ache, Stomach cramps, Nauseous, Worse yesterday after eating breakfast - bacon and egg roll","cycle_notes":"Moody","gut_notes":"No poo","body_notes":"Left leg","medication_notes":"","diet_notes":"1-2 Coffee, Take away, Gluten","red_flag":true},{"date":"2025-09-30","wellbeing":5,"spinal":8,"heart":8,"headache":8,"stomach":2,"gut":4,"cycle_day":3,"menstrual_pain":3,"num_medications":2,"num_vitamins":0.0,"heart_notes":"Heart Burn","mental_notes":"Felt / feeling anxious, Funny about my throat atm and when I feel unwell I tend to feel anxious ","spinal_notes":"","headache_notes":"","stomach_notes":"Stomach ache, Indigestion, Stomach cramps, Nauseous","cycle_notes":"Heavy bleeding, Cramps, Bloating","gut_notes":"No poo","body_notes":"","medication_notes":"CBD, Stomach pills ","diet_notes":"1-2 Coffee, More than 2L water, Sugar, Protein","red_flag":true},{"date":"2025-10-02","wellbeing":8,"spinal":6,"heart":8,"headache":7,"stomach":5,"gut":2,"cycle_day":5,"menstrual_pain":2,"num_medications":2,"num_vitamins":0.0,"heart_notes":"Heart Burn, Took medication for heart health, Zantac","mental_notes":"Neutral","spinal_notes":"Neck pain, Shoulder pain, Back pain, Lower back pain, Nothing crazy but sore from Pilates ","headache_notes":"Left side head ache","stomach_notes":"Stomach ache, Indigestion, Stomach cramps, Nauseous","cycle_notes":"Light bleeding","gut_notes":"Normal poo, Was not normal. ","body_notes":"Left leg, Was in the office ","medication_notes":"Heart burn, Antihistamine ","diet_notes":"1-2 Coffee, More than 2L water, Gluten","red_flag":true},{"date":"2025-10-03","wellbeing":7,"spinal":6,"heart":9,"headache":3,"stomach":3,"gut":5,"cycle_day":6,"menstrual_pain":0,"num_medications":0,"num_vitamins":0.0,"heart_notes":"","mental_notes":"Happy, Neutral","spinal_notes":"Neck pain, Slight headache ","headache_notes":"Left side head ache","stomach_notes":"Stomach ache, Slight tummy upset","cycle_notes":"Light bleeding","gut_notes":"No poo","body_notes":"","medication_notes":"","diet_notes":"1-2 Coffee, More than 2L water, Gluten, More than 2 meals","red_flag":true},{"date":"2025-10-06","wellbeing":6,"spinal":8,"heart":7,"headache":8,"stomach":3,"gut":4,"cycle_day":7,"menstrual_pain":0,"num_medications":2,"num_vitamins":0.0,"heart_notes":"Heart Burn, Took medication for heart health, Heartburn meds ","mental_notes":"Happy, Neutral","spinal_notes":"Took medication for spinal health, CBD","headache_notes":"","stomach_notes":"Stomach ache, Indigestion, Stomach cramps, Nauseous","cycle_notes":"Spotting","gut_notes":"Not normal","body_notes":"Left leg","medication_notes":"CBD, Heart burn","diet_notes":"1-2 Coffee, More than 2L water, More than 2 meals","red_flag":true},{"date":"2025-10-07","wellbeing":6,"spinal":7,"heart":8,"headache":6,"stomach":5,"gut":5,"cycle_day":10,"menstrual_pain":0,"num_medications":1,"num_vitamins":0.0,"heart_notes":"Chest pain, Heart Burn, Weird pressure and fluttering in the evening","mental_notes":"Felt / feeling anxious","spinal_notes":"","headache_notes":"","stomach_notes":"Stomach ache, Indigestion, Stomach cramps","cycle_notes":"No bleeding","gut_notes":"Normal poo, Wasnt normal - was loose","body_notes":"Left leg, Slight pain ","medication_notes":"Heart burn","diet_notes":"1-2 Coffee, More than 2L water, Sugar, Gluten, Dairy, More than 2 meals","red_flag":false},{"date":"2025-10-08","wellbeing":6,"spinal":7,"heart":7,"headache":4,"stomach":1,"gut":5,"cycle_day":12,"menstrual_pain":0,"num_medications":3,"num_vitamins":0.0,"heart_notes":"Heart Burn","mental_notes":"Felt / feeling anxious, Happy, Neutral","spinal_notes":"Neck pain","headache_notes":"","stomach_notes":"Stomach ache, Indigestion, Stomach cramps, Nauseous, Took medication for stomach","cycle_notes":"Bloating","gut_notes":"Normal poo, Not normal","body_notes":"","medication_notes":"Panadol, Heart burn","diet_notes":"1-2 Coffee, More than 2L water, Sugar, Gluten","red_flag":true},{"date":"2025-12-10","wellbeing":8,"spinal":8,"heart":8,"headache":9,"stomach":6,"gut":5,"cycle_day":18,"menstrual_pain":0,"num_medications":2,"num_vitamins":0.0,"heart_notes":"Heart Burn, Took medication for heart health","mental_notes":"Happy, Excited, Neutral","spinal_notes":"Nothing worth reporting on","headache_notes":"Nothing worth reporting on","stomach_notes":"Indigestion","cycle_notes":"Nothing worth reporting on","gut_notes":"Normal poo","body_notes":"Left arm","medication_notes":"CBD, Heart burn","diet_notes":"1-2 Coffee, More than 2L water, Sugar, Gluten, Dairy","red_flag":false}];
+
+// ── STORAGE ──────────────────────────────────────────────────────────────────
+let DATA = [];
+
+async function loadData() {
+  try {
+    const stored = await window.storage.get('entries');
+    if (stored && stored.value) {
+      DATA = JSON.parse(stored.value);
+    } else {
+      DATA = [...SEED_DATA];
+      await window.storage.set('entries', JSON.stringify(DATA));
+    }
+  } catch {
+    DATA = [...SEED_DATA];
+  }
+  initApp();
+}
+
+async function saveData() {
+  try {
+    await window.storage.set('entries', JSON.stringify(DATA));
+  } catch(e) {
+    console.warn('Storage unavailable, data held in memory only.');
+  }
+}
+
+// ── HELPERS ──────────────────────────────────────────────────────────────────
+const today = () => new Date().toISOString().slice(0,10);
+const fmt = d => new Date(d+'T12:00:00').toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'});
+const scoreColor = v => v >= 7 ? 'good' : v >= 5 ? 'mid' : 'bad';
+
+function scoreColorHex(v) {
+  if (v >= 7) return '#34d399';
+  if (v >= 5) return '#fb923c';
+  return '#f87171';
+}
+
+function getLatest() {
+  if (!DATA.length) return null;
+  return [...DATA].sort((a,b) => b.date.localeCompare(a.date))[0];
+}
+
+function getLast7() {
+  const sorted = [...DATA].sort((a,b) => a.date.localeCompare(b.date));
+  return sorted.slice(-7);
+}
+
+function computeStreak() {
+  const dates = [...new Set(DATA.map(d=>d.date))].sort((a,b)=>b.localeCompare(a));
+  if (!dates.length) return 0;
+  let streak = 0;
+  let cur = new Date();
+  for (const d of dates) {
+    const diff = Math.round((cur - new Date(d+'T12:00:00')) / 86400000);
+    if (diff <= 1) { streak++; cur = new Date(d+'T12:00:00'); }
+    else break;
+  }
+  return streak;
+}
+
+// ── NUM INPUTS ───────────────────────────────────────────────────────────────
+const numVals = { cycle_day: 1 };
+
+function changeNum(key, delta) {
+  numVals[key] = Math.max(0, (numVals[key] || 1) + delta);
+  document.getElementById('num-' + key).textContent = numVals[key];
+}
+
+// ── MULTI-SELECT ─────────────────────────────────────────────────────────────
+const msSelections = {};
+
+function toggleMs(el, group) {
+  if (!msSelections[group]) msSelections[group] = [];
+  const val = el.textContent;
+  if (el.classList.contains('selected')) {
+    el.classList.remove('selected');
+    msSelections[group] = msSelections[group].filter(v => v !== val);
+  } else {
+    el.classList.add('selected');
+    msSelections[group].push(val);
+  }
+}
+
+function getMs(group) {
+  return (msSelections[group] || []).join(', ');
+}
+
+function clearForm() {
+  ['wellbeing','heart','spinal','headache','stomach','gut'].forEach(k => {
+    const sl = document.getElementById('sl-' + k);
+    if (sl) { sl.value = 5; document.getElementById('val-' + k).textContent = 5; }
+  });
+  const slM = document.getElementById('sl-menstrual');
+  if (slM) { slM.value = 0; document.getElementById('val-menstrual').textContent = 0; }
+  numVals.cycle_day = 1;
+  document.getElementById('num-cycle_day').textContent = 1;
+  ['mental','heart','spinal','headache','stomach','cycle','gut','meds','diet'].forEach(g => {
+    msSelections[g] = [];
+    document.querySelectorAll(`#ms-${g} .ms-option, #ms-meds .ms-option`).forEach(el => el.classList.remove('selected'));
+  });
+  document.querySelectorAll('.ms-option').forEach(el => el.classList.remove('selected'));
+  Object.keys(msSelections).forEach(k => msSelections[k] = []);
+  const medsOther = document.getElementById('meds-other');
+  const dietNotes = document.getElementById('diet-notes');
+  const extraNotes = document.getElementById('extra-notes');
+  if (medsOther) medsOther.value = '';
+  if (dietNotes) dietNotes.value = '';
+  if (extraNotes) extraNotes.value = '';
+}
+
+// ── SUBMIT ───────────────────────────────────────────────────────────────────
+async function submitCheckin() {
+  const entry = {
+    date: today(),
+    wellbeing: parseInt(document.getElementById('sl-wellbeing').value),
+    heart: parseInt(document.getElementById('sl-heart').value),
+    spinal: parseInt(document.getElementById('sl-spinal').value),
+    headache: parseInt(document.getElementById('sl-headache').value),
+    stomach: parseInt(document.getElementById('sl-stomach').value),
+    gut: parseInt(document.getElementById('sl-gut').value),
+    cycle_day: numVals.cycle_day,
+    menstrual_pain: parseInt(document.getElementById('sl-menstrual').value),
+    num_medications: (msSelections.meds||[]).filter(x=>x!=='None').length,
+    num_vitamins: 0,
+    mental_notes: getMs('mental'),
+    heart_notes: getMs('heart'),
+    spinal_notes: getMs('spinal'),
+    headache_notes: getMs('headache'),
+    stomach_notes: getMs('stomach'),
+    cycle_notes: getMs('cycle'),
+    gut_notes: getMs('gut'),
+    body_notes: '',
+    medication_notes: [getMs('meds'), document.getElementById('meds-other').value].filter(Boolean).join(', '),
+    diet_notes: [getMs('diet'), document.getElementById('diet-notes').value].filter(Boolean).join(', '),
+    extra_notes: document.getElementById('extra-notes').value,
+    red_flag: false
+  };
+
+  // Simple red flag logic: any score below 4 or menstrual pain above 6
+  const scores = [entry.wellbeing, entry.heart, entry.spinal, entry.headache, entry.stomach, entry.gut];
+  if (scores.some(s => s < 4) || entry.menstrual_pain > 6) entry.red_flag = true;
+
+  DATA.push(entry);
+  await saveData();
+  clearForm();
+
+  document.getElementById('form-inner').style.display = 'none';
+  document.getElementById('submitted-state').classList.add('show');
+  renderHome();
+}
+
+function newEntry() {
+  document.getElementById('form-inner').style.display = 'block';
+  document.getElementById('submitted-state').classList.remove('show');
+}
+
+// ── NAVIGATION ───────────────────────────────────────────────────────────────
+function showView(name, btn) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  if (btn) btn.classList.add('active');
+
+  if (name === 'trends') renderTrends();
+  if (name === 'share') renderShare();
+}
+
+// ── TOAST ────────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── HOME ─────────────────────────────────────────────────────────────────────
+function renderHome() {
+  const latest = getLatest();
+  const last7 = getLast7();
+
+  // Header date
+  document.getElementById('header-date').textContent = new Date().toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long'});
+
+  // Streak
+  const streak = computeStreak();
+  document.getElementById('streak-badge').textContent = streak + ' day streak';
+
+  // Today's banner
+  const todayEntries = DATA.filter(d => d.date === today());
+  const bannerEl = document.getElementById('today-banner');
+  if (todayEntries.length) {
+    bannerEl.innerHTML = `<div class="today-done">Check-in complete for today</div>`;
+  } else {
+    bannerEl.innerHTML = '';
+  }
+
+  // Latest scores
+  const scoresEl = document.getElementById('latest-scores');
+  if (!latest) {
+    scoresEl.innerHTML = '';
+    return;
+  }
+  const scoreItems = [
+    {label:'Wellbeing', val: latest.wellbeing},
+    {label:'Heart', val: latest.heart},
+    {label:'Spinal', val: latest.spinal},
+    {label:'Head', val: latest.headache},
+    {label:'Stomach', val: latest.stomach},
+    {label:'Gut', val: latest.gut},
+  ];
+  scoresEl.innerHTML = scoreItems.map(s => `
+    <div class="score-item">
+      <div class="score-value ${scoreColor(s.val)}">${s.val}</div>
+      <div class="score-label">${s.label}</div>
+    </div>
+  `).join('');
+
+  // Mini chart
+  const miniEl = document.getElementById('mini-chart');
+  const max = 10;
+  miniEl.innerHTML = last7.map(d => {
+    const pct = (d.wellbeing / max) * 100;
+    const col = scoreColorHex(d.wellbeing);
+    return `<div class="mini-bar" style="height:${pct}%;background:${col};"></div>`;
+  }).join('');
+
+  // Red flags
+  const flagDays = DATA.filter(d => d.red_flag).slice(-5).reverse();
+  const flagCard = document.getElementById('red-flag-card');
+  if (flagDays.length) {
+    flagCard.style.display = 'block';
+    document.getElementById('red-flag-list').innerHTML = flagDays.map(d => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:13px;color:var(--muted);">${fmt(d.date)}</span>
+        <span style="font-size:13px;color:var(--danger);">Wellbeing ${d.wellbeing}/10</span>
+      </div>
+    `).join('');
+  } else {
+    flagCard.style.display = 'none';
+  }
+
+  // AI insight
+  generateInsight();
+}
+
+// ── AI INSIGHT ───────────────────────────────────────────────────────────────
+async function generateInsight() {
+  const el = document.getElementById('insight-card');
+  el.innerHTML = `
+    <div class="insight-label">AI insight</div>
+    <div class="insight-loading">
+      <div class="dot-pulse"><span></span><span></span><span></span></div>
+      Analysing your recent data...
+    </div>`;
+
+  const recent = [...DATA].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
+  const summary = recent.map(d =>
+    `${d.date}: wellbeing=${d.wellbeing}, heart=${d.heart}, stomach=${d.stomach}, gut=${d.gut}, diet="${d.diet_notes}", mental="${d.mental_notes}", cycle_day=${d.cycle_day}, menstrual_pain=${d.menstrual_pain}, red_flag=${d.red_flag}`
+  ).join('\n');
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: `You are a compassionate health data analyst reviewing daily health journal entries for a woman named Lisa. Your job is to identify patterns, potential triggers, and notable trends from her recent data. Be concise, specific, and warm. Speak directly to Lisa in second person. Never give medical diagnoses. Keep your response to 3-4 short sentences. Focus on what the data actually shows — no generic advice.`,
+        messages: [{ role: 'user', content: `Here are Lisa's most recent health entries:\n\n${summary}\n\nWhat patterns or insights stand out from this data?` }]
+      })
+    });
+
+    const data = await resp.json();
+    const text = data.content?.find(b => b.type === 'text')?.text || 'Unable to generate insight right now.';
+    el.innerHTML = `<div class="insight-label">AI insight</div><div class="insight-text">${text}</div>`;
+  } catch {
+    el.innerHTML = `<div class="insight-label">AI insight</div><div class="insight-text" style="color:var(--muted);">Connect to the internet to generate AI insights from your data.</div>`;
+  }
+}
+
+// ── TRENDS ───────────────────────────────────────────────────────────────────
+let chartsRendered = false;
+let chartInstances = {};
+
+function renderTrends() {
+  const sorted = [...DATA].sort((a,b) => a.date.localeCompare(b.date));
+
+  // Deduplicate by date - average same-day entries
+  const byDate = {};
+  sorted.forEach(d => {
+    if (!byDate[d.date]) byDate[d.date] = [];
+    byDate[d.date].push(d);
+  });
+
+  const dates = Object.keys(byDate).sort();
+  const avg = (arr, key) => arr.reduce((s, d) => s + (d[key] || 0), 0) / arr.length;
+
+  const labels = dates.map(d => new Date(d+'T12:00:00').toLocaleDateString('en-AU',{day:'numeric',month:'short'}));
+  const wellbeing = dates.map(d => +avg(byDate[d], 'wellbeing').toFixed(1));
+  const heart = dates.map(d => +avg(byDate[d], 'heart').toFixed(1));
+  const stomach = dates.map(d => +avg(byDate[d], 'stomach').toFixed(1));
+  const spinal = dates.map(d => +avg(byDate[d], 'spinal').toFixed(1));
+  const menstrual = dates.map(d => +avg(byDate[d], 'menstrual_pain').toFixed(1));
+  const cycleDay = dates.map(d => +avg(byDate[d], 'cycle_day').toFixed(0));
+
+  const chartDefaults = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#7a7a8c', font: { size: 11 } } } },
+    scales: {
+      x: { ticks: { color: '#7a7a8c', font: { size: 10 }, maxTicksLimit: 6 }, grid: { color: '#2a2a33' } },
+      y: { ticks: { color: '#7a7a8c', font: { size: 10 } }, grid: { color: '#2a2a33' }, min: 0, max: 10 }
+    }
+  };
+
+  const destroy = id => { if (chartInstances[id]) { chartInstances[id].destroy(); } };
+
+  destroy('wellbeing');
+  chartInstances['wellbeing'] = new Chart(document.getElementById('chart-wellbeing'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Wellbeing',
+        data: wellbeing,
+        borderColor: '#c084fc',
+        backgroundColor: 'rgba(192,132,252,0.1)',
+        fill: true,
+        tension: 0.4,
+        pointRadius: 4,
+        pointBackgroundColor: '#c084fc'
+      }]
+    },
+    options: chartDefaults
+  });
+
+  destroy('scores');
+  chartInstances['scores'] = new Chart(document.getElementById('chart-scores'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Heart', data: heart, borderColor: '#f472b6', tension: 0.4, pointRadius: 3, borderWidth: 2 },
+        { label: 'Stomach', data: stomach, borderColor: '#fb923c', tension: 0.4, pointRadius: 3, borderWidth: 2 },
+        { label: 'Spinal', data: spinal, borderColor: '#34d399', tension: 0.4, pointRadius: 3, borderWidth: 2 },
+      ]
+    },
+    options: { ...chartDefaults, plugins: { legend: { labels: { color: '#7a7a8c', font: { size: 11 } } } } }
+  });
+
+  destroy('cycle');
+  chartInstances['cycle'] = new Chart(document.getElementById('chart-cycle'), {
+    type: 'scatter',
+    data: {
+      datasets: [{
+        label: 'Menstrual pain by cycle day',
+        data: sorted.map(d => ({ x: d.cycle_day, y: d.menstrual_pain })),
+        backgroundColor: 'rgba(244,114,182,0.6)',
+        pointRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#7a7a8c', font: { size: 11 } } } },
+      scales: {
+        x: { title: { display: true, text: 'Cycle day', color: '#7a7a8c' }, ticks: { color: '#7a7a8c', font: { size: 10 } }, grid: { color: '#2a2a33' }, min: 0 },
+        y: { title: { display: true, text: 'Pain (1-10)', color: '#7a7a8c' }, ticks: { color: '#7a7a8c', font: { size: 10 } }, grid: { color: '#2a2a33' }, min: 0, max: 10 }
+      }
+    }
+  });
+
+  // Diet triggers on bad days
+  const badDays = DATA.filter(d => d.wellbeing <= 5 || d.red_flag);
+  const dietCount = {};
+  badDays.forEach(d => {
+    const items = d.diet_notes.split(',').map(x => x.trim()).filter(Boolean);
+    items.forEach(item => {
+      const key = item.split(' ')[0];
+      if (key.length > 2) dietCount[key] = (dietCount[key] || 0) + 1;
+    });
+  });
+
+  const sortedDiet = Object.entries(dietCount).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  document.getElementById('triggers-list').innerHTML = sortedDiet.map(([label, count]) => `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+      <div style="font-size:13px;color:var(--text);min-width:100px;">${label}</div>
+      <div style="flex:1;background:var(--surface2);border-radius:4px;height:6px;overflow:hidden;">
+        <div style="width:${(count/badDays.length*100).toFixed(0)}%;height:100%;background:var(--warn);border-radius:4px;"></div>
+      </div>
+      <div style="font-size:12px;color:var(--muted);">${count}x</div>
+    </div>
+  `).join('') || '<div style="color:var(--muted);font-size:13px;">Not enough data yet.</div>';
+
+  // Symptom frequency
+  const symptomKeys = ['heart_notes','mental_notes','spinal_notes','headache_notes','stomach_notes'];
+  const symptomMap = { 'Racing heart':0,'Heart Burn':0,'Anxious':0,'Neck pain':0,'Stomach ache':0,'Indigestion':0,'Nauseous':0,'Back pain':0,'Headache':0,'No poo':0 };
+
+  DATA.forEach(d => {
+    const all = symptomKeys.map(k => d[k]).join(' ');
+    if (/racing heart/i.test(all)) symptomMap['Racing heart']++;
+    if (/heart burn|heartburn/i.test(all)) symptomMap['Heart Burn']++;
+    if (/anxious/i.test(all)) symptomMap['Anxious']++;
+    if (/neck pain/i.test(all)) symptomMap['Neck pain']++;
+    if (/stomach ache/i.test(all)) symptomMap['Stomach ache']++;
+    if (/indigestion/i.test(all)) symptomMap['Indigestion']++;
+    if (/nauseous/i.test(all)) symptomMap['Nauseous']++;
+    if (/back pain/i.test(all)) symptomMap['Back pain']++;
+    if (/head ache|headache/i.test(all)) symptomMap['Headache']++;
+    if (/no poo/i.test(d.gut_notes)) symptomMap['No poo']++;
+  });
+
+  destroy('symptoms');
+  chartInstances['symptoms'] = new Chart(document.getElementById('chart-symptoms'), {
+    type: 'bar',
+    data: {
+      labels: Object.keys(symptomMap),
+      datasets: [{
+        data: Object.values(symptomMap),
+        backgroundColor: 'rgba(192,132,252,0.6)',
+        borderColor: '#c084fc',
+        borderWidth: 1,
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#7a7a8c', font: { size: 9 }, maxRotation: 45 }, grid: { display: false } },
+        y: { ticks: { color: '#7a7a8c', font: { size: 10 }, stepSize: 1 }, grid: { color: '#2a2a33' }, min: 0 }
+      }
+    }
+  });
+}
+
+// ── SHARE / DOCTOR VIEW ───────────────────────────────────────────────────────
+async function renderShare() {
+  const recent = [...DATA].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,30);
+  const avgWell = (recent.reduce((s,d)=>s+d.wellbeing,0)/recent.length).toFixed(1);
+  const avgHeart = (recent.reduce((s,d)=>s+d.heart,0)/recent.length).toFixed(1);
+  const avgStomach = (recent.reduce((s,d)=>s+d.stomach,0)/recent.length).toFixed(1);
+  const redFlags = recent.filter(d=>d.red_flag).length;
+  const menstrualEntries = recent.filter(d=>d.menstrual_pain > 0);
+  const avgMenstrual = menstrualEntries.length
+    ? (menstrualEntries.reduce((s,d)=>s+d.menstrual_pain,0)/menstrualEntries.length).toFixed(1)
+    : 'N/A';
+
+  const firstDate = recent[recent.length-1]?.date;
+  const lastDate = recent[0]?.date;
+
+  document.getElementById('doctor-summary').innerHTML = `
+    <div class="share-row">
+      <span class="share-row-label">Patient</span>
+      <span class="share-row-val">Lisa</span>
+    </div>
+    <div class="share-row">
+      <span class="share-row-label">Period</span>
+      <span class="share-row-val">${fmt(firstDate)} – ${fmt(lastDate)}</span>
+    </div>
+    <div class="share-row">
+      <span class="share-row-label">Total entries</span>
+      <span class="share-row-val">${recent.length}</span>
+    </div>
+    <div class="share-row">
+      <span class="share-row-label">Avg wellbeing</span>
+      <span class="share-row-val" style="color:${scoreColorHex(avgWell)}">${avgWell} / 10</span>
+    </div>
+    <div class="share-row">
+      <span class="share-row-label">Avg heart health</span>
+      <span class="share-row-val" style="color:${scoreColorHex(avgHeart)}">${avgHeart} / 10</span>
+    </div>
+    <div class="share-row">
+      <span class="share-row-label">Avg stomach health</span>
+      <span class="share-row-val" style="color:${scoreColorHex(avgStomach)}">${avgStomach} / 10</span>
+    </div>
+    <div class="share-row">
+      <span class="share-row-label">Avg menstrual pain</span>
+      <span class="share-row-val">${avgMenstrual} / 10</span>
+    </div>
+    <div class="share-row">
+      <span class="share-row-label">Red flag days</span>
+      <span class="share-row-val" style="color:var(--danger)">${redFlags} of ${recent.length}</span>
+    </div>
+  `;
+
+  // AI clinical summary
+  const insightEl = document.getElementById('doctor-insight');
+  const summary = recent.slice(0,15).map(d =>
+    `${d.date}: wellbeing=${d.wellbeing}, heart=${d.heart}, stomach=${d.stomach}, gut=${d.gut}, spinal=${d.spinal}, cycle_day=${d.cycle_day}, menstrual_pain=${d.menstrual_pain}, diet="${d.diet_notes}", symptoms: heart="${d.heart_notes}", mental="${d.mental_notes}", stomach="${d.stomach_notes}", red_flag=${d.red_flag}`
+  ).join('\n');
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: `You are summarising a patient's health journal data for their doctor or health team. Be clinical, factual, and concise. Structure your response with clear observations about patterns in the data. Mention recurring symptoms, potential triggers you can identify, and anything that stands out as worth clinical attention. Do not diagnose. Keep it to 4-6 sentences.`,
+        messages: [{ role: 'user', content: `Patient name: Lisa. Recent health journal data:\n\n${summary}\n\nProvide a clinical summary for her health team.` }]
+      })
+    });
+    const data = await resp.json();
+    const text = data.content?.find(b => b.type === 'text')?.text || 'Unable to generate summary.';
+    insightEl.innerHTML = `<div class="insight-label">AI clinical summary</div><div class="insight-text">${text}</div>`;
+  } catch {
+    insightEl.innerHTML = `<div class="insight-label">AI clinical summary</div><div class="insight-text" style="color:var(--muted);">Connect to the internet to generate AI summaries.</div>`;
+  }
+}
+
+async function copyReport() {
+  const recent = [...DATA].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,30);
+  const text = recent.map(d =>
+    `${d.date} | Wellbeing: ${d.wellbeing} | Heart: ${d.heart} | Stomach: ${d.stomach} | Gut: ${d.gut} | Spinal: ${d.spinal} | Menstrual pain: ${d.menstrual_pain} | Cycle day: ${d.cycle_day} | Diet: ${d.diet_notes} | Notes: ${[d.heart_notes,d.mental_notes,d.stomach_notes,d.gut_notes].filter(Boolean).join('; ')} | Red flag: ${d.red_flag}`
+  ).join('\n');
+
+  try {
+    await navigator.clipboard.writeText('LISA HEALTH REPORT\n\n' + text);
+    showToast('Report copied to clipboard');
+  } catch {
+    showToast('Unable to copy — try selecting the text manually');
+  }
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+function initApp() {
+  renderHome();
+}
+
+loadData();
+</script>
+</body>
+</html>
