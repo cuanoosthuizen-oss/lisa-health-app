@@ -1246,19 +1246,16 @@ async function generateInsight() {
   ).join('\n');
 
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    const resp = await fetch('/.netlify/functions/ai-insight', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        system: `You are a compassionate health data analyst reviewing daily health journal entries for a woman named Lisa. Your job is to identify patterns, potential triggers, and notable trends from her recent data. Be concise, specific, and warm. Speak directly to Lisa in second person. Never give medical diagnoses. Keep your response to 3-4 short sentences. Focus on what the data actually shows — no generic advice.`,
-        messages: [{ role: 'user', content: `Here are Lisa's most recent health entries:\n\n${summary}\n\nWhat patterns or insights stand out from this data?` }]
+        data: `Here are Lisa's most recent health entries:\n\n${summary}\n\nWhat patterns or insights stand out from this data?`
       })
     });
 
-    const data = await resp.json();
-    const text = data.content?.find(b => b.type === 'text')?.text || 'Unable to generate insight right now.';
+    const result = await resp.json();
+    const text = result.insight || 'Unable to generate insight right now.';
     el.innerHTML = `<div class="insight-label">AI insight</div><div class="insight-text">${text}</div>`;
   } catch {
     el.innerHTML = `<div class="insight-label">AI insight</div><div class="insight-text" style="color:var(--muted);">Connect to the internet to generate AI insights from your data.</div>`;
@@ -1479,18 +1476,16 @@ async function renderShare() {
   ).join('\n');
 
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    const resp = await fetch('/.netlify/functions/ai-insight', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        system: `You are summarising a patient's health journal data for their doctor or health team. Be clinical, factual, and concise. Structure your response with clear observations about patterns in the data. Mention recurring symptoms, potential triggers you can identify, and anything that stands out as worth clinical attention. Do not diagnose. Keep it to 4-6 sentences.`,
-        messages: [{ role: 'user', content: `Patient name: Lisa. Recent health journal data:\n\n${summary}\n\nProvide a clinical summary for her health team.` }]
+        type: 'clinical',
+        data: `Patient name: Lisa. Recent health journal data:\n\n${summary}\n\nProvide a clinical summary for her health team.`
       })
     });
-    const data = await resp.json();
-    const text = data.content?.find(b => b.type === 'text')?.text || 'Unable to generate summary.';
+    const result = await resp.json();
+    const text = result.insight || 'Unable to generate summary.';
     insightEl.innerHTML = `<div class="insight-label">AI clinical summary</div><div class="insight-text">${text}</div>`;
   } catch {
     insightEl.innerHTML = `<div class="insight-label">AI clinical summary</div><div class="insight-text" style="color:var(--muted);">Connect to the internet to generate AI summaries.</div>`;
