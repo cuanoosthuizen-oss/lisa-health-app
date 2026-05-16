@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0d0d0f">
@@ -89,7 +89,7 @@
     flex: 1;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    padding-bottom: 90px;
+    padding-bottom: calc(160px + env(safe-area-inset-bottom, 0px));
   }
 
   .main::-webkit-scrollbar { display: none; }
@@ -106,7 +106,7 @@
     backdrop-filter: blur(20px);
     border-top: 1px solid var(--border);
     display: flex;
-    padding: 12px 8px 20px;
+    padding: 12px 8px calc(20px + env(safe-area-inset-bottom, 0px));
     z-index: 100;
   }
 
@@ -136,6 +136,9 @@
   /* Views */
   .view { display: none; }
   .view.active { display: block; }
+
+  /* Hide bottom nav when settings is active */
+  body.settings-open .nav { display: none; }
 
   /* Cards */
   .card {
@@ -371,6 +374,27 @@
     text-align: center;
   }
 
+  /* Range filter buttons */
+  .range-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-family: var(--font-sans);
+    color: var(--muted);
+    cursor: pointer;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+    transition: all 0.15s;
+  }
+
+  .range-btn.active {
+    background: rgba(192,132,252,0.15);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
   /* Submit button */
   .submit-btn {
     width: calc(100% - 32px);
@@ -387,6 +411,7 @@
     letter-spacing: 0.3px;
     -webkit-tap-highlight-color: transparent;
     transition: opacity 0.2s;
+    display: block;
   }
 
   .submit-btn:active { opacity: 0.85; }
@@ -595,6 +620,305 @@
 
   .toast.show { transform: translateX(-50%) translateY(0); }
 
+  /* Login screen */
+  #login-screen {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 24px;
+    z-index: 1000;
+  }
+
+  #login-screen.hidden { display: none; }
+
+  .login-logo {
+    font-family: var(--font-serif);
+    font-size: 32px;
+    color: var(--text);
+    margin-bottom: 8px;
+    text-align: center;
+  }
+
+  .login-logo span { color: var(--accent); font-style: italic; }
+
+  .login-sub {
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 40px;
+    text-align: center;
+  }
+
+  .login-form {
+    width: 100%;
+    max-width: 340px;
+  }
+
+  .login-input {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    outline: none;
+    margin-bottom: 12px;
+    transition: border-color 0.2s;
+  }
+
+  .login-input:focus { border-color: var(--accent); }
+  .login-input::placeholder { color: var(--muted); }
+
+  .login-btn {
+    width: 100%;
+    padding: 15px;
+    border-radius: 12px;
+    border: none;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff;
+    font-family: var(--font-sans);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 4px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .login-toggle {
+    text-align: center;
+    margin-top: 16px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .login-toggle span {
+    color: var(--accent);
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  .login-error {
+    color: var(--danger);
+    font-size: 13px;
+    text-align: center;
+    margin-top: 8px;
+    min-height: 20px;
+  }
+
+  /* Profile button in header */
+  .profile-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    cursor: pointer;
+    font-family: var(--font-serif);
+    font-size: 18px;
+    font-style: italic;
+    color: #0d0d0f;
+    -webkit-tap-highlight-color: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 12px;
+    flex-shrink: 0;
+  }
+
+  /* Settings view */
+  .settings-back {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .settings-back svg { width: 18px; height: 18px; }
+
+  .settings-section-title {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    text-transform: uppercase;
+    padding: 0 4px 8px;
+  }
+
+  .settings-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 22px;
+  }
+
+  .settings-row {
+    padding: 14px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .settings-row:last-child { border-bottom: none; }
+
+  .settings-row.clickable {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .settings-row.clickable:active { background: var(--surface2); }
+
+  .settings-row-label {
+    font-size: 14px;
+    color: var(--text);
+  }
+
+  .settings-row.disabled .settings-row-label { color: var(--muted); }
+
+  .settings-row-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .settings-row-hint {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .settings-row-value {
+    font-size: 14px;
+    color: var(--muted);
+  }
+
+  .settings-chev {
+    color: var(--muted);
+    font-size: 18px;
+    line-height: 1;
+  }
+
+  .settings-coming-soon {
+    font-size: 10px;
+    color: var(--muted);
+    background: var(--surface2);
+    padding: 4px 8px;
+    border-radius: 8px;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+  }
+
+  .settings-signout { color: var(--accent2) !important; }
+  .settings-signout .settings-chev { color: var(--accent2); }
+
+  .settings-about-foot {
+    padding: 14px 16px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  /* Password change inline form */
+  .pw-form {
+    padding: 14px 16px;
+    background: var(--surface2);
+    border-top: 1px solid var(--border);
+    display: none;
+  }
+
+  .pw-form.open { display: block; }
+
+  .pw-form input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    outline: none;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+  }
+
+  .pw-form input:focus { border-color: var(--accent); }
+
+  .pw-form-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .pw-form button {
+    flex: 1;
+    padding: 11px;
+    border-radius: 10px;
+    border: none;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .pw-form button.primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff;
+  }
+
+  .pw-form button.secondary {
+    background: var(--surface);
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+
+  .pw-form-msg {
+    font-size: 12px;
+    margin-top: 6px;
+    min-height: 16px;
+  }
+
+  .pw-form-msg.ok { color: var(--good); }
+  .pw-form-msg.err { color: var(--danger); }
+
+  /* Forgot password + back link on login screen */
+  .login-link {
+    text-align: center;
+    margin-top: 10px;
+    font-size: 13px;
+  }
+
+  .login-link span {
+    color: var(--accent);
+    cursor: pointer;
+    text-decoration: underline;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .login-success {
+    color: var(--good);
+    font-size: 13px;
+    text-align: center;
+    margin-top: 8px;
+    line-height: 1.5;
+  }
+
   /* Scrollbar for desktop preview */
   @media (min-width: 481px) {
     .main::-webkit-scrollbar { width: 4px; display: block; }
@@ -632,15 +956,73 @@
 
   .submitted-state p { font-size: 14px; color: var(--muted); line-height: 1.6; }
 </style>
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+<script>
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  OneSignalDeferred.push(async function(OneSignal) {
+    await OneSignal.init({
+      appId: "3fc070ad-3b3b-4ca0-9480-1e0cd276634c",
+    });
+  });
+</script>
 </head>
 <body>
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <!-- Sign in / sign up view -->
+  <div id="login-view-signin" class="login-view">
+    <div class="login-logo">Lisa's <span>Journal</span></div>
+    <div class="login-sub">Your daily health companion</div>
+    <div class="login-form">
+      <input class="login-input" type="email" id="login-email" placeholder="Email address" autocomplete="email">
+      <input class="login-input" type="password" id="login-password" placeholder="Password" autocomplete="current-password">
+      <button class="login-btn" onclick="handleAuth()">Sign in</button>
+      <div class="login-error" id="login-error"></div>
+      <div class="login-toggle" id="login-toggle">
+        Don't have an account? <span onclick="toggleAuthMode()">Sign up</span>
+      </div>
+      <div class="login-link" id="forgot-link">
+        <span onclick="showResetRequestView()">Forgot password?</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reset request view -->
+  <div id="login-view-reset" class="login-view" style="display:none;">
+    <div class="login-logo">Reset <span>password</span></div>
+    <div class="login-sub">Enter your email and we'll send you a reset link.</div>
+    <div class="login-form">
+      <input class="login-input" type="email" id="reset-email" placeholder="Email address" autocomplete="email">
+      <button class="login-btn" onclick="sendResetEmail()">Send reset link</button>
+      <div class="login-error" id="reset-error"></div>
+      <div class="login-success" id="reset-success"></div>
+      <div class="login-link"><span onclick="showSigninView()">Back to sign in</span></div>
+    </div>
+  </div>
+
+  <!-- Set new password view (after clicking reset email link) -->
+  <div id="login-view-newpw" class="login-view" style="display:none;">
+    <div class="login-logo">Set new <span>password</span></div>
+    <div class="login-sub">Choose a new password for your account.</div>
+    <div class="login-form">
+      <input class="login-input" type="password" id="newpw-password" placeholder="New password" autocomplete="new-password">
+      <input class="login-input" type="password" id="newpw-confirm" placeholder="Confirm new password" autocomplete="new-password">
+      <button class="login-btn" onclick="handleNewPassword()">Update password</button>
+      <div class="login-error" id="newpw-error"></div>
+    </div>
+  </div>
+</div>
+
 <div id="app">
   <div class="header">
     <div>
       <div class="header-title">Lisa's <span>Journal</span></div>
       <div class="header-date" id="header-date"></div>
     </div>
-    <div class="streak-badge" id="streak-badge">— day streak</div>
+    <div style="display: flex; align-items: center;">
+      <div class="streak-badge" id="streak-badge">— day streak</div>
+      <button class="profile-btn" id="profile-btn" onclick="goToSettings()" aria-label="Open settings">L</button>
+    </div>
   </div>
 
   <!-- HOME VIEW -->
@@ -677,9 +1059,9 @@
 
   <!-- CHECK-IN VIEW -->
   <div class="view main" id="view-checkin">
-    <div class="section-heading">How are you <em>today?</em></div>
-
-    <div id="form-inner">
+    <div id="checkin-scroll">
+      <div class="section-heading">How are you <em>today?</em></div>
+      <div id="form-inner">
       <!-- Scores section -->
       <div class="form-group">
         <label class="form-label">Overall wellbeing<small>1 = very poor, 10 = great</small></label>
@@ -887,21 +1269,36 @@
         <textarea class="text-input" rows="3" id="extra-notes" placeholder="Anything else that happened today..."></textarea>
       </div>
 
-      <button class="submit-btn" onclick="submitCheckin()">Save today's check-in</button>
-    </div>
+      <button class="submit-btn" id="main-submit-btn" onclick="submitCheckin()">Save today's check-in</button>
+      <div style="height: 40px;"></div>
+    </div><!-- end form-inner -->
 
     <div class="submitted-state" id="submitted-state">
       <div class="submitted-icon">✓</div>
       <h2>All done, Lisa.</h2>
       <p>Your check-in has been saved.<br>Keep it up — the more data, the better the insights.</p>
       <br>
-      <button class="submit-btn" style="width:auto;padding:14px 32px;" onclick="newEntry()">Add another entry</button>
+      <button class="submit-btn" onclick="newEntry()">Add another entry</button>
     </div>
+    </div><!-- end checkin-scroll -->
   </div>
 
   <!-- TRENDS VIEW -->
   <div class="view main" id="view-trends">
     <div class="section-heading">Trends & <em>patterns</em></div>
+
+    <!-- Date range filter -->
+    <div style="padding: 0 16px 4px; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch;">
+      <div style="display: inline-flex; gap: 6px; padding-bottom: 4px;">
+        <button class="range-btn active" onclick="setRange('all',this)">All time</button>
+        <button class="range-btn" onclick="setRange('this_week',this)">This week</button>
+        <button class="range-btn" onclick="setRange('last_week',this)">Last week</button>
+        <button class="range-btn" onclick="setRange('this_month',this)">This month</button>
+        <button class="range-btn" onclick="setRange('last_month',this)">Last month</button>
+        <button class="range-btn" onclick="setRange('last_30',this)">Last 30 days</button>
+        <button class="range-btn" onclick="setRange('last_90',this)">Last 90 days</button>
+      </div>
+    </div>
 
     <div class="card">
       <div class="card-title">Wellbeing over time</div>
@@ -957,6 +1354,93 @@
     <button class="copy-btn" onclick="copyReport()">Copy report to clipboard</button>
   </div>
 
+  <!-- SETTINGS VIEW -->
+  <div class="view main" id="view-settings">
+    <div style="display:flex; align-items:center; gap:14px; padding: 4px 0 18px;">
+      <button class="settings-back" onclick="closeSettings()" aria-label="Go back">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div style="font-family: var(--font-serif); font-size: 26px; line-height: 1;">Settings</div>
+    </div>
+
+    <div class="settings-section-title">Account</div>
+    <div class="settings-card">
+      <div class="settings-row">
+        <div class="settings-row-stack">
+          <div class="settings-row-hint">Email</div>
+          <div class="settings-row-label" id="settings-email">—</div>
+        </div>
+      </div>
+      <div class="settings-row clickable" id="changepw-row" onclick="toggleChangePassword()">
+        <div class="settings-row-label">Change password</div>
+        <div class="settings-chev">›</div>
+      </div>
+      <div class="pw-form" id="pw-form">
+        <input type="password" id="pw-current" placeholder="Current password" autocomplete="current-password">
+        <input type="password" id="pw-new" placeholder="New password" autocomplete="new-password">
+        <input type="password" id="pw-confirm" placeholder="Confirm new password" autocomplete="new-password">
+        <div class="pw-form-actions">
+          <button class="secondary" onclick="cancelChangePassword()">Cancel</button>
+          <button class="primary" onclick="submitChangePassword()">Update</button>
+        </div>
+        <div class="pw-form-msg" id="pw-form-msg"></div>
+      </div>
+      <div class="settings-row clickable settings-signout" onclick="signOut()">
+        <div class="settings-row-label settings-signout">Sign out</div>
+        <div class="settings-chev">›</div>
+      </div>
+    </div>
+
+    <div class="settings-section-title">Health profile</div>
+    <div class="settings-card">
+      <div class="settings-row disabled">
+        <div class="settings-row-label">Conditions I track</div>
+        <div class="settings-coming-soon">Coming soon</div>
+      </div>
+      <div class="settings-row disabled">
+        <div class="settings-row-label">Customise categories</div>
+        <div class="settings-coming-soon">Coming soon</div>
+      </div>
+    </div>
+
+    <div class="settings-section-title">Medical records</div>
+    <div class="settings-card">
+      <div class="settings-row disabled">
+        <div class="settings-row-label">Upload tests, scans, letters</div>
+        <div class="settings-coming-soon">Coming soon</div>
+      </div>
+    </div>
+
+    <div class="settings-section-title">Notifications</div>
+    <div class="settings-card">
+      <div class="settings-row disabled">
+        <div class="settings-row-label">Daily check-in reminder</div>
+        <div class="settings-coming-soon">Coming soon</div>
+      </div>
+    </div>
+
+    <div class="settings-section-title">Data &amp; privacy</div>
+    <div class="settings-card">
+      <div class="settings-row disabled">
+        <div class="settings-row-label">Export my data (CSV)</div>
+        <div class="settings-coming-soon">Coming soon</div>
+      </div>
+      <div class="settings-row disabled">
+        <div class="settings-row-label">Delete my account</div>
+        <div class="settings-coming-soon">Coming soon</div>
+      </div>
+    </div>
+
+    <div class="settings-section-title">About</div>
+    <div class="settings-card">
+      <div class="settings-row">
+        <div class="settings-row-label">Version</div>
+        <div class="settings-row-value">0.2.0</div>
+      </div>
+      <div class="settings-about-foot">Made with care for Lisa</div>
+    </div>
+  </div>
+
   <!-- Bottom nav -->
   <nav class="nav">
     <button class="nav-btn active" onclick="showView('home',this)">
@@ -985,29 +1469,171 @@
 // ── SEED DATA FROM SPREADSHEET ──────────────────────────────────────────────
 const SEED_DATA = [{"date":"2025-07-29","wellbeing":4,"spinal":3,"heart":3,"headache":5,"stomach":4,"gut":4,"cycle_day":19,"menstrual_pain":1,"num_medications":1,"num_vitamins":0.0,"heart_notes":"","mental_notes":"Felt / feeling anxious","spinal_notes":"Neck pain","headache_notes":"Right side head ache","stomach_notes":"Nauseous","cycle_notes":"No bleeding","gut_notes":"No poo","body_notes":"Left leg","medication_notes":"Magnesium","diet_notes":"1-2 Coffee","red_flag":true},{"date":"2025-07-29","wellbeing":5,"spinal":5,"heart":6,"headache":4,"stomach":7,"gut":6,"cycle_day":3,"menstrual_pain":2,"num_medications":0,"num_vitamins":2.0,"heart_notes":"Racing heart, Heart Burn, Struggled to sleep, racing heart","mental_notes":"Happy, Took the day off","spinal_notes":"Neck pain, Lower back pain, Great neck rub","headache_notes":"Whole head, head ache, no medication","stomach_notes":"no problem","cycle_notes":"No bleeding, no problems","gut_notes":"Normal poo, Finally","body_notes":"Left leg, thigh","medication_notes":"CBD","diet_notes":"1-2 Coffee, not very hungry","red_flag":true},{"date":"2025-07-29","wellbeing":7,"spinal":5,"heart":9,"headache":7,"stomach":8,"gut":8,"cycle_day":20,"menstrual_pain":0,"num_medications":1,"num_vitamins":0.0,"heart_notes":"","mental_notes":"Felt / feeling anxious","spinal_notes":"Neck pain, Shoulder pain, Slight neck pain ","headache_notes":"","stomach_notes":"Bit sore in the morning before toilet ","cycle_notes":"","gut_notes":"Normal poo","body_notes":"Left leg, When I stand up","medication_notes":"CBD","diet_notes":"More than 2 coffee, Two were half strength ","red_flag":false},{"date":"2025-07-30","wellbeing":8,"spinal":6,"heart":9,"headache":7,"stomach":7,"gut":7,"cycle_day":21,"menstrual_pain":1,"num_medications":0,"num_vitamins":1.0,"heart_notes":"","mental_notes":"Happy, Neutral","spinal_notes":"Neck pain, Slight in morning ","headache_notes":"","stomach_notes":"","cycle_notes":"","gut_notes":"No poo","body_notes":"Right leg","medication_notes":"CBD","diet_notes":"1-2 Coffee, Less than 2L water","red_flag":false},{"date":"2025-08-02","wellbeing":7,"spinal":8,"heart":6,"headache":7,"stomach":7,"gut":7,"cycle_day":23,"menstrual_pain":3,"num_medications":1,"num_vitamins":0.0,"heart_notes":"Racing heart","mental_notes":"Neutral","spinal_notes":"","headache_notes":"","stomach_notes":"Stomach ache, Mild and temporary ","cycle_notes":"No bleeding, Moody","gut_notes":"No poo","body_notes":"","medication_notes":"CBD","diet_notes":"More than 2 coffee, More than 2L water, Sugar, Biltong, toast with marmalade, meatballs and rice, froyo ","red_flag":false},{"date":"2025-08-02","wellbeing":7,"spinal":8,"heart":6,"headache":9,"stomach":7,"gut":7,"cycle_day":24,"menstrual_pain":0,"num_medications":1,"num_vitamins":0.0,"heart_notes":"Racing heart, Chest pain, Could be anxiety ","mental_notes":"Felt / feeling anxious, Not all day, just at the end ","spinal_notes":"","headache_notes":"","stomach_notes":"","cycle_notes":"","gut_notes":"No poo","body_notes":"","medication_notes":"CBD","diet_notes":"More than 2 coffee, Less than 2L water, Dairy","red_flag":false},{"date":"2025-08-03","wellbeing":7,"spinal":8,"heart":7,"headache":1,"stomach":7,"gut":8,"cycle_day":24,"menstrual_pain":0,"num_medications":0,"num_vitamins":0.0,"heart_notes":"Racing heart, Chest pain, Heart Burn, Dunno which one, just a fluttering feeling again ","mental_notes":"Felt / feeling anxious, Maybe anxiety with the fluttering maybe not ","spinal_notes":"Back pain, Middle back pain","headache_notes":"","stomach_notes":"","cycle_notes":"Moody","gut_notes":"Normal poo","body_notes":"","medication_notes":"","diet_notes":"1-2 Coffee, Less than 2L water, Sugar, Gluten, Pizza, scone, coffee, tea, 1.5lt water ","red_flag":true},{"date":"2025-08-04","wellbeing":8,"spinal":8,"heart":8,"headache":8,"stomach":8,"gut":8,"cycle_day":25,"menstrual_pain":4,"num_medications":5,"num_vitamins":0.0,"heart_notes":"Racing heart, Slightly racing in the morning ","mental_notes":"Neutral","spinal_notes":"","headache_notes":"","stomach_notes":"","cycle_notes":"Cramps, Sore lower back ","gut_notes":"No poo","body_notes":"Cold sore ","medication_notes":"Neurofen, Cold sore pills","diet_notes":"More than 2 coffee, More than 2L water, Sugar, Gluten, Dairy","red_flag":true},{"date":"2025-08-06","wellbeing":7,"spinal":7,"heart":6,"headache":8,"stomach":7,"gut":7,"cycle_day":1,"menstrual_pain":7,"num_medications":1,"num_vitamins":0.0,"heart_notes":"Heart Burn, Took medication for heart health, Just heart burn tablet ","mental_notes":"Sad, Neutral","spinal_notes":"","headache_notes":"","stomach_notes":"Indigestion","cycle_notes":"Light bleeding, Cramps, Bloating, Extremely heavy. ","gut_notes":"No poo","body_notes":"","medication_notes":"Heart burn","diet_notes":"1-2 Coffee, More than 2L water, Sugar, Gluten, Soy ","red_flag":true},{"date":"2025-08-08","wellbeing":8,"spinal":6,"heart":7,"headache":6,"stomach":7,"gut":7,"cycle_day":3,"menstrual_pain":3,"num_medications":0,"num_vitamins":0.0,"heart_notes":"Racing heart","mental_notes":"Happy, Neutral","spinal_notes":"Neck pain","headache_notes":"Left side head ache","stomach_notes":"","cycle_notes":"Light bleeding","gut_notes":"No poo","body_notes":"Left leg","medication_notes":"","diet_notes":"More than 2 coffee, 4 x half coffees with soy ","red_flag":false},{"date":"2025-08-10","wellbeing":5,"spinal":3,"heart":9,"headache":4,"stomach":8,"gut":8,"cycle_day":4,"menstrual_pain":7,"num_medications":7,"num_vitamins":0.0,"heart_notes":"","mental_notes":"Happy, Neutral","spinal_notes":"Neck pain, Shoulder pain, Back pain, Took medication for spinal health","headache_notes":"Left side head ache, Back head, head ache, Took medication for head ache / migraine","stomach_notes":"","cycle_notes":"Heavy bleeding, Light bleeding","gut_notes":"No poo","body_notes":"","medication_notes":"Neurofen, CBD","diet_notes":"1-2 Coffee, More than 2L water, Take away","red_flag":true},{"date":"2025-08-10","wellbeing":7,"spinal":4,"heart":5,"headache":6,"stomach":5,"gut":6,"cycle_day":5,"menstrual_pain":5,"num_medications":0,"num_vitamins":0.0,"heart_notes":"Racing heart, Heart Burn, Not sure what it is. Very reactive today ","mental_notes":"Felt / feeling anxious, Neutral","spinal_notes":"Neck pain, Shoulder pain, Back pain","headache_notes":"Left side head ache, Back head, head ache","stomach_notes":"Stomach ache","cycle_notes":"Spotting, Dark blood ","gut_notes":"No poo","body_notes":"","medication_notes":"","diet_notes":"1-2 Coffee, More than 2L water, Alcohol, Sugar, Dairy","red_flag":true},{"date":"2025-08-11","wellbeing":6,"spinal":4,"heart":6,"headache":5,"stomach":7,"gut":6,"cycle_day":6,"menstrual_pain":8,"num_medications":1,"num_vitamins":0.0,"heart_notes":"Heart Burn","mental_notes":"Felt / feeling anxious","spinal_notes":"Neck pain, Shoulder pain, Back pain, Lower back pain, Took medication for spinal health","headache_notes":"Left side head ache, Right side head ache, Back head, head ache, Took medication for head ache / migraine","stomach_notes":"Indigestion, Took medication for stomach","cycle_notes":"Light bleeding","gut_notes":"Normal poo","body_notes":"","medication_notes":"Neurofen, Heart burn","diet_notes":"1-2 Coffee, Less than 2L water, Gluten","red_flag":true},{"date":"2025-08-22","wellbeing":6,"spinal":7,"heart":6,"headache":7,"stomach":7,"gut":4,"cycle_day":20,"menstrual_pain":0,"num_medications":0,"num_vitamins":0.0,"heart_notes":"Chest pain, Hadn\u2019t eaten for almost 24 hours ","mental_notes":"Neutral","spinal_notes":"Neck pain, Lower back pain","headache_notes":"Whole head, head ache, Slight headache nothing terrible ","stomach_notes":"Stomach ache, Stomach cramps, Nauseous, Worse yesterday after eating breakfast - bacon and egg roll","cycle_notes":"Moody","gut_notes":"No poo","body_notes":"Left leg","medication_notes":"","diet_notes":"1-2 Coffee, Take away, Gluten","red_flag":true},{"date":"2025-09-30","wellbeing":5,"spinal":8,"heart":8,"headache":8,"stomach":2,"gut":4,"cycle_day":3,"menstrual_pain":3,"num_medications":2,"num_vitamins":0.0,"heart_notes":"Heart Burn","mental_notes":"Felt / feeling anxious, Funny about my throat atm and when I feel unwell I tend to feel anxious ","spinal_notes":"","headache_notes":"","stomach_notes":"Stomach ache, Indigestion, Stomach cramps, Nauseous","cycle_notes":"Heavy bleeding, Cramps, Bloating","gut_notes":"No poo","body_notes":"","medication_notes":"CBD, Stomach pills ","diet_notes":"1-2 Coffee, More than 2L water, Sugar, Protein","red_flag":true},{"date":"2025-10-02","wellbeing":8,"spinal":6,"heart":8,"headache":7,"stomach":5,"gut":2,"cycle_day":5,"menstrual_pain":2,"num_medications":2,"num_vitamins":0.0,"heart_notes":"Heart Burn, Took medication for heart health, Zantac","mental_notes":"Neutral","spinal_notes":"Neck pain, Shoulder pain, Back pain, Lower back pain, Nothing crazy but sore from Pilates ","headache_notes":"Left side head ache","stomach_notes":"Stomach ache, Indigestion, Stomach cramps, Nauseous","cycle_notes":"Light bleeding","gut_notes":"Normal poo, Was not normal. ","body_notes":"Left leg, Was in the office ","medication_notes":"Heart burn, Antihistamine ","diet_notes":"1-2 Coffee, More than 2L water, Gluten","red_flag":true},{"date":"2025-10-03","wellbeing":7,"spinal":6,"heart":9,"headache":3,"stomach":3,"gut":5,"cycle_day":6,"menstrual_pain":0,"num_medications":0,"num_vitamins":0.0,"heart_notes":"","mental_notes":"Happy, Neutral","spinal_notes":"Neck pain, Slight headache ","headache_notes":"Left side head ache","stomach_notes":"Stomach ache, Slight tummy upset","cycle_notes":"Light bleeding","gut_notes":"No poo","body_notes":"","medication_notes":"","diet_notes":"1-2 Coffee, More than 2L water, Gluten, More than 2 meals","red_flag":true},{"date":"2025-10-06","wellbeing":6,"spinal":8,"heart":7,"headache":8,"stomach":3,"gut":4,"cycle_day":7,"menstrual_pain":0,"num_medications":2,"num_vitamins":0.0,"heart_notes":"Heart Burn, Took medication for heart health, Heartburn meds ","mental_notes":"Happy, Neutral","spinal_notes":"Took medication for spinal health, CBD","headache_notes":"","stomach_notes":"Stomach ache, Indigestion, Stomach cramps, Nauseous","cycle_notes":"Spotting","gut_notes":"Not normal","body_notes":"Left leg","medication_notes":"CBD, Heart burn","diet_notes":"1-2 Coffee, More than 2L water, More than 2 meals","red_flag":true},{"date":"2025-10-07","wellbeing":6,"spinal":7,"heart":8,"headache":6,"stomach":5,"gut":5,"cycle_day":10,"menstrual_pain":0,"num_medications":1,"num_vitamins":0.0,"heart_notes":"Chest pain, Heart Burn, Weird pressure and fluttering in the evening","mental_notes":"Felt / feeling anxious","spinal_notes":"","headache_notes":"","stomach_notes":"Stomach ache, Indigestion, Stomach cramps","cycle_notes":"No bleeding","gut_notes":"Normal poo, Wasnt normal - was loose","body_notes":"Left leg, Slight pain ","medication_notes":"Heart burn","diet_notes":"1-2 Coffee, More than 2L water, Sugar, Gluten, Dairy, More than 2 meals","red_flag":false},{"date":"2025-10-08","wellbeing":6,"spinal":7,"heart":7,"headache":4,"stomach":1,"gut":5,"cycle_day":12,"menstrual_pain":0,"num_medications":3,"num_vitamins":0.0,"heart_notes":"Heart Burn","mental_notes":"Felt / feeling anxious, Happy, Neutral","spinal_notes":"Neck pain","headache_notes":"","stomach_notes":"Stomach ache, Indigestion, Stomach cramps, Nauseous, Took medication for stomach","cycle_notes":"Bloating","gut_notes":"Normal poo, Not normal","body_notes":"","medication_notes":"Panadol, Heart burn","diet_notes":"1-2 Coffee, More than 2L water, Sugar, Gluten","red_flag":true},{"date":"2025-12-10","wellbeing":8,"spinal":8,"heart":8,"headache":9,"stomach":6,"gut":5,"cycle_day":18,"menstrual_pain":0,"num_medications":2,"num_vitamins":0.0,"heart_notes":"Heart Burn, Took medication for heart health","mental_notes":"Happy, Excited, Neutral","spinal_notes":"Nothing worth reporting on","headache_notes":"Nothing worth reporting on","stomach_notes":"Indigestion","cycle_notes":"Nothing worth reporting on","gut_notes":"Normal poo","body_notes":"Left arm","medication_notes":"CBD, Heart burn","diet_notes":"1-2 Coffee, More than 2L water, Sugar, Gluten, Dairy","red_flag":false}];
 
-// ── STORAGE ──────────────────────────────────────────────────────────────────
+// ── SUPABASE CONFIG ───────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://rpinusuayvdnckgdaksl.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_ZPmdfr5gBwJoJ4q64sKvQg_0sCRNInu';
+
+let currentUser = null;
+let currentSession = null;
+let isSignUp = false;
+
+// Auth helpers
+const auth = {
+  async signIn(email, password) {
+    const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    return r.json();
+  },
+  async signUp(email, password) {
+    const r = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    return r.json();
+  },
+  async signOut() {
+    if (!currentSession) return;
+    await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${currentSession.access_token}` }
+    });
+  },
+  async getSession() {
+    const stored = localStorage.getItem('sb_session');
+    if (!stored) return null;
+    try {
+      const session = JSON.parse(stored);
+      // Check if expired
+      if (session.expires_at && Date.now() / 1000 > session.expires_at) {
+        localStorage.removeItem('sb_session');
+        return null;
+      }
+      return session;
+    } catch { return null; }
+  }
+};
+
+const sb = {
+  async select() {
+    if (!currentSession) return [];
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/entries?user_id=eq.${currentUser.id}&order=date.asc`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${currentSession.access_token}` }
+    });
+    return r.json();
+  },
+  async insert(entry) {
+    if (!currentSession) return false;
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/entries`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${currentSession.access_token}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ ...entry, user_id: currentUser.id })
+    });
+    return r.ok;
+  }
+};
+
+// ── AUTH UI ───────────────────────────────────────────────────────────────────
+function toggleAuthMode() {
+  isSignUp = !isSignUp;
+  document.getElementById('login-toggle').innerHTML = isSignUp
+    ? 'Already have an account? <span onclick="toggleAuthMode()">Sign in</span>'
+    : 'Don\'t have an account? <span onclick="toggleAuthMode()">Sign up</span>';
+  document.querySelector('#login-view-signin .login-btn').textContent = isSignUp ? 'Create account' : 'Sign in';
+  document.getElementById('login-error').textContent = '';
+  document.getElementById('forgot-link').style.display = isSignUp ? 'none' : 'block';
+}
+
+async function handleAuth() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errorEl = document.getElementById('login-error');
+  errorEl.textContent = '';
+
+  if (!email || !password) { errorEl.textContent = 'Please enter your email and password.'; return; }
+
+  const btn = document.querySelector('#login-view-signin .login-btn');
+  btn.textContent = 'Please wait...';
+  btn.disabled = true;
+
+  try {
+    const result = isSignUp ? await auth.signUp(email, password) : await auth.signIn(email, password);
+
+    if (result.error) {
+      errorEl.textContent = result.error.message || 'Something went wrong. Please try again.';
+    } else if (result.access_token) {
+      currentSession = result;
+      currentUser = result.user;
+      localStorage.setItem('sb_session', JSON.stringify(result));
+      showApp();
+    } else {
+      errorEl.textContent = 'Unable to sign in. Please check your details.';
+    }
+  } catch {
+    errorEl.textContent = 'Connection error. Please try again.';
+  }
+
+  btn.textContent = isSignUp ? 'Create account' : 'Sign in';
+  btn.disabled = false;
+}
+
+async function signOut() {
+  await auth.signOut();
+  currentSession = null;
+  currentUser = null;
+  DATA = [];
+  localStorage.removeItem('sb_session');
+
+  // Reset UI state
+  document.body.classList.remove('settings-open');
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-home').classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
+
+  // Show login screen, reset to sign-in view
+  document.getElementById('login-screen').classList.remove('hidden');
+  showSigninView();
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-password').value = '';
+  if (isSignUp) toggleAuthMode();
+}
+
+function showApp() {
+  document.getElementById('login-screen').classList.add('hidden');
+  showSigninView();
+  loadData();
+}
+
+// ── DATA ──────────────────────────────────────────────────────────────────────
 let DATA = [];
 
 async function loadData() {
   try {
-    const stored = await window.storage.get('entries');
-    if (stored && stored.value) {
-      DATA = JSON.parse(stored.value);
+    const rows = await sb.select();
+    if (rows && Array.isArray(rows) && rows.length) {
+      DATA = rows;
     } else {
-      DATA = [...SEED_DATA];
-      await window.storage.set('entries', JSON.stringify(DATA));
+      DATA = [];
     }
   } catch {
-    DATA = [...SEED_DATA];
+    DATA = [];
   }
   initApp();
 }
 
-async function saveData() {
+async function saveData(entry) {
   try {
-    await window.storage.set('entries', JSON.stringify(DATA));
+    await sb.insert(entry);
   } catch(e) {
-    console.warn('Storage unavailable, data held in memory only.');
+    console.warn('Supabase save failed.');
   }
 }
 
@@ -1128,21 +1754,24 @@ async function submitCheckin() {
   if (scores.some(s => s < 4) || entry.menstrual_pain > 6) entry.red_flag = true;
 
   DATA.push(entry);
-  await saveData();
+  await saveData(entry);
   clearForm();
 
   document.getElementById('form-inner').style.display = 'none';
+  document.getElementById('main-submit-btn').style.display = 'none';
   document.getElementById('submitted-state').classList.add('show');
   renderHome();
 }
 
 function newEntry() {
   document.getElementById('form-inner').style.display = 'block';
+  document.getElementById('main-submit-btn').style.display = 'block';
   document.getElementById('submitted-state').classList.remove('show');
 }
 
 // ── NAVIGATION ───────────────────────────────────────────────────────────────
 function showView(name, btn) {
+  document.body.classList.remove('settings-open');
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('view-' + name).classList.add('active');
@@ -1265,9 +1894,60 @@ async function generateInsight() {
 // ── TRENDS ───────────────────────────────────────────────────────────────────
 let chartsRendered = false;
 let chartInstances = {};
+let currentRange = 'all';
+
+function setRange(range, btn) {
+  currentRange = range;
+  document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTrends();
+}
+
+function getDateRange() {
+  const now = new Date();
+  const startOfWeek = d => { const x = new Date(d); x.setDate(x.getDate() - x.getDay() + 1); x.setHours(0,0,0,0); return x; };
+  const startOfMonth = d => new Date(d.getFullYear(), d.getMonth(), 1);
+
+  switch (currentRange) {
+    case 'this_week': return { from: startOfWeek(now), to: now };
+    case 'last_week': {
+      const s = startOfWeek(now); s.setDate(s.getDate() - 7);
+      const e = new Date(s); e.setDate(e.getDate() + 6);
+      return { from: s, to: e };
+    }
+    case 'this_month': return { from: startOfMonth(now), to: now };
+    case 'last_month': {
+      const s = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const e = new Date(now.getFullYear(), now.getMonth(), 0);
+      return { from: s, to: e };
+    }
+    case 'last_30': { const s = new Date(now); s.setDate(s.getDate() - 30); return { from: s, to: now }; }
+    case 'last_90': { const s = new Date(now); s.setDate(s.getDate() - 90); return { from: s, to: now }; }
+    default: return null;
+  }
+}
+
+function filterDataByRange(data) {
+  const range = getDateRange();
+  if (!range) return data;
+  return data.filter(d => {
+    const dt = new Date(d.date + 'T12:00:00');
+    return dt >= range.from && dt <= range.to;
+  });
+}
 
 function renderTrends() {
-  const sorted = [...DATA].sort((a,b) => a.date.localeCompare(b.date));
+  const rangeData = filterDataByRange(DATA);
+  const sorted = [...rangeData].sort((a,b) => a.date.localeCompare(b.date));
+
+  if (!sorted.length) {
+    ['chart-wellbeing','chart-scores','chart-cycle','chart-symptoms'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { const ctx = el.getContext('2d'); ctx.clearRect(0,0,el.width,el.height); }
+    });
+    document.getElementById('triggers-list').innerHTML = '<div style="color:var(--muted);font-size:13px;">No entries in this date range.</div>';
+    return;
+  }
 
   // Deduplicate by date - average same-day entries
   const byDate = {};
@@ -1284,8 +1964,6 @@ function renderTrends() {
   const heart = dates.map(d => +avg(byDate[d], 'heart').toFixed(1));
   const stomach = dates.map(d => +avg(byDate[d], 'stomach').toFixed(1));
   const spinal = dates.map(d => +avg(byDate[d], 'spinal').toFixed(1));
-  const menstrual = dates.map(d => +avg(byDate[d], 'menstrual_pain').toFixed(1));
-  const cycleDay = dates.map(d => +avg(byDate[d], 'cycle_day').toFixed(0));
 
   const chartDefaults = {
     responsive: true,
@@ -1355,7 +2033,7 @@ function renderTrends() {
   });
 
   // Diet triggers on bad days
-  const badDays = DATA.filter(d => d.wellbeing <= 5 || d.red_flag);
+  const badDays = rangeData.filter(d => d.wellbeing <= 5 || d.red_flag);
   const dietCount = {};
   badDays.forEach(d => {
     const items = d.diet_notes.split(',').map(x => x.trim()).filter(Boolean);
@@ -1370,17 +2048,17 @@ function renderTrends() {
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
       <div style="font-size:13px;color:var(--text);min-width:100px;">${label}</div>
       <div style="flex:1;background:var(--surface2);border-radius:4px;height:6px;overflow:hidden;">
-        <div style="width:${(count/badDays.length*100).toFixed(0)}%;height:100%;background:var(--warn);border-radius:4px;"></div>
+        <div style="width:${(count/Math.max(badDays.length,1)*100).toFixed(0)}%;height:100%;background:var(--warn);border-radius:4px;"></div>
       </div>
       <div style="font-size:12px;color:var(--muted);">${count}x</div>
     </div>
-  `).join('') || '<div style="color:var(--muted);font-size:13px;">Not enough data yet.</div>';
+  `).join('') || '<div style="color:var(--muted);font-size:13px;">Not enough data in this range.</div>';
 
   // Symptom frequency
   const symptomKeys = ['heart_notes','mental_notes','spinal_notes','headache_notes','stomach_notes'];
   const symptomMap = { 'Racing heart':0,'Heart Burn':0,'Anxious':0,'Neck pain':0,'Stomach ache':0,'Indigestion':0,'Nauseous':0,'Back pain':0,'Headache':0,'No poo':0 };
 
-  DATA.forEach(d => {
+  rangeData.forEach(d => {
     const all = symptomKeys.map(k => d[k]).join(' ');
     if (/racing heart/i.test(all)) symptomMap['Racing heart']++;
     if (/heart burn|heartburn/i.test(all)) symptomMap['Heart Burn']++;
@@ -1506,12 +2184,297 @@ async function copyReport() {
   }
 }
 
+// ── SETTINGS NAVIGATION ──────────────────────────────────────────────────────
+let previousView = 'home';
+
+function goToSettings() {
+  // Remember where we came from
+  const activeView = document.querySelector('.view.active');
+  if (activeView && activeView.id !== 'view-settings') {
+    previousView = activeView.id.replace('view-', '');
+  }
+
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-settings').classList.add('active');
+  document.body.classList.add('settings-open');
+
+  // Show user email in settings
+  if (currentUser && currentUser.email) {
+    document.getElementById('settings-email').textContent = currentUser.email;
+  }
+
+  // Show user's initial in profile button
+  updateProfileInitial();
+
+  // Reset the change password form state
+  cancelChangePassword();
+
+  window.scrollTo(0, 0);
+}
+
+function closeSettings() {
+  document.body.classList.remove('settings-open');
+  // Return to previous view
+  const target = previousView || 'home';
+  const targetBtn = document.querySelector(`.nav-btn[onclick*="'${target}'"]`);
+  showView(target, targetBtn);
+}
+
+function updateProfileInitial() {
+  const btn = document.getElementById('profile-btn');
+  if (!btn) return;
+  if (currentUser && currentUser.email) {
+    btn.textContent = currentUser.email.charAt(0).toUpperCase();
+  } else {
+    btn.textContent = 'L';
+  }
+}
+
+// ── CHANGE PASSWORD (from settings) ──────────────────────────────────────────
+function toggleChangePassword() {
+  const form = document.getElementById('pw-form');
+  const row = document.getElementById('changepw-row');
+  if (form.classList.contains('open')) {
+    cancelChangePassword();
+  } else {
+    form.classList.add('open');
+    row.querySelector('.settings-chev').textContent = '⌄';
+    document.getElementById('pw-current').focus();
+  }
+}
+
+function cancelChangePassword() {
+  const form = document.getElementById('pw-form');
+  const row = document.getElementById('changepw-row');
+  form.classList.remove('open');
+  if (row) row.querySelector('.settings-chev').textContent = '›';
+  document.getElementById('pw-current').value = '';
+  document.getElementById('pw-new').value = '';
+  document.getElementById('pw-confirm').value = '';
+  document.getElementById('pw-form-msg').textContent = '';
+  document.getElementById('pw-form-msg').className = 'pw-form-msg';
+}
+
+async function submitChangePassword() {
+  const current = document.getElementById('pw-current').value;
+  const newPw = document.getElementById('pw-new').value;
+  const confirm = document.getElementById('pw-confirm').value;
+  const msg = document.getElementById('pw-form-msg');
+
+  msg.className = 'pw-form-msg';
+  msg.textContent = '';
+
+  if (!current || !newPw || !confirm) {
+    msg.textContent = 'Please fill in all fields.';
+    msg.className = 'pw-form-msg err';
+    return;
+  }
+  if (newPw.length < 6) {
+    msg.textContent = 'New password must be at least 6 characters.';
+    msg.className = 'pw-form-msg err';
+    return;
+  }
+  if (newPw !== confirm) {
+    msg.textContent = 'New passwords do not match.';
+    msg.className = 'pw-form-msg err';
+    return;
+  }
+
+  msg.textContent = 'Updating...';
+
+  // Step 1: verify current password by re-signing in
+  try {
+    const verify = await auth.signIn(currentUser.email, current);
+    if (verify.error || !verify.access_token) {
+      msg.textContent = 'Current password is incorrect.';
+      msg.className = 'pw-form-msg err';
+      return;
+    }
+  } catch {
+    msg.textContent = 'Connection error. Please try again.';
+    msg.className = 'pw-form-msg err';
+    return;
+  }
+
+  // Step 2: update password
+  try {
+    const r = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      method: 'PUT',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${currentSession.access_token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ password: newPw })
+    });
+    const data = await r.json();
+    if (data.error) {
+      msg.textContent = data.error.message || 'Unable to update password.';
+      msg.className = 'pw-form-msg err';
+    } else {
+      msg.textContent = 'Password updated.';
+      msg.className = 'pw-form-msg ok';
+      setTimeout(cancelChangePassword, 1800);
+    }
+  } catch {
+    msg.textContent = 'Connection error. Please try again.';
+    msg.className = 'pw-form-msg err';
+  }
+}
+
+// ── PASSWORD RESET (from login screen) ───────────────────────────────────────
+function showSigninView() {
+  document.getElementById('login-view-signin').style.display = 'block';
+  document.getElementById('login-view-reset').style.display = 'none';
+  document.getElementById('login-view-newpw').style.display = 'none';
+  document.getElementById('login-error').textContent = '';
+}
+
+function showResetRequestView() {
+  document.getElementById('login-view-signin').style.display = 'none';
+  document.getElementById('login-view-reset').style.display = 'block';
+  document.getElementById('login-view-newpw').style.display = 'none';
+  document.getElementById('reset-error').textContent = '';
+  document.getElementById('reset-success').textContent = '';
+  // Pre-fill email if it was typed on signin view
+  const signinEmail = document.getElementById('login-email').value.trim();
+  if (signinEmail) document.getElementById('reset-email').value = signinEmail;
+}
+
+function showNewPasswordView() {
+  document.getElementById('login-view-signin').style.display = 'none';
+  document.getElementById('login-view-reset').style.display = 'none';
+  document.getElementById('login-view-newpw').style.display = 'block';
+  document.getElementById('newpw-error').textContent = '';
+}
+
+async function sendResetEmail() {
+  const email = document.getElementById('reset-email').value.trim();
+  const errorEl = document.getElementById('reset-error');
+  const successEl = document.getElementById('reset-success');
+  errorEl.textContent = '';
+  successEl.textContent = '';
+
+  if (!email) {
+    errorEl.textContent = 'Please enter your email address.';
+    return;
+  }
+
+  const btn = document.querySelector('#login-view-reset .login-btn');
+  btn.textContent = 'Sending...';
+  btn.disabled = true;
+
+  try {
+    const r = await fetch(`${SUPABASE_URL}/auth/v1/recover`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+
+    if (r.ok) {
+      successEl.innerHTML = 'If an account exists for that email, a reset link has been sent.<br>Check your inbox.';
+    } else {
+      const data = await r.json().catch(() => ({}));
+      errorEl.textContent = data.error?.message || data.msg || 'Unable to send reset email. Please try again.';
+    }
+  } catch {
+    errorEl.textContent = 'Connection error. Please try again.';
+  }
+
+  btn.textContent = 'Send reset link';
+  btn.disabled = false;
+}
+
+async function handleNewPassword() {
+  const newPw = document.getElementById('newpw-password').value;
+  const confirm = document.getElementById('newpw-confirm').value;
+  const errorEl = document.getElementById('newpw-error');
+  errorEl.textContent = '';
+
+  if (!newPw || !confirm) {
+    errorEl.textContent = 'Please enter your new password twice.';
+    return;
+  }
+  if (newPw.length < 6) {
+    errorEl.textContent = 'Password must be at least 6 characters.';
+    return;
+  }
+  if (newPw !== confirm) {
+    errorEl.textContent = 'Passwords do not match.';
+    return;
+  }
+
+  const btn = document.querySelector('#login-view-newpw .login-btn');
+  btn.textContent = 'Updating...';
+  btn.disabled = true;
+
+  try {
+    const r = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      method: 'PUT',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${currentSession.access_token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ password: newPw })
+    });
+    const data = await r.json();
+
+    if (data.error) {
+      errorEl.textContent = data.error.message || 'Unable to update password. The link may have expired.';
+    } else {
+      // Save session with user attached, clear URL hash, sign in
+      currentUser = data;
+      currentSession.user = data;
+      localStorage.setItem('sb_session', JSON.stringify(currentSession));
+      history.replaceState(null, '', window.location.pathname);
+      showApp();
+    }
+  } catch {
+    errorEl.textContent = 'Connection error. Please try again.';
+  }
+
+  btn.textContent = 'Update password';
+  btn.disabled = false;
+}
+
 // ── INIT ─────────────────────────────────────────────────────────────────────
 function initApp() {
   renderHome();
+  updateProfileInitial();
 }
 
-loadData();
+async function bootstrap() {
+  // Check for password recovery token in URL hash
+  const hash = window.location.hash;
+  if (hash && hash.includes('type=recovery') && hash.includes('access_token=')) {
+    const params = new URLSearchParams(hash.substring(1));
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+    const expiresIn = parseInt(params.get('expires_in') || '3600');
+
+    if (accessToken) {
+      currentSession = {
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        expires_at: Math.floor(Date.now() / 1000) + expiresIn
+      };
+      showNewPasswordView();
+      return;
+    }
+  }
+
+  // Normal flow: check for existing session
+  const session = await auth.getSession();
+  if (session) {
+    currentSession = session;
+    currentUser = session.user;
+    showApp();
+  }
+  // Otherwise login screen stays visible
+}
+
+bootstrap();
 </script>
 </body>
 </html>
