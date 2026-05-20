@@ -48,7 +48,7 @@
 
   /* Header */
   .header {
-    padding: 20px 24px 16px;
+    padding: calc(20px + env(safe-area-inset-top, 0px)) 24px 16px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -94,6 +94,137 @@
 
   .main::-webkit-scrollbar { display: none; }
 
+  /* Day picker on Trends */
+  .day-picker-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+
+  .day-picker-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 11px 14px;
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+    color-scheme: dark;
+  }
+
+  .day-picker-input:focus { border-color: var(--accent); }
+
+  .day-detail {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+
+  .day-detail-empty {
+    text-align: center;
+    color: var(--muted);
+    padding: 18px 0;
+    font-size: 14px;
+  }
+
+  .day-scores-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .day-score-tile {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 8px;
+    text-align: center;
+  }
+
+  .day-score-num {
+    font-family: var(--font-serif);
+    font-size: 22px;
+    line-height: 1;
+    margin-bottom: 3px;
+  }
+
+  .day-score-label {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .day-detail-section {
+    margin-top: 10px;
+  }
+
+  .day-detail-section-title {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .day-detail-section-text {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  .day-detail-section-text.empty {
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  .day-ai-btn {
+    width: 100%;
+    margin-top: 14px;
+    padding: 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--accent);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .day-ai-btn:disabled { opacity: 0.5; }
+  .day-ai-btn:active { background: var(--surface); }
+
+  .day-ai-result {
+    margin-top: 12px;
+    padding: 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    border-left: 2px solid var(--accent);
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--text);
+  }
+
+  .day-redflag {
+    display: inline-block;
+    background: rgba(244, 114, 182, 0.12);
+    color: var(--accent2);
+    padding: 3px 10px;
+    border-radius: 8px;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    margin-top: 8px;
+  }
+
   /* Bottom nav */
   .nav {
     position: fixed;
@@ -106,7 +237,7 @@
     backdrop-filter: blur(20px);
     border-top: 1px solid var(--border);
     display: flex;
-    padding: 12px 8px calc(20px + env(safe-area-inset-bottom, 0px));
+    padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
     z-index: 100;
   }
 
@@ -137,8 +268,10 @@
   .view { display: none; }
   .view.active { display: block; }
 
-  /* Hide bottom nav when settings is active */
+  /* Hide bottom nav and header when settings is active */
   body.settings-open .nav { display: none; }
+  body.settings-open .header { display: none; }
+  body.settings-open #view-settings { padding-top: calc(8px + env(safe-area-inset-top, 0px)); }
 
   /* Cards */
   .card {
@@ -1122,11 +1255,11 @@
       </div>
 
       <div class="form-group">
-        <label class="form-label">Menstrual pain<small>1 = severe, 10 = none, 0 = N/A</small></label>
+        <label class="form-label">Menstrual comfort<small>1 = severe pain, 10 = no pain, 0 = N/A</small></label>
         <div class="slider-value" id="val-menstrual">0</div>
         <input class="score-slider" type="range" min="0" max="10" value="0" id="sl-menstrual"
           oninput="document.getElementById('val-menstrual').textContent=this.value">
-        <div class="slider-labels"><span>Severe</span><span>None / N/A</span></div>
+        <div class="slider-labels"><span>Severe pain</span><span>No pain / N/A</span></div>
       </div>
 
       <!-- Mental health -->
@@ -1287,6 +1420,15 @@
   <div class="view main" id="view-trends">
     <div class="section-heading">Trends & <em>patterns</em></div>
 
+    <!-- View specific day -->
+    <div class="card">
+      <div class="card-title">View a specific day</div>
+      <div class="day-picker-row">
+        <input class="day-picker-input" type="date" id="day-picker" onchange="renderSelectedDay()">
+      </div>
+      <div id="day-detail"></div>
+    </div>
+
     <!-- Date range filter -->
     <div style="padding: 0 16px 4px; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch;">
       <div style="display: inline-flex; gap: 6px; padding-bottom: 4px;">
@@ -1315,7 +1457,7 @@
     </div>
 
     <div class="card">
-      <div class="card-title">Menstrual pain vs cycle day</div>
+      <div class="card-title">Menstrual comfort by cycle day</div>
       <div class="chart-container">
         <canvas id="chart-cycle"></canvas>
       </div>
@@ -1507,26 +1649,73 @@ const auth = {
     if (!stored) return null;
     try {
       const session = JSON.parse(stored);
-      // Check if expired
-      if (session.expires_at && Date.now() / 1000 > session.expires_at) {
-        localStorage.removeItem('sb_session');
-        return null;
+      const now = Date.now() / 1000;
+
+      // Token still valid for at least 60 more seconds — use as-is
+      if (session.expires_at && session.expires_at - now > 60) {
+        return session;
       }
-      return session;
+
+      // Token expired or expiring soon — try to refresh silently
+      if (session.refresh_token) {
+        try {
+          const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+            method: 'POST',
+            headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refresh_token: session.refresh_token })
+          });
+
+          if (r.ok) {
+            const refreshed = await r.json();
+            const updated = {
+              access_token: refreshed.access_token,
+              refresh_token: refreshed.refresh_token || session.refresh_token,
+              expires_at: Math.floor(Date.now() / 1000) + (refreshed.expires_in || 3600),
+              user: refreshed.user || session.user
+            };
+            localStorage.setItem('sb_session', JSON.stringify(updated));
+            return updated;
+          }
+        } catch {
+          // Network error — fall through to clearing session
+        }
+      }
+
+      // Refresh failed or no refresh token — clear and require login
+      localStorage.removeItem('sb_session');
+      return null;
     } catch { return null; }
   }
 };
 
+// Helper: refresh in-memory session if access token is close to expiry
+async function ensureFreshToken() {
+  if (!currentSession) return false;
+  const now = Date.now() / 1000;
+  // Token still valid for >5 minutes — no work needed
+  if (currentSession.expires_at && currentSession.expires_at - now > 300) {
+    return true;
+  }
+  // Token expired or close to it — refresh via auth.getSession
+  const fresh = await auth.getSession();
+  if (fresh) {
+    currentSession = fresh;
+    currentUser = fresh.user;
+    return true;
+  }
+  return false;
+}
+
 const sb = {
   async select() {
-    if (!currentSession) return [];
+    if (!await ensureFreshToken()) return [];
     const r = await fetch(`${SUPABASE_URL}/rest/v1/entries?user_id=eq.${currentUser.id}&order=date.asc`, {
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${currentSession.access_token}` }
     });
     return r.json();
   },
   async insert(entry) {
-    if (!currentSession) return false;
+    if (!await ensureFreshToken()) return false;
     const r = await fetch(`${SUPABASE_URL}/rest/v1/entries`, {
       method: 'POST',
       headers: {
@@ -1749,9 +1938,9 @@ async function submitCheckin() {
     red_flag: false
   };
 
-  // Simple red flag logic: any score below 4 or menstrual pain above 6
+  // Red flag: any score below 4, OR menstruating with severe pain (1-3)
   const scores = [entry.wellbeing, entry.heart, entry.spinal, entry.headache, entry.stomach, entry.gut];
-  if (scores.some(s => s < 4) || entry.menstrual_pain > 6) entry.red_flag = true;
+  if (scores.some(s => s < 4) || (entry.menstrual_pain > 0 && entry.menstrual_pain < 4)) entry.red_flag = true;
 
   DATA.push(entry);
   await saveData(entry);
@@ -1871,7 +2060,7 @@ async function generateInsight() {
 
   const recent = [...DATA].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
   const summary = recent.map(d =>
-    `${d.date}: wellbeing=${d.wellbeing}, heart=${d.heart}, stomach=${d.stomach}, gut=${d.gut}, diet="${d.diet_notes}", mental="${d.mental_notes}", cycle_day=${d.cycle_day}, menstrual_pain=${d.menstrual_pain}, red_flag=${d.red_flag}`
+    `${d.date}: wellbeing=${d.wellbeing}, heart=${d.heart}, spinal=${d.spinal}, headache=${d.headache}, stomach=${d.stomach}, gut=${d.gut}, cycle_day=${d.cycle_day}, menstrual_comfort=${d.menstrual_pain}, diet="${d.diet_notes}", mental="${d.mental_notes}", red_flag=${d.red_flag}`
   ).join('\n');
 
   try {
@@ -1889,6 +2078,150 @@ async function generateInsight() {
   } catch {
     el.innerHTML = `<div class="insight-label">AI insight</div><div class="insight-text" style="color:var(--muted);">Connect to the internet to generate AI insights from your data.</div>`;
   }
+}
+
+// ── VIEW SPECIFIC DAY ────────────────────────────────────────────────────────
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function renderSelectedDay() {
+  const picker = document.getElementById('day-picker');
+  const detail = document.getElementById('day-detail');
+  if (!picker || !detail) return;
+
+  const date = picker.value;
+  if (!date) { detail.innerHTML = ''; return; }
+
+  const entry = DATA.find(d => d.date === date);
+  if (!entry) {
+    detail.innerHTML = `
+      <div class="day-detail">
+        <div class="day-detail-empty">No entry recorded for ${fmt(date)}.</div>
+      </div>`;
+    return;
+  }
+
+  // Build scores grid
+  const scores = [
+    { key: 'wellbeing', label: 'Wellbeing', val: entry.wellbeing },
+    { key: 'heart', label: 'Heart', val: entry.heart },
+    { key: 'spinal', label: 'Spinal', val: entry.spinal },
+    { key: 'headache', label: 'Head', val: entry.headache },
+    { key: 'stomach', label: 'Stomach', val: entry.stomach },
+    { key: 'gut', label: 'Gut', val: entry.gut }
+  ];
+  const scoresHtml = scores.map(s => `
+    <div class="day-score-tile">
+      <div class="day-score-num" style="color:${scoreColorHex(s.val)}">${s.val}</div>
+      <div class="day-score-label">${s.label}</div>
+    </div>`).join('');
+
+  // Menstrual block
+  let menstrualHtml = '';
+  if (entry.menstrual_pain && entry.menstrual_pain > 0) {
+    menstrualHtml = `
+      <div class="day-detail-section">
+        <div class="day-detail-section-title">Menstrual</div>
+        <div class="day-detail-section-text">
+          Cycle day ${entry.cycle_day || '—'} · Comfort ${entry.menstrual_pain}/10
+          ${entry.cycle_notes ? '· ' + escapeHtml(entry.cycle_notes) : ''}
+        </div>
+      </div>`;
+  } else if (entry.cycle_day) {
+    menstrualHtml = `
+      <div class="day-detail-section">
+        <div class="day-detail-section-title">Menstrual</div>
+        <div class="day-detail-section-text">Cycle day ${entry.cycle_day} · Not menstruating</div>
+      </div>`;
+  }
+
+  // Build text sections (only show ones with content)
+  const sections = [
+    { title: 'Mental health', text: entry.mental_notes },
+    { title: 'Heart notes', text: entry.heart_notes },
+    { title: 'Spinal / body pain', text: entry.spinal_notes },
+    { title: 'Head / migraine notes', text: entry.headache_notes },
+    { title: 'Stomach notes', text: entry.stomach_notes },
+    { title: 'Gut notes', text: entry.gut_notes },
+    { title: 'Medication', text: entry.medication_notes },
+    { title: 'Diet', text: entry.diet_notes },
+    { title: 'Other notes', text: entry.extra_notes }
+  ];
+  const sectionsHtml = sections
+    .filter(s => s.text && s.text.trim())
+    .map(s => `
+      <div class="day-detail-section">
+        <div class="day-detail-section-title">${s.title}</div>
+        <div class="day-detail-section-text">${escapeHtml(s.text)}</div>
+      </div>`).join('');
+
+  const redFlagHtml = entry.red_flag
+    ? '<div class="day-redflag">RED FLAG DAY</div>'
+    : '';
+
+  detail.innerHTML = `
+    <div class="day-detail">
+      <div class="day-scores-grid">${scoresHtml}</div>
+      ${menstrualHtml}
+      ${sectionsHtml}
+      ${redFlagHtml}
+      <button class="day-ai-btn" id="day-ai-btn" onclick="generateDayInsight()">Get AI take on this day</button>
+      <div id="day-ai-result"></div>
+    </div>`;
+}
+
+async function generateDayInsight() {
+  const picker = document.getElementById('day-picker');
+  const btn = document.getElementById('day-ai-btn');
+  const resultEl = document.getElementById('day-ai-result');
+  if (!picker || !btn || !resultEl) return;
+
+  const selectedDate = picker.value;
+  if (!selectedDate) return;
+
+  // Get entries up to and including the selected date
+  const upToDate = DATA
+    .filter(d => d.date <= selectedDate)
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 10);
+
+  if (!upToDate.length) {
+    resultEl.innerHTML = '<div class="day-ai-result">No data available before this date.</div>';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Analysing...';
+  resultEl.innerHTML = '';
+
+  const summary = upToDate.map(d =>
+    `${d.date}: wellbeing=${d.wellbeing}, heart=${d.heart}, spinal=${d.spinal}, headache=${d.headache}, stomach=${d.stomach}, gut=${d.gut}, cycle_day=${d.cycle_day}, menstrual_comfort=${d.menstrual_pain}, diet="${d.diet_notes}", mental="${d.mental_notes}", red_flag=${d.red_flag}`
+  ).join('\n');
+
+  try {
+    const resp = await fetch('/.netlify/functions/ai-insight', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        data: `Lisa is reviewing her entry from ${selectedDate}. Here is her entry for that day plus the days leading up to it (most recent first):\n\n${summary}\n\nFocus on the entry from ${selectedDate}. What stands out about that day, and how does it compare to the days leading up to it? Speak to Lisa about that specific day.`
+      })
+    });
+    const result = await resp.json();
+    const text = result.insight || 'Unable to generate insight right now.';
+    resultEl.innerHTML = `<div class="day-ai-result">${escapeHtml(text)}</div>`;
+  } catch {
+    resultEl.innerHTML = '<div class="day-ai-result" style="color:var(--muted);">Connection error. Please try again.</div>';
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Get AI take on this day';
 }
 
 // ── TRENDS ───────────────────────────────────────────────────────────────────
@@ -1937,6 +2270,14 @@ function filterDataByRange(data) {
 }
 
 function renderTrends() {
+  // Refresh day picker view (default to today on first visit, prevent future dates)
+  const picker = document.getElementById('day-picker');
+  if (picker) {
+    picker.max = today();
+    if (!picker.value) picker.value = today();
+    renderSelectedDay();
+  }
+
   const rangeData = filterDataByRange(DATA);
   const sorted = [...rangeData].sort((a,b) => a.date.localeCompare(b.date));
 
@@ -2015,7 +2356,7 @@ function renderTrends() {
     type: 'scatter',
     data: {
       datasets: [{
-        label: 'Menstrual pain by cycle day',
+        label: 'Menstrual comfort by cycle day',
         data: sorted.map(d => ({ x: d.cycle_day, y: d.menstrual_pain })),
         backgroundColor: 'rgba(244,114,182,0.6)',
         pointRadius: 6
@@ -2027,7 +2368,7 @@ function renderTrends() {
       plugins: { legend: { labels: { color: '#7a7a8c', font: { size: 11 } } } },
       scales: {
         x: { title: { display: true, text: 'Cycle day', color: '#7a7a8c' }, ticks: { color: '#7a7a8c', font: { size: 10 } }, grid: { color: '#2a2a33' }, min: 0 },
-        y: { title: { display: true, text: 'Pain (1-10)', color: '#7a7a8c' }, ticks: { color: '#7a7a8c', font: { size: 10 } }, grid: { color: '#2a2a33' }, min: 0, max: 10 }
+        y: { title: { display: true, text: 'Comfort (1-10)', color: '#7a7a8c' }, ticks: { color: '#7a7a8c', font: { size: 10 } }, grid: { color: '#2a2a33' }, min: 0, max: 10 }
       }
     }
   });
@@ -2138,7 +2479,7 @@ async function renderShare() {
       <span class="share-row-val" style="color:${scoreColorHex(avgStomach)}">${avgStomach} / 10</span>
     </div>
     <div class="share-row">
-      <span class="share-row-label">Avg menstrual pain</span>
+      <span class="share-row-label">Avg menstrual comfort</span>
       <span class="share-row-val">${avgMenstrual} / 10</span>
     </div>
     <div class="share-row">
@@ -2150,7 +2491,7 @@ async function renderShare() {
   // AI clinical summary
   const insightEl = document.getElementById('doctor-insight');
   const summary = recent.slice(0,15).map(d =>
-    `${d.date}: wellbeing=${d.wellbeing}, heart=${d.heart}, stomach=${d.stomach}, gut=${d.gut}, spinal=${d.spinal}, cycle_day=${d.cycle_day}, menstrual_pain=${d.menstrual_pain}, diet="${d.diet_notes}", symptoms: heart="${d.heart_notes}", mental="${d.mental_notes}", stomach="${d.stomach_notes}", red_flag=${d.red_flag}`
+    `${d.date}: wellbeing=${d.wellbeing}, heart=${d.heart}, spinal=${d.spinal}, headache=${d.headache}, stomach=${d.stomach}, gut=${d.gut}, cycle_day=${d.cycle_day}, menstrual_comfort=${d.menstrual_pain}, diet="${d.diet_notes}", symptoms: heart="${d.heart_notes}", mental="${d.mental_notes}", stomach="${d.stomach_notes}", red_flag=${d.red_flag}`
   ).join('\n');
 
   try {
@@ -2173,7 +2514,7 @@ async function renderShare() {
 async function copyReport() {
   const recent = [...DATA].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,30);
   const text = recent.map(d =>
-    `${d.date} | Wellbeing: ${d.wellbeing} | Heart: ${d.heart} | Stomach: ${d.stomach} | Gut: ${d.gut} | Spinal: ${d.spinal} | Menstrual pain: ${d.menstrual_pain} | Cycle day: ${d.cycle_day} | Diet: ${d.diet_notes} | Notes: ${[d.heart_notes,d.mental_notes,d.stomach_notes,d.gut_notes].filter(Boolean).join('; ')} | Red flag: ${d.red_flag}`
+    `${d.date} | Wellbeing: ${d.wellbeing} | Heart: ${d.heart} | Spinal: ${d.spinal} | Head: ${d.headache} | Stomach: ${d.stomach} | Gut: ${d.gut} | Menstrual comfort: ${d.menstrual_pain} | Cycle day: ${d.cycle_day} | Diet: ${d.diet_notes} | Notes: ${[d.heart_notes,d.mental_notes,d.stomach_notes,d.gut_notes].filter(Boolean).join('; ')} | Red flag: ${d.red_flag}`
   ).join('\n');
 
   try {
