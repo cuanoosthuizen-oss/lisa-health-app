@@ -13,16 +13,43 @@ exports.handler = async function(event) {
 
   console.log('Function invoked. Method:', event.httpMethod);
   console.log('API key present:', !!process.env.ANTHROPIC_API_KEY);
-  console.log('API key length:', process.env.ANTHROPIC_API_KEY ? process.env.ANTHROPIC_API_KEY.length : 0);
 
   try {
     const { data, type } = JSON.parse(event.body);
     console.log('Request type:', type || 'default');
-    console.log('Data length:', data ? data.length : 0);
+
+    const dataDictionary = `CRITICAL - HOW TO READ THE DATA:
+
+All numeric health scores use the SAME scale direction where HIGHER = BETTER and LOWER = WORSE.
+
+- wellbeing: 1 = very poor, 10 = feeling great
+- heart: 1 = severe symptoms, 10 = no heart issues
+- spinal: 1 = severe pain, 10 = no pain
+- headache: 1 = severe, 10 = no headache
+- stomach: 1 = very bad, 10 = stomach feels great
+- gut: 1 = very bad, 10 = gut feels great
+- menstrual_comfort: 1 = severe pain, 10 = no pain, 0 = N/A (NOT menstruating that day). EXCLUDE all 0 values from any menstrual analysis.
+- cycle_day: which day of menstrual cycle (1 = first day of period)
+- red_flag: true if she flagged the day as concerning
+
+INTERPRETATION EXAMPLES:
+- wellbeing=8 means she felt great
+- wellbeing=3 means she felt poor
+- stomach=2 means very bad stomach issues
+- stomach=9 means stomach felt great
+- menstrual_comfort=8 means barely any pain (good day)
+- menstrual_comfort=2 means severe pain (bad day)
+- menstrual_comfort=0 means she was NOT menstruating, ignore for menstrual analysis
+
+Never describe a high score as a problem or a low score as good. Re-read the scale above if uncertain.`;
 
     const systemPrompt = type === 'clinical'
-      ? `You are summarising a patient's health journal data for their doctor or health team. Be clinical, factual, and concise. Mention recurring symptoms, potential triggers, and anything worth clinical attention. Do not diagnose. Keep it to 4-6 sentences.`
-      : `You are a compassionate health data analyst reviewing daily health journal entries for a woman named Lisa. Identify patterns, potential triggers, and notable trends. Speak directly to Lisa in second person. Never give medical diagnoses. Keep your response to 3-4 short sentences. Focus on what the data actually shows.`;
+      ? `You are summarising a patient's health journal data for their doctor or health team. Be clinical, factual, and concise. Structure your response with clear observations about patterns. Mention recurring symptoms, potential triggers, and anything worth clinical attention. Do not diagnose. Keep it to 4-6 sentences.
+
+${dataDictionary}`
+      : `You are a compassionate health data analyst reviewing daily health journal entries for a woman named Lisa. Identify patterns, potential triggers, and notable trends. Speak directly to Lisa in second person. Never give medical diagnoses. Keep your response to 3-4 short sentences. Focus on what the data actually shows.
+
+${dataDictionary}`;
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -41,7 +68,6 @@ exports.handler = async function(event) {
 
     console.log('Anthropic response status:', response.status);
     const result = await response.json();
-    console.log('Anthropic response body:', JSON.stringify(result).substring(0, 500));
 
     if (!response.ok) {
       return {
@@ -62,7 +88,6 @@ exports.handler = async function(event) {
     };
   } catch (err) {
     console.error('Function error:', err.message);
-    console.error('Stack:', err.stack);
     return {
       statusCode: 500,
       headers: { 'Access-Control-Allow-Origin': '*' },
