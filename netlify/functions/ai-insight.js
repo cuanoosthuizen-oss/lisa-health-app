@@ -28,6 +28,8 @@ All numeric health scores use the SAME scale direction where HIGHER = BETTER and
 - headache: 1 = severe, 10 = no headache
 - stomach: 1 = very bad, 10 = stomach feels great
 - gut: 1 = very bad, 10 = gut feels great
+- libido: 1 = very low desire for intimacy, 10 = high desire
+- sexual_health: free-text tags about physical sexual symptoms (e.g. pain during/after intimacy, discomfort). Empty or "Not applicable" means nothing logged — do not infer anything from an empty value.
 - menstrual_comfort: 1 = severe pain, 10 = no pain, 0 = N/A (NOT menstruating that day). EXCLUDE all 0 values from any menstrual analysis.
 - cycle_day: which day of menstrual cycle (1 = first day of period)
 - red_flag: true if she flagged the day as concerning
