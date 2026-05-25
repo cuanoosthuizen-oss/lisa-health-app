@@ -119,6 +119,45 @@
 
   .day-picker-input:focus { border-color: var(--accent); }
 
+  /* Missed days strip */
+  .missed-days-wrap {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+
+  .missed-days-title {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .missed-days-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .missed-day-chip {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 12px;
+    font-size: 12px;
+    color: var(--text);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .missed-day-chip:active { background: var(--surface); }
+
+  .missed-days-none {
+    font-size: 13px;
+    color: var(--good);
+  }
+
   .day-detail {
     margin-top: 14px;
     padding-top: 14px;
@@ -462,6 +501,7 @@
   /* Text input */
   .text-input {
     width: 100%;
+    box-sizing: border-box;
     background: var(--surface2);
     border: 1px solid var(--border);
     border-radius: 10px;
@@ -476,6 +516,15 @@
 
   .text-input:focus { border-color: var(--accent); }
   .text-input::placeholder { color: var(--muted); }
+
+  /* Native date input needs explicit appearance reset on iOS */
+  input[type="date"].text-input {
+    -webkit-appearance: none;
+    appearance: none;
+    color-scheme: dark;
+    min-height: 42px;
+    text-align: left;
+  }
 
   /* Number input */
   .num-input {
@@ -1198,7 +1247,7 @@
       <!-- Entry date -->
       <div class="form-group">
         <label class="form-label">Entry date<small>defaults to today — change to log a past day</small></label>
-        <input class="text-input" type="date" id="checkin-date" onchange="onCheckinDateChange()">
+        <input class="text-input" type="date" id="checkin-date" onchange="onCheckinDateManualChange()">
         <div id="checkin-date-warning" style="display:none; margin-top:8px; font-size:12px; color:var(--accent2);"></div>
       </div>
       <!-- Scores section -->
@@ -1455,6 +1504,7 @@
         <input class="day-picker-input" type="date" id="day-picker" onchange="renderSelectedDay()">
       </div>
       <div id="day-detail"></div>
+      <div id="missed-days"></div>
     </div>
 
     <!-- Date range filter -->
@@ -1905,10 +1955,23 @@ function getLast7() {
 }
 
 function computeStreak() {
-  const dates = [...new Set(DATA.map(d=>d.date))].sort((a,b)=>b.localeCompare(a));
+  // A day only counts toward the streak if it was logged ON that day
+  // (created_at's date === the entry's date). Backfilled past days don't count.
+  const sameDayDates = DATA
+    .filter(d => {
+      if (!d.created_at) return true; // older rows without created_at: count them (legacy)
+      const createdDate = new Date(d.created_at).toLocaleDateString('en-CA'); // YYYY-MM-DD local
+      return createdDate === d.date;
+    })
+    .map(d => d.date);
+
+  const dates = [...new Set(sameDayDates)].sort((a,b)=>b.localeCompare(a));
   if (!dates.length) return 0;
+
+  // Streak must include today or yesterday to be "current"
   let streak = 0;
   let cur = new Date();
+  cur.setHours(12,0,0,0);
   for (const d of dates) {
     const diff = Math.round((cur - new Date(d+'T12:00:00')) / 86400000);
     if (diff <= 1) { streak++; cur = new Date(d+'T12:00:00'); }
@@ -1976,6 +2039,23 @@ function clearForm() {
 }
 
 // ── SUBMIT ───────────────────────────────────────────────────────────────────
+// Called when the user manually changes the date picker in the check-in form
+function onCheckinDateManualChange() {
+  const dateInput = document.getElementById('checkin-date');
+  if (!dateInput) return;
+  const chosen = dateInput.value || today();
+
+  // Clear the form, but preserve the chosen date (clearForm resets to today)
+  clearForm();
+  dateInput.value = chosen;
+
+  // Pre-fill if an entry already exists for the chosen date
+  prefillFormForDate(chosen);
+  onCheckinDateChange();
+  window.scrollTo(0, 0);
+}
+
+// Updates the heading + warning text based on the current date (no form changes)
 function onCheckinDateChange() {
   const dateInput = document.getElementById('checkin-date');
   const heading = document.getElementById('checkin-heading');
@@ -1990,9 +2070,9 @@ function onCheckinDateChange() {
     heading.innerHTML = 'Entry for <em>' + fmt(chosen) + '</em>';
     const existing = DATA.find(d => d.date === chosen);
     if (existing) {
-      warning.textContent = 'You already have an entry for this day. Saving will overwrite it.';
+      warning.textContent = 'You already have an entry for this day. Editing will overwrite it.';
     } else {
-      warning.textContent = 'Logging a past day.';
+      warning.textContent = 'Logging a past day. This will not affect your streak.';
     }
     warning.style.display = 'block';
   }
@@ -2300,79 +2380,119 @@ function addEntryForDate(date) {
 
   clearForm();
 
-  // Set the date
+  // Set the date (this triggers onCheckinDateChange via the change handler path,
+  // but we call prefill explicitly to be safe)
   const dateInput = document.getElementById('checkin-date');
   if (dateInput) dateInput.value = date;
 
-  // If an entry already exists, pre-fill the form with its values
-  const existing = DATA.find(d => d.date === date);
-  if (existing) {
-    ['wellbeing','heart','spinal','headache','stomach','gut','libido'].forEach(k => {
-      const sl = document.getElementById('sl-' + k);
-      if (sl && existing[k] != null) {
-        sl.value = existing[k];
-        document.getElementById('val-' + k).textContent = existing[k];
-      }
-    });
-    const slM = document.getElementById('sl-menstrual');
-    if (slM && existing.menstrual_pain != null) {
-      slM.value = existing.menstrual_pain;
-      document.getElementById('val-menstrual').textContent = existing.menstrual_pain;
-    }
-    if (existing.cycle_day != null) {
-      numVals.cycle_day = existing.cycle_day;
-      document.getElementById('num-cycle_day').textContent = existing.cycle_day;
-    }
-    // Restore multi-select tags for symptom groups
-    const tagMap = {
-      mental: existing.mental_notes, heart: existing.heart_notes,
-      spinal: existing.spinal_notes, headache: existing.headache_notes,
-      stomach: existing.stomach_notes, cycle: existing.cycle_notes,
-      gut: existing.gut_notes, sexual: existing.sexual_notes
-    };
-    Object.keys(tagMap).forEach(group => {
-      const vals = (tagMap[group] || '').split(',').map(s => s.trim()).filter(Boolean);
-      msSelections[group] = [];
-      document.querySelectorAll(`#ms-${group} .ms-option`).forEach(el => {
-        if (vals.includes(el.textContent)) {
-          el.classList.add('selected');
-          msSelections[group].push(el.textContent);
-        }
-      });
-    });
-
-    // Meds and diet store tags + free text joined together. Re-match known tag
-    // options; anything left over goes back into the free-text field.
-    function restoreCombined(group, combinedStr, otherInputId) {
-      const parts = (combinedStr || '').split(',').map(s => s.trim()).filter(Boolean);
-      const knownOptions = [...document.querySelectorAll(`#ms-${group} .ms-option`)].map(el => el.textContent);
-      msSelections[group] = [];
-      const leftovers = [];
-      parts.forEach(part => {
-        if (knownOptions.includes(part)) {
-          msSelections[group].push(part);
-        } else {
-          leftovers.push(part);
-        }
-      });
-      document.querySelectorAll(`#ms-${group} .ms-option`).forEach(el => {
-        if (msSelections[group].includes(el.textContent)) el.classList.add('selected');
-      });
-      if (otherInputId) {
-        const inp = document.getElementById(otherInputId);
-        if (inp) inp.value = leftovers.join(', ');
-      }
-    }
-    restoreCombined('meds', existing.medication_notes, 'meds-other');
-    restoreCombined('diet', existing.diet_notes, 'diet-notes');
-
-    // Restore remaining free-text note
-    const extraNotes = document.getElementById('extra-notes');
-    if (extraNotes) extraNotes.value = existing.extra_notes || '';
-  }
-
+  prefillFormForDate(date);
   onCheckinDateChange();
   window.scrollTo(0, 0);
+}
+
+// Pre-fill the check-in form with an existing entry's values (if one exists for the date)
+function prefillFormForDate(date) {
+  const existing = DATA.find(d => d.date === date);
+  if (!existing) return;
+
+  ['wellbeing','heart','spinal','headache','stomach','gut','libido'].forEach(k => {
+    const sl = document.getElementById('sl-' + k);
+    if (sl && existing[k] != null) {
+      sl.value = existing[k];
+      document.getElementById('val-' + k).textContent = existing[k];
+    }
+  });
+  const slM = document.getElementById('sl-menstrual');
+  if (slM && existing.menstrual_pain != null) {
+    slM.value = existing.menstrual_pain;
+    document.getElementById('val-menstrual').textContent = existing.menstrual_pain;
+  }
+  if (existing.cycle_day != null) {
+    numVals.cycle_day = existing.cycle_day;
+    document.getElementById('num-cycle_day').textContent = existing.cycle_day;
+  }
+  // Restore multi-select tags for symptom groups
+  const tagMap = {
+    mental: existing.mental_notes, heart: existing.heart_notes,
+    spinal: existing.spinal_notes, headache: existing.headache_notes,
+    stomach: existing.stomach_notes, cycle: existing.cycle_notes,
+    gut: existing.gut_notes, sexual: existing.sexual_notes
+  };
+  Object.keys(tagMap).forEach(group => {
+    const vals = (tagMap[group] || '').split(',').map(s => s.trim()).filter(Boolean);
+    msSelections[group] = [];
+    document.querySelectorAll(`#ms-${group} .ms-option`).forEach(el => {
+      if (vals.includes(el.textContent)) {
+        el.classList.add('selected');
+        msSelections[group].push(el.textContent);
+      }
+    });
+  });
+
+  // Meds and diet store tags + free text joined together. Re-match known tag
+  // options; anything left over goes back into the free-text field.
+  function restoreCombined(group, combinedStr, otherInputId) {
+    const parts = (combinedStr || '').split(',').map(s => s.trim()).filter(Boolean);
+    const knownOptions = [...document.querySelectorAll(`#ms-${group} .ms-option`)].map(el => el.textContent);
+    msSelections[group] = [];
+    const leftovers = [];
+    parts.forEach(part => {
+      if (knownOptions.includes(part)) {
+        msSelections[group].push(part);
+      } else {
+        leftovers.push(part);
+      }
+    });
+    document.querySelectorAll(`#ms-${group} .ms-option`).forEach(el => {
+      if (msSelections[group].includes(el.textContent)) el.classList.add('selected');
+    });
+    if (otherInputId) {
+      const inp = document.getElementById(otherInputId);
+      if (inp) inp.value = leftovers.join(', ');
+    }
+  }
+  restoreCombined('meds', existing.medication_notes, 'meds-other');
+  restoreCombined('diet', existing.diet_notes, 'diet-notes');
+
+  // Restore remaining free-text note
+  const extraNotes = document.getElementById('extra-notes');
+  if (extraNotes) extraNotes.value = existing.extra_notes || '';
+}
+
+// Show days in the last 14 that have no entry, so missed days are visible at a glance
+function renderMissedDays() {
+  const el = document.getElementById('missed-days');
+  if (!el) return;
+
+  const logged = new Set(DATA.map(d => d.date));
+  const missed = [];
+  const now = new Date();
+  // Check the last 14 days, excluding today (today isn't "missed" yet)
+  for (let i = 1; i <= 14; i++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const ds = d.toLocaleDateString('en-CA'); // YYYY-MM-DD local
+    if (!logged.has(ds)) missed.push(ds);
+  }
+
+  if (!missed.length) {
+    el.innerHTML = `
+      <div class="missed-days-wrap">
+        <div class="missed-days-title">Last 14 days</div>
+        <div class="missed-days-none">No missed days — nicely done.</div>
+      </div>`;
+    return;
+  }
+
+  const chips = missed.map(ds =>
+    `<div class="missed-day-chip" onclick="addEntryForDate('${ds}')">${fmt(ds)}</div>`
+  ).join('');
+
+  el.innerHTML = `
+    <div class="missed-days-wrap">
+      <div class="missed-days-title">Missed days (last 14) — tap to add</div>
+      <div class="missed-days-list">${chips}</div>
+    </div>`;
 }
 
 async function generateDayInsight() {
@@ -2475,6 +2595,7 @@ function renderTrends() {
     if (!picker.value) picker.value = today();
     renderSelectedDay();
   }
+  renderMissedDays();
 
   const rangeData = filterDataByRange(DATA);
   const sorted = [...rangeData].sort((a,b) => a.date.localeCompare(b.date));
