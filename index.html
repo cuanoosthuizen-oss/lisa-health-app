@@ -237,7 +237,7 @@
     backdrop-filter: blur(20px);
     border-top: 1px solid var(--border);
     display: flex;
-    padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+    padding: 4px 8px calc(2px + env(safe-area-inset-bottom, 0px));
     z-index: 100;
   }
 
@@ -246,11 +246,11 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
+    gap: 2px;
     background: none;
     border: none;
     cursor: pointer;
-    padding: 6px 4px;
+    padding: 4px 4px;
     color: var(--muted);
     font-family: var(--font-sans);
     font-size: 10px;
@@ -262,7 +262,7 @@
   }
 
   .nav-btn.active { color: var(--accent); }
-  .nav-btn svg { width: 22px; height: 22px; }
+  .nav-btn svg { width: 20px; height: 20px; }
 
   /* Views */
   .view { display: none; }
@@ -1193,8 +1193,14 @@
   <!-- CHECK-IN VIEW -->
   <div class="view main" id="view-checkin">
     <div id="checkin-scroll">
-      <div class="section-heading">How are you <em>today?</em></div>
+      <div class="section-heading" id="checkin-heading">How are you <em>today?</em></div>
       <div id="form-inner">
+      <!-- Entry date -->
+      <div class="form-group">
+        <label class="form-label">Entry date<small>defaults to today — change to log a past day</small></label>
+        <input class="text-input" type="date" id="checkin-date" onchange="onCheckinDateChange()">
+        <div id="checkin-date-warning" style="display:none; margin-top:8px; font-size:12px; color:var(--accent2);"></div>
+      </div>
       <!-- Scores section -->
       <div class="form-group">
         <label class="form-label">Overall wellbeing<small>1 = very poor, 10 = great</small></label>
@@ -1354,6 +1360,28 @@
           <div class="ms-option" onclick="toggleMs(this,'gut')">Loose</div>
           <div class="ms-option" onclick="toggleMs(this,'gut')">Constipated</div>
           <div class="ms-option" onclick="toggleMs(this,'gut')">Diarrhoea</div>
+        </div>
+      </div>
+
+      <!-- Intimacy & desire -->
+      <div class="form-group">
+        <label class="form-label">Intimacy &amp; desire<small>1 = very low, 10 = high</small></label>
+        <div class="slider-value" id="val-libido">5</div>
+        <input class="score-slider" type="range" min="1" max="10" value="5" id="sl-libido"
+          oninput="document.getElementById('val-libido').textContent=this.value">
+        <div class="slider-labels"><span>Low</span><span>High</span></div>
+      </div>
+
+      <!-- Sexual health -->
+      <div class="form-group">
+        <label class="form-label">Sexual health</label>
+        <div class="multi-select" id="ms-sexual">
+          <div class="ms-option" onclick="toggleMs(this,'sexual')">Pain during intimacy</div>
+          <div class="ms-option" onclick="toggleMs(this,'sexual')">Pain after intimacy</div>
+          <div class="ms-option" onclick="toggleMs(this,'sexual')">Discomfort or dryness</div>
+          <div class="ms-option" onclick="toggleMs(this,'sexual')">Bleeding after intimacy</div>
+          <div class="ms-option" onclick="toggleMs(this,'sexual')">Comfortable / no issues</div>
+          <div class="ms-option" onclick="toggleMs(this,'sexual')">Not applicable</div>
         </div>
       </div>
 
@@ -1577,7 +1605,7 @@
     <div class="settings-card">
       <div class="settings-row">
         <div class="settings-row-label">Version</div>
-        <div class="settings-row-value">0.2.0</div>
+        <div class="settings-row-value">0.3.0</div>
       </div>
       <div class="settings-about-foot">Made with care for Lisa</div>
     </div>
@@ -1715,16 +1743,32 @@ const sb = {
     return r.json();
   },
   async insert(entry) {
-    if (!await ensureFreshToken()) return false;
+    if (!await ensureFreshToken()) return null;
     const r = await fetch(`${SUPABASE_URL}/rest/v1/entries`, {
       method: 'POST',
       headers: {
         'apikey': SUPABASE_KEY,
         'Authorization': `Bearer ${currentSession.access_token}`,
         'Content-Type': 'application/json',
-        'Prefer': 'return=minimal'
+        'Prefer': 'return=representation'
       },
       body: JSON.stringify({ ...entry, user_id: currentUser.id })
+    });
+    if (!r.ok) return null;
+    const rows = await r.json();
+    return (rows && rows[0]) ? rows[0] : null;
+  },
+  async update(id, entry) {
+    if (!await ensureFreshToken()) return false;
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/entries?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${currentSession.access_token}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(entry)
     });
     return r.ok;
   }
@@ -1820,9 +1864,22 @@ async function loadData() {
 
 async function saveData(entry) {
   try {
-    await sb.insert(entry);
+    const saved = await sb.insert(entry);
+    // Attach the DB-generated id to the in-memory entry so same-session edits work
+    if (saved && saved.id) {
+      const idx = DATA.findIndex(d => d.date === entry.date && d.id == null);
+      if (idx !== -1) DATA[idx].id = saved.id;
+    }
   } catch(e) {
     console.warn('Supabase save failed.');
+  }
+}
+
+async function updateData(id, entry) {
+  try {
+    await sb.update(id, entry);
+  } catch(e) {
+    console.warn('Supabase update failed.');
   }
 }
 
@@ -1888,15 +1945,19 @@ function getMs(group) {
 }
 
 function clearForm() {
-  ['wellbeing','heart','spinal','headache','stomach','gut'].forEach(k => {
+  ['wellbeing','heart','spinal','headache','stomach','gut','libido'].forEach(k => {
     const sl = document.getElementById('sl-' + k);
-    if (sl) { sl.value = 5; document.getElementById('val-' + k).textContent = 5; }
+    if (sl) {
+      const def = (k === 'libido') ? 5 : 5;
+      sl.value = def;
+      document.getElementById('val-' + k).textContent = def;
+    }
   });
   const slM = document.getElementById('sl-menstrual');
   if (slM) { slM.value = 0; document.getElementById('val-menstrual').textContent = 0; }
   numVals.cycle_day = 1;
   document.getElementById('num-cycle_day').textContent = 1;
-  ['mental','heart','spinal','headache','stomach','cycle','gut','meds','diet'].forEach(g => {
+  ['mental','heart','spinal','headache','stomach','cycle','gut','sexual','meds','diet'].forEach(g => {
     msSelections[g] = [];
     document.querySelectorAll(`#ms-${g} .ms-option, #ms-meds .ms-option`).forEach(el => el.classList.remove('selected'));
   });
@@ -1908,18 +1969,48 @@ function clearForm() {
   if (medsOther) medsOther.value = '';
   if (dietNotes) dietNotes.value = '';
   if (extraNotes) extraNotes.value = '';
+  // Reset date to today
+  const dateInput = document.getElementById('checkin-date');
+  if (dateInput) { dateInput.max = today(); dateInput.value = today(); }
+  onCheckinDateChange();
 }
 
 // ── SUBMIT ───────────────────────────────────────────────────────────────────
+function onCheckinDateChange() {
+  const dateInput = document.getElementById('checkin-date');
+  const heading = document.getElementById('checkin-heading');
+  const warning = document.getElementById('checkin-date-warning');
+  if (!dateInput) return;
+  const chosen = dateInput.value || today();
+
+  if (chosen === today()) {
+    heading.innerHTML = 'How are you <em>today?</em>';
+    warning.style.display = 'none';
+  } else {
+    heading.innerHTML = 'Entry for <em>' + fmt(chosen) + '</em>';
+    const existing = DATA.find(d => d.date === chosen);
+    if (existing) {
+      warning.textContent = 'You already have an entry for this day. Saving will overwrite it.';
+    } else {
+      warning.textContent = 'Logging a past day.';
+    }
+    warning.style.display = 'block';
+  }
+}
+
 async function submitCheckin() {
+  const dateInput = document.getElementById('checkin-date');
+  const entryDate = (dateInput && dateInput.value) ? dateInput.value : today();
+
   const entry = {
-    date: today(),
+    date: entryDate,
     wellbeing: parseInt(document.getElementById('sl-wellbeing').value),
     heart: parseInt(document.getElementById('sl-heart').value),
     spinal: parseInt(document.getElementById('sl-spinal').value),
     headache: parseInt(document.getElementById('sl-headache').value),
     stomach: parseInt(document.getElementById('sl-stomach').value),
     gut: parseInt(document.getElementById('sl-gut').value),
+    libido: parseInt(document.getElementById('sl-libido').value),
     cycle_day: numVals.cycle_day,
     menstrual_pain: parseInt(document.getElementById('sl-menstrual').value),
     num_medications: (msSelections.meds||[]).filter(x=>x!=='None').length,
@@ -1931,6 +2022,7 @@ async function submitCheckin() {
     stomach_notes: getMs('stomach'),
     cycle_notes: getMs('cycle'),
     gut_notes: getMs('gut'),
+    sexual_notes: getMs('sexual'),
     body_notes: '',
     medication_notes: [getMs('meds'), document.getElementById('meds-other').value].filter(Boolean).join(', '),
     diet_notes: [getMs('diet'), document.getElementById('diet-notes').value].filter(Boolean).join(', '),
@@ -1942,8 +2034,21 @@ async function submitCheckin() {
   const scores = [entry.wellbeing, entry.heart, entry.spinal, entry.headache, entry.stomach, entry.gut];
   if (scores.some(s => s < 4) || (entry.menstrual_pain > 0 && entry.menstrual_pain < 4)) entry.red_flag = true;
 
-  DATA.push(entry);
-  await saveData(entry);
+  // Check if an entry already exists for this date — if so, update it
+  const existingIndex = DATA.findIndex(d => d.date === entryDate);
+  if (existingIndex !== -1 && DATA[existingIndex].id != null) {
+    const existingId = DATA[existingIndex].id;
+    DATA[existingIndex] = { ...DATA[existingIndex], ...entry };
+    await updateData(existingId, entry);
+  } else if (existingIndex !== -1) {
+    // Entry exists in memory but has no DB id yet (added this session) — overwrite in place and insert
+    DATA[existingIndex] = { ...DATA[existingIndex], ...entry };
+    await saveData(entry);
+  } else {
+    DATA.push(entry);
+    await saveData(entry);
+  }
+
   clearForm();
 
   document.getElementById('form-inner').style.display = 'none';
@@ -2060,7 +2165,7 @@ async function generateInsight() {
 
   const recent = [...DATA].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
   const summary = recent.map(d =>
-    `${d.date}: wellbeing=${d.wellbeing}, heart=${d.heart}, spinal=${d.spinal}, headache=${d.headache}, stomach=${d.stomach}, gut=${d.gut}, cycle_day=${d.cycle_day}, menstrual_comfort=${d.menstrual_pain}, diet="${d.diet_notes}", mental="${d.mental_notes}", red_flag=${d.red_flag}`
+    `${d.date}: wellbeing=${d.wellbeing}, heart=${d.heart}, spinal=${d.spinal}, headache=${d.headache}, stomach=${d.stomach}, gut=${d.gut}, libido=${d.libido}, cycle_day=${d.cycle_day}, menstrual_comfort=${d.menstrual_pain}, sexual_health="${d.sexual_notes}", diet="${d.diet_notes}", mental="${d.mental_notes}", red_flag=${d.red_flag}`
   ).join('\n');
 
   try {
@@ -2104,6 +2209,7 @@ function renderSelectedDay() {
     detail.innerHTML = `
       <div class="day-detail">
         <div class="day-detail-empty">No entry recorded for ${fmt(date)}.</div>
+        <button class="day-ai-btn" onclick="addEntryForDate('${date}')" style="color:var(--accent);">+ Add an entry for this day</button>
       </div>`;
     return;
   }
@@ -2117,6 +2223,9 @@ function renderSelectedDay() {
     { key: 'stomach', label: 'Stomach', val: entry.stomach },
     { key: 'gut', label: 'Gut', val: entry.gut }
   ];
+  if (entry.libido != null) {
+    scores.push({ key: 'libido', label: 'Desire', val: entry.libido });
+  }
   const scoresHtml = scores.map(s => `
     <div class="day-score-tile">
       <div class="day-score-num" style="color:${scoreColorHex(s.val)}">${s.val}</div>
@@ -2150,6 +2259,7 @@ function renderSelectedDay() {
     { title: 'Head / migraine notes', text: entry.headache_notes },
     { title: 'Stomach notes', text: entry.stomach_notes },
     { title: 'Gut notes', text: entry.gut_notes },
+    { title: 'Sexual health', text: entry.sexual_notes },
     { title: 'Medication', text: entry.medication_notes },
     { title: 'Diet', text: entry.diet_notes },
     { title: 'Other notes', text: entry.extra_notes }
@@ -2172,9 +2282,97 @@ function renderSelectedDay() {
       ${menstrualHtml}
       ${sectionsHtml}
       ${redFlagHtml}
+      <button class="day-ai-btn" onclick="addEntryForDate('${date}')">Edit this entry</button>
       <button class="day-ai-btn" id="day-ai-btn" onclick="generateDayInsight()">Get AI take on this day</button>
       <div id="day-ai-result"></div>
     </div>`;
+}
+
+// Jump to check-in form pre-loaded with a specific date (and existing data if present)
+function addEntryForDate(date) {
+  const checkinBtn = document.querySelector('.nav-btn[onclick*="checkin"]');
+  showView('checkin', checkinBtn);
+
+  // Make sure the form is visible (not the submitted state)
+  document.getElementById('form-inner').style.display = 'block';
+  document.getElementById('main-submit-btn').style.display = 'block';
+  document.getElementById('submitted-state').classList.remove('show');
+
+  clearForm();
+
+  // Set the date
+  const dateInput = document.getElementById('checkin-date');
+  if (dateInput) dateInput.value = date;
+
+  // If an entry already exists, pre-fill the form with its values
+  const existing = DATA.find(d => d.date === date);
+  if (existing) {
+    ['wellbeing','heart','spinal','headache','stomach','gut','libido'].forEach(k => {
+      const sl = document.getElementById('sl-' + k);
+      if (sl && existing[k] != null) {
+        sl.value = existing[k];
+        document.getElementById('val-' + k).textContent = existing[k];
+      }
+    });
+    const slM = document.getElementById('sl-menstrual');
+    if (slM && existing.menstrual_pain != null) {
+      slM.value = existing.menstrual_pain;
+      document.getElementById('val-menstrual').textContent = existing.menstrual_pain;
+    }
+    if (existing.cycle_day != null) {
+      numVals.cycle_day = existing.cycle_day;
+      document.getElementById('num-cycle_day').textContent = existing.cycle_day;
+    }
+    // Restore multi-select tags for symptom groups
+    const tagMap = {
+      mental: existing.mental_notes, heart: existing.heart_notes,
+      spinal: existing.spinal_notes, headache: existing.headache_notes,
+      stomach: existing.stomach_notes, cycle: existing.cycle_notes,
+      gut: existing.gut_notes, sexual: existing.sexual_notes
+    };
+    Object.keys(tagMap).forEach(group => {
+      const vals = (tagMap[group] || '').split(',').map(s => s.trim()).filter(Boolean);
+      msSelections[group] = [];
+      document.querySelectorAll(`#ms-${group} .ms-option`).forEach(el => {
+        if (vals.includes(el.textContent)) {
+          el.classList.add('selected');
+          msSelections[group].push(el.textContent);
+        }
+      });
+    });
+
+    // Meds and diet store tags + free text joined together. Re-match known tag
+    // options; anything left over goes back into the free-text field.
+    function restoreCombined(group, combinedStr, otherInputId) {
+      const parts = (combinedStr || '').split(',').map(s => s.trim()).filter(Boolean);
+      const knownOptions = [...document.querySelectorAll(`#ms-${group} .ms-option`)].map(el => el.textContent);
+      msSelections[group] = [];
+      const leftovers = [];
+      parts.forEach(part => {
+        if (knownOptions.includes(part)) {
+          msSelections[group].push(part);
+        } else {
+          leftovers.push(part);
+        }
+      });
+      document.querySelectorAll(`#ms-${group} .ms-option`).forEach(el => {
+        if (msSelections[group].includes(el.textContent)) el.classList.add('selected');
+      });
+      if (otherInputId) {
+        const inp = document.getElementById(otherInputId);
+        if (inp) inp.value = leftovers.join(', ');
+      }
+    }
+    restoreCombined('meds', existing.medication_notes, 'meds-other');
+    restoreCombined('diet', existing.diet_notes, 'diet-notes');
+
+    // Restore remaining free-text note
+    const extraNotes = document.getElementById('extra-notes');
+    if (extraNotes) extraNotes.value = existing.extra_notes || '';
+  }
+
+  onCheckinDateChange();
+  window.scrollTo(0, 0);
 }
 
 async function generateDayInsight() {
@@ -2202,7 +2400,7 @@ async function generateDayInsight() {
   resultEl.innerHTML = '';
 
   const summary = upToDate.map(d =>
-    `${d.date}: wellbeing=${d.wellbeing}, heart=${d.heart}, spinal=${d.spinal}, headache=${d.headache}, stomach=${d.stomach}, gut=${d.gut}, cycle_day=${d.cycle_day}, menstrual_comfort=${d.menstrual_pain}, diet="${d.diet_notes}", mental="${d.mental_notes}", red_flag=${d.red_flag}`
+    `${d.date}: wellbeing=${d.wellbeing}, heart=${d.heart}, spinal=${d.spinal}, headache=${d.headache}, stomach=${d.stomach}, gut=${d.gut}, libido=${d.libido}, cycle_day=${d.cycle_day}, menstrual_comfort=${d.menstrual_pain}, sexual_health="${d.sexual_notes}", diet="${d.diet_notes}", mental="${d.mental_notes}", red_flag=${d.red_flag}`
   ).join('\n');
 
   try {
@@ -2491,7 +2689,7 @@ async function renderShare() {
   // AI clinical summary
   const insightEl = document.getElementById('doctor-insight');
   const summary = recent.slice(0,15).map(d =>
-    `${d.date}: wellbeing=${d.wellbeing}, heart=${d.heart}, spinal=${d.spinal}, headache=${d.headache}, stomach=${d.stomach}, gut=${d.gut}, cycle_day=${d.cycle_day}, menstrual_comfort=${d.menstrual_pain}, diet="${d.diet_notes}", symptoms: heart="${d.heart_notes}", mental="${d.mental_notes}", stomach="${d.stomach_notes}", red_flag=${d.red_flag}`
+    `${d.date}: wellbeing=${d.wellbeing}, heart=${d.heart}, spinal=${d.spinal}, headache=${d.headache}, stomach=${d.stomach}, gut=${d.gut}, libido=${d.libido}, cycle_day=${d.cycle_day}, menstrual_comfort=${d.menstrual_pain}, sexual_health="${d.sexual_notes}", diet="${d.diet_notes}", symptoms: heart="${d.heart_notes}", mental="${d.mental_notes}", stomach="${d.stomach_notes}", red_flag=${d.red_flag}`
   ).join('\n');
 
   try {
