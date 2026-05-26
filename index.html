@@ -158,6 +158,172 @@
     color: var(--good);
   }
 
+  /* Custom date trigger button (replaces native date input) */
+  .date-trigger {
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    text-align: left;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .date-trigger:active { border-color: var(--accent); }
+  .date-trigger .date-trigger-icon { color: var(--muted); font-size: 16px; }
+
+  /* Custom calendar overlay */
+  .cal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .cal-overlay.open { display: flex; }
+
+  .cal-box {
+    width: 100%;
+    max-width: 360px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+
+  .cal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  .cal-month-label {
+    font-family: var(--font-serif);
+    font-size: 20px;
+    color: var(--text);
+  }
+
+  .cal-nav-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .cal-nav-btn:disabled { opacity: 0.3; cursor: default; }
+
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+
+  .cal-dow {
+    text-align: center;
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding-bottom: 6px;
+  }
+
+  .cal-day {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    font-size: 14px;
+    color: var(--text);
+    cursor: pointer;
+    position: relative;
+    border: 1px solid transparent;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .cal-day.empty { cursor: default; }
+  .cal-day.future { color: var(--border); cursor: default; }
+
+  /* logged day: subtle green dot under the number */
+  .cal-day.logged { background: rgba(52, 211, 153, 0.14); color: var(--text); }
+  .cal-day.logged::after {
+    content: '';
+    position: absolute;
+    bottom: 5px;
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: var(--good);
+  }
+
+  /* missed day: subtle red tint */
+  .cal-day.missed { background: rgba(248, 113, 113, 0.12); color: #f8a5a5; }
+
+  /* today: accent ring */
+  .cal-day.today { border-color: var(--accent); }
+
+  /* selected: strong accent fill */
+  .cal-day.selected {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #0d0d0f;
+    font-weight: 600;
+  }
+  .cal-day.selected::after { background: #0d0d0f; }
+
+  .cal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 16px;
+    gap: 10px;
+  }
+
+  .cal-legend {
+    display: flex;
+    gap: 12px;
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  .cal-legend span { display: flex; align-items: center; gap: 4px; }
+  .cal-legend .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .cal-legend .dot.logged { background: var(--good); }
+  .cal-legend .dot.missed { background: #f8a5a5; }
+
+  .cal-close {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 10px;
+    padding: 9px 16px;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   .day-detail {
     margin-top: 14px;
     padding-top: 14px;
@@ -516,15 +682,6 @@
 
   .text-input:focus { border-color: var(--accent); }
   .text-input::placeholder { color: var(--muted); }
-
-  /* Native date input needs explicit appearance reset on iOS */
-  input[type="date"].text-input {
-    -webkit-appearance: none;
-    appearance: none;
-    color-scheme: dark;
-    min-height: 42px;
-    text-align: left;
-  }
 
   /* Number input */
   .num-input {
@@ -1247,7 +1404,11 @@
       <!-- Entry date -->
       <div class="form-group">
         <label class="form-label">Entry date<small>defaults to today — change to log a past day</small></label>
-        <input class="text-input" type="date" id="checkin-date" onchange="onCheckinDateManualChange()">
+        <input type="hidden" id="checkin-date">
+        <button type="button" class="date-trigger" id="checkin-date-trigger" onclick="openCalendar('checkin-date', onCheckinDateManualChange)">
+          <span id="checkin-date-label">Today</span>
+          <span class="date-trigger-icon">▾</span>
+        </button>
         <div id="checkin-date-warning" style="display:none; margin-top:8px; font-size:12px; color:var(--accent2);"></div>
       </div>
       <!-- Scores section -->
@@ -1501,7 +1662,11 @@
     <div class="card">
       <div class="card-title">View a specific day</div>
       <div class="day-picker-row">
-        <input class="day-picker-input" type="date" id="day-picker" onchange="renderSelectedDay()">
+        <input type="hidden" id="day-picker">
+        <button type="button" class="date-trigger" id="day-picker-trigger" onclick="openCalendar('day-picker', renderSelectedDay)">
+          <span id="day-picker-label">Today</span>
+          <span class="date-trigger-icon">▾</span>
+        </button>
       </div>
       <div id="day-detail"></div>
       <div id="missed-days"></div>
@@ -1683,6 +1848,25 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- Custom calendar overlay -->
+<div class="cal-overlay" id="cal-overlay" onclick="if(event.target===this)closeCalendar()">
+  <div class="cal-box">
+    <div class="cal-header">
+      <button class="cal-nav-btn" id="cal-prev" onclick="calNavMonth(-1)">‹</button>
+      <div class="cal-month-label" id="cal-month-label"></div>
+      <button class="cal-nav-btn" id="cal-next" onclick="calNavMonth(1)">›</button>
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+    <div class="cal-footer">
+      <div class="cal-legend">
+        <span><span class="dot logged"></span>Logged</span>
+        <span><span class="dot missed"></span>Missed</span>
+      </div>
+      <button class="cal-close" onclick="closeCalendar()">Close</button>
+    </div>
+  </div>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
@@ -1934,9 +2118,112 @@ async function updateData(id, entry) {
 }
 
 // ── HELPERS ──────────────────────────────────────────────────────────────────
-const today = () => new Date().toISOString().slice(0,10);
+const today = () => new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in LOCAL time
 const fmt = d => new Date(d+'T12:00:00').toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'});
 const scoreColor = v => v >= 7 ? 'good' : v >= 5 ? 'mid' : 'bad';
+
+// ── CUSTOM CALENDAR ──────────────────────────────────────────────────────────
+let calState = { inputId: null, onSelect: null, year: 0, month: 0 };
+
+function openCalendar(inputId, onSelect) {
+  calState.inputId = inputId;
+  calState.onSelect = onSelect;
+
+  // Start on the month of the current value (or today)
+  const current = document.getElementById(inputId).value || today();
+  const d = new Date(current + 'T12:00:00');
+  calState.year = d.getFullYear();
+  calState.month = d.getMonth();
+
+  renderCalendar();
+  document.getElementById('cal-overlay').classList.add('open');
+}
+
+function closeCalendar() {
+  document.getElementById('cal-overlay').classList.remove('open');
+}
+
+function calNavMonth(delta) {
+  calState.month += delta;
+  if (calState.month < 0) { calState.month = 11; calState.year--; }
+  if (calState.month > 11) { calState.month = 0; calState.year++; }
+  renderCalendar();
+}
+
+function renderCalendar() {
+  const { year, month, inputId } = calState;
+  const selectedVal = document.getElementById(inputId).value || today();
+  const todayStr = today();
+
+  // Set of logged dates + earliest logged date (lower bound for "missed")
+  const loggedDates = new Set(DATA.map(d => d.date));
+  const allDates = [...loggedDates].sort();
+  const firstLogged = allDates.length ? allDates[0] : todayStr;
+
+  // Month label
+  const monthLabel = new Date(year, month, 1).toLocaleDateString('en-AU', { month: 'long', year: 'numeric' });
+  document.getElementById('cal-month-label').textContent = monthLabel;
+
+  // Disable "next" if viewing current month or later (no future months)
+  const now = new Date();
+  const nextBtn = document.getElementById('cal-next');
+  const viewingCurrentOrFuture = (year > now.getFullYear()) || (year === now.getFullYear() && month >= now.getMonth());
+  nextBtn.disabled = viewingCurrentOrFuture;
+
+  // Build grid
+  const grid = document.getElementById('cal-grid');
+  const dow = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  let html = dow.map(d => `<div class="cal-dow">${d}</div>`).join('');
+
+  // First day of month — convert Sun=0 start to Mon=0 start
+  const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
+  const mondayOffset = (firstDay + 6) % 7; // days before the 1st
+  for (let i = 0; i < mondayOffset; i++) html += `<div class="cal-day empty"></div>`;
+
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  for (let day = 1; day <= daysInMonth; day++) {
+    const ds = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const classes = ['cal-day'];
+
+    if (ds > todayStr) {
+      classes.push('future');
+    } else if (loggedDates.has(ds)) {
+      classes.push('logged');
+    } else if (ds >= firstLogged && ds < todayStr) {
+      classes.push('missed');
+    }
+
+    if (ds === todayStr) classes.push('today');
+    if (ds === selectedVal) classes.push('selected');
+
+    const clickable = ds <= todayStr;
+    html += `<div class="${classes.join(' ')}" ${clickable ? `onclick="selectCalendarDay('${ds}')"` : ''}>${day}</div>`;
+  }
+
+  grid.innerHTML = html;
+}
+
+function selectCalendarDay(ds) {
+  const { inputId, onSelect } = calState;
+  document.getElementById(inputId).value = ds;
+  updateDateTrigger(inputId);
+  closeCalendar();
+  if (typeof onSelect === 'function') onSelect();
+}
+
+// Refresh the trigger button's label from the hidden input's value
+function updateDateTrigger(inputId) {
+  const input = document.getElementById(inputId);
+  const label = document.getElementById(inputId + '-label');
+  if (!input || !label) return;
+  const val = input.value;
+  if (!val || val === today()) {
+    label.textContent = 'Today';
+  } else {
+    label.textContent = fmt(val);
+  }
+}
+
 
 function scoreColorHex(v) {
   if (v >= 7) return '#34d399';
@@ -2034,7 +2321,7 @@ function clearForm() {
   if (extraNotes) extraNotes.value = '';
   // Reset date to today
   const dateInput = document.getElementById('checkin-date');
-  if (dateInput) { dateInput.max = today(); dateInput.value = today(); }
+  if (dateInput) { dateInput.value = today(); updateDateTrigger('checkin-date'); }
   onCheckinDateChange();
 }
 
@@ -2048,6 +2335,7 @@ function onCheckinDateManualChange() {
   // Clear the form, but preserve the chosen date (clearForm resets to today)
   clearForm();
   dateInput.value = chosen;
+  updateDateTrigger('checkin-date');
 
   // Pre-fill if an entry already exists for the chosen date
   prefillFormForDate(chosen);
@@ -2383,7 +2671,7 @@ function addEntryForDate(date) {
   // Set the date (this triggers onCheckinDateChange via the change handler path,
   // but we call prefill explicitly to be safe)
   const dateInput = document.getElementById('checkin-date');
-  if (dateInput) dateInput.value = date;
+  if (dateInput) { dateInput.value = date; updateDateTrigger('checkin-date'); }
 
   prefillFormForDate(date);
   onCheckinDateChange();
@@ -2588,11 +2876,11 @@ function filterDataByRange(data) {
 }
 
 function renderTrends() {
-  // Refresh day picker view (default to today on first visit, prevent future dates)
+  // Refresh day picker view (default to today on first visit)
   const picker = document.getElementById('day-picker');
   if (picker) {
-    picker.max = today();
     if (!picker.value) picker.value = today();
+    updateDateTrigger('day-picker');
     renderSelectedDay();
   }
   renderMissedDays();
@@ -3102,6 +3390,13 @@ async function handleNewPassword() {
 function initApp() {
   renderHome();
   updateProfileInitial();
+  // Initialise date pickers to today and set their trigger labels
+  const ci = document.getElementById('checkin-date');
+  const dp = document.getElementById('day-picker');
+  if (ci && !ci.value) ci.value = today();
+  if (dp && !dp.value) dp.value = today();
+  updateDateTrigger('checkin-date');
+  updateDateTrigger('day-picker');
 }
 
 async function bootstrap() {
