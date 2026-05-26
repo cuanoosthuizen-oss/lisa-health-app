@@ -331,6 +331,71 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  /* Medication picker */
+  .med-search-wrap { position: relative; }
+
+  .med-suggestions {
+    margin-top: 6px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    display: none;
+  }
+
+  .med-suggestions.open { display: block; }
+
+  .med-suggestion {
+    padding: 11px 14px;
+    font-size: 14px;
+    color: var(--text);
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    -webkit-tap-highlight-color: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .med-suggestion:last-child { border-bottom: none; }
+  .med-suggestion:active { background: var(--surface); }
+  .med-suggestion .med-tag-label {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .med-suggestion .med-add-new { color: var(--accent); }
+
+  .med-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .med-chip {
+    background: rgba(192,132,252,0.15);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    border-radius: 8px;
+    padding: 7px 10px 7px 12px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .med-chip .med-chip-x {
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    opacity: 0.7;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .med-chip .med-chip-x:active { opacity: 1; }
+
   .day-detail {
     margin-top: 14px;
     padding-top: 14px;
@@ -1604,20 +1669,13 @@
 
       <!-- Medications -->
       <div class="form-group">
-        <label class="form-label">Medications taken</label>
-        <div class="multi-select" id="ms-meds">
-          <div class="ms-option" onclick="toggleMs(this,'meds')">CBD</div>
-          <div class="ms-option" onclick="toggleMs(this,'meds')">Neurofen</div>
-          <div class="ms-option" onclick="toggleMs(this,'meds')">Panadol</div>
-          <div class="ms-option" onclick="toggleMs(this,'meds')">Heart burn tablet</div>
-          <div class="ms-option" onclick="toggleMs(this,'meds')">Magnesium</div>
-          <div class="ms-option" onclick="toggleMs(this,'meds')">Antihistamine</div>
-          <div class="ms-option" onclick="toggleMs(this,'meds')">Zantac</div>
-          <div class="ms-option" onclick="toggleMs(this,'meds')">None</div>
+        <label class="form-label">Medications taken<small>search or type to add — tap a result</small></label>
+        <div class="med-search-wrap">
+          <input class="text-input" id="med-search" autocomplete="off" placeholder="Start typing a medication..."
+            oninput="onMedSearch()" onfocus="onMedSearch()">
+          <div class="med-suggestions" id="med-suggestions"></div>
         </div>
-        <div style="margin-top:10px;">
-          <input class="text-input" placeholder="Other medications..." id="meds-other">
-        </div>
+        <div class="med-chips" id="med-chips"></div>
       </div>
 
       <!-- Diet -->
@@ -2301,6 +2359,134 @@ function getMs(group) {
   return (msSelections[group] || []).join(', ');
 }
 
+// ── MEDICATION PICKER ────────────────────────────────────────────────────────
+// Curated seed list of common Australian medications & supplements, grouped by
+// active ingredient so brand/generic variants don't show as separate entries.
+// Each entry: display name (what shows + saves). Weighted toward Lisa's areas:
+// pain, endometriosis/hormonal, gut, mental health, cardiovascular, allergy.
+const MED_SEED = [
+  // Pain / anti-inflammatory
+  'Paracetamol (Panadol)', 'Ibuprofen (Nurofen)', 'Aspirin', 'Naproxen (Naprosyn)',
+  'Diclofenac (Voltaren)', 'Celecoxib (Celebrex)', 'Mefenamic acid (Ponstan)',
+  'Codeine', 'Panadeine Forte', 'Tramadol (Tramal)', 'Endone (oxycodone)',
+  'Targin', 'Meloxicam (Mobic)',
+  // Endometriosis / hormonal / contraceptive
+  'Norethisterone (Primolut)', 'Dienogest (Visanne)', 'Medroxyprogesterone (Provera)',
+  'Levonorgestrel IUD (Mirena)', 'Combined pill (Levlen)', 'Combined pill (Yaz)',
+  'Combined pill (Brenda)', 'Progesterone (Prometrium)', 'Goserelin (Zoladex)',
+  'Zoely', 'Slinda', 'Estradiol (Estrogel)',
+  // Gut / digestive
+  'Esomeprazole (Nexium)', 'Pantoprazole (Somac)', 'Omeprazole (Losec)',
+  'Rabeprazole (Pariet)', 'Ranitidine (Zantac)', 'Famotidine',
+  'Buscopan', 'Iberogast', 'Metamucil', 'Movicol', 'Imodium (loperamide)',
+  'Ondansetron (Zofran)', 'Metoclopramide (Maxolon)', 'Peppermint oil',
+  'Probiotic', 'Antacid (Mylanta)', 'Gaviscon',
+  // Mental health
+  'Sertraline (Zoloft)', 'Escitalopram (Lexapro)', 'Fluoxetine (Prozac)',
+  'Venlafaxine (Efexor)', 'Desvenlafaxine (Pristiq)', 'Duloxetine (Cymbalta)',
+  'Mirtazapine (Avanza)', 'Quetiapine (Seroquel)', 'Diazepam (Valium)',
+  'Temazepam', 'Melatonin (Circadin)', 'Amitriptyline (Endep)',
+  'Pregabalin (Lyrica)', 'Gabapentin',
+  // Cardiovascular / POTS-related
+  'Metoprolol (Betaloc)', 'Propranolol (Inderal)', 'Atenolol (Tenormin)',
+  'Ivabradine (Coralan)', 'Midodrine', 'Fludrocortisone (Florinef)',
+  'Perindopril (Coversyl)', 'Ramipril (Tritace)', 'Amlodipine (Norvasc)',
+  'Atorvastatin (Lipitor)', 'Rosuvastatin (Crestor)',
+  // Allergy / antihistamine
+  'Cetirizine (Zyrtec)', 'Loratadine (Claratyne)', 'Fexofenadine (Telfast)',
+  'Desloratadine (Aerius)', 'Promethazine (Phenergan)',
+  // Supplements / vitamins
+  'Magnesium', 'Vitamin D', 'Iron', 'Vitamin B12', 'Folate', 'Fish oil',
+  'Vitamin C', 'Zinc', 'CBD oil', 'Turmeric / curcumin', 'Multivitamin',
+  'Calcium', 'Coenzyme Q10', 'Electrolytes (hydralyte)',
+  // Other common
+  'Thyroxine (Eutroxsig)', 'Metformin', 'Prednisolone (steroid)',
+  'Salbutamol (Ventolin)', 'Antibiotic (course)'
+];
+
+// Selected meds for the current entry (array of display strings)
+let selectedMeds = [];
+
+// Build the pool of suggestable meds: curated seed + everything Lisa has logged before
+function getMedPool() {
+  const fromHistory = new Set();
+  DATA.forEach(d => {
+    if (d.medication_notes) {
+      d.medication_notes.split(',').map(s => s.trim()).filter(Boolean).forEach(m => {
+        if (m.toLowerCase() !== 'none') fromHistory.add(m);
+      });
+    }
+  });
+  // History first (most relevant to Lisa), then seed items not already in history
+  const historyArr = [...fromHistory];
+  const historyLower = new Set(historyArr.map(m => m.toLowerCase()));
+  const seedExtra = MED_SEED.filter(m => !historyLower.has(m.toLowerCase()));
+  return { history: historyArr, seed: seedExtra };
+}
+
+function onMedSearch() {
+  const input = document.getElementById('med-search');
+  const box = document.getElementById('med-suggestions');
+  if (!input || !box) return;
+  const q = input.value.trim().toLowerCase();
+
+  if (!q) { box.classList.remove('open'); box.innerHTML = ''; return; }
+
+  const { history, seed } = getMedPool();
+  const alreadyAdded = new Set(selectedMeds.map(m => m.toLowerCase()));
+
+  const matchHistory = history.filter(m => m.toLowerCase().includes(q) && !alreadyAdded.has(m.toLowerCase()));
+  const matchSeed = seed.filter(m => m.toLowerCase().includes(q) && !alreadyAdded.has(m.toLowerCase()));
+
+  // Build suggestion rows (history tagged "yours", capped to keep the list short)
+  let rows = '';
+  matchHistory.slice(0, 4).forEach(m => {
+    rows += `<div class="med-suggestion" onclick="addMed('${escAttr(m)}')"><span>${escapeHtml(m)}</span><span class="med-tag-label">Yours</span></div>`;
+  });
+  matchSeed.slice(0, 6).forEach(m => {
+    rows += `<div class="med-suggestion" onclick="addMed('${escAttr(m)}')"><span>${escapeHtml(m)}</span></div>`;
+  });
+
+  // Always offer an "add exactly what I typed" option if it isn't an exact match
+  const exact = [...history, ...seed].some(m => m.toLowerCase() === q);
+  if (!exact) {
+    const typed = input.value.trim();
+    rows += `<div class="med-suggestion" onclick="addMed('${escAttr(typed)}')"><span class="med-add-new">+ Add "${escapeHtml(typed)}"</span></div>`;
+  }
+
+  box.innerHTML = rows;
+  box.classList.add('open');
+}
+
+function addMed(name) {
+  if (!name) return;
+  // Avoid duplicates (case-insensitive)
+  if (!selectedMeds.some(m => m.toLowerCase() === name.toLowerCase())) {
+    selectedMeds.push(name);
+  }
+  document.getElementById('med-search').value = '';
+  document.getElementById('med-suggestions').classList.remove('open');
+  renderMedChips();
+}
+
+function removeMed(index) {
+  selectedMeds.splice(index, 1);
+  renderMedChips();
+}
+
+function renderMedChips() {
+  const wrap = document.getElementById('med-chips');
+  if (!wrap) return;
+  wrap.innerHTML = selectedMeds.map((m, i) =>
+    `<div class="med-chip">${escapeHtml(m)}<span class="med-chip-x" onclick="removeMed(${i})">×</span></div>`
+  ).join('');
+}
+
+// Escape a string for safe use inside a single-quoted HTML attribute
+function escAttr(s) {
+  return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
 function clearForm() {
   ['wellbeing','heart','spinal','headache','stomach','gut','libido'].forEach(k => {
     const sl = document.getElementById('sl-' + k);
@@ -2314,16 +2500,21 @@ function clearForm() {
   if (slM) { slM.value = 0; document.getElementById('val-menstrual').textContent = 0; }
   numVals.cycle_day = 1;
   document.getElementById('num-cycle_day').textContent = 1;
-  ['mental','heart','spinal','headache','stomach','cycle','gut','sexual','meds','diet'].forEach(g => {
+  ['mental','heart','spinal','headache','stomach','cycle','gut','sexual','diet'].forEach(g => {
     msSelections[g] = [];
-    document.querySelectorAll(`#ms-${g} .ms-option, #ms-meds .ms-option`).forEach(el => el.classList.remove('selected'));
+    document.querySelectorAll(`#ms-${g} .ms-option`).forEach(el => el.classList.remove('selected'));
   });
   document.querySelectorAll('.ms-option').forEach(el => el.classList.remove('selected'));
   Object.keys(msSelections).forEach(k => msSelections[k] = []);
-  const medsOther = document.getElementById('meds-other');
+  // Reset medication picker
+  selectedMeds = [];
+  renderMedChips();
+  const medSearch = document.getElementById('med-search');
+  const medSugg = document.getElementById('med-suggestions');
+  if (medSearch) medSearch.value = '';
+  if (medSugg) { medSugg.classList.remove('open'); medSugg.innerHTML = ''; }
   const dietNotes = document.getElementById('diet-notes');
   const extraNotes = document.getElementById('extra-notes');
-  if (medsOther) medsOther.value = '';
   if (dietNotes) dietNotes.value = '';
   if (extraNotes) extraNotes.value = '';
   // Reset date to today
@@ -2388,7 +2579,7 @@ async function submitCheckin() {
     libido: parseInt(document.getElementById('sl-libido').value),
     cycle_day: numVals.cycle_day,
     menstrual_pain: parseInt(document.getElementById('sl-menstrual').value),
-    num_medications: (msSelections.meds||[]).filter(x=>x!=='None').length,
+    num_medications: selectedMeds.length,
     num_vitamins: 0,
     mental_notes: getMs('mental'),
     heart_notes: getMs('heart'),
@@ -2399,7 +2590,7 @@ async function submitCheckin() {
     gut_notes: getMs('gut'),
     sexual_notes: getMs('sexual'),
     body_notes: '',
-    medication_notes: [getMs('meds'), document.getElementById('meds-other').value].filter(Boolean).join(', '),
+    medication_notes: selectedMeds.join(', '),
     diet_notes: [getMs('diet'), document.getElementById('diet-notes').value].filter(Boolean).join(', '),
     extra_notes: document.getElementById('extra-notes').value,
     red_flag: false
@@ -2724,8 +2915,8 @@ function prefillFormForDate(date) {
     });
   });
 
-  // Meds and diet store tags + free text joined together. Re-match known tag
-  // options; anything left over goes back into the free-text field.
+  // Diet stores tags + free text joined together. Re-match known tag options;
+  // anything left over goes back into the free-text field.
   function restoreCombined(group, combinedStr, otherInputId) {
     const parts = (combinedStr || '').split(',').map(s => s.trim()).filter(Boolean);
     const knownOptions = [...document.querySelectorAll(`#ms-${group} .ms-option`)].map(el => el.textContent);
@@ -2746,8 +2937,13 @@ function prefillFormForDate(date) {
       if (inp) inp.value = leftovers.join(', ');
     }
   }
-  restoreCombined('meds', existing.medication_notes, 'meds-other');
   restoreCombined('diet', existing.diet_notes, 'diet-notes');
+
+  // Restore medications into the picker as chips
+  selectedMeds = (existing.medication_notes || '')
+    .split(',').map(s => s.trim())
+    .filter(m => m && m.toLowerCase() !== 'none');
+  renderMedChips();
 
   // Restore remaining free-text note
   const extraNotes = document.getElementById('extra-notes');
@@ -3435,6 +3631,15 @@ async function bootstrap() {
   }
   // Otherwise login screen stays visible
 }
+
+// Close medication suggestions when tapping outside the search field
+document.addEventListener('click', (e) => {
+  const wrap = e.target.closest('.med-search-wrap');
+  if (!wrap) {
+    const box = document.getElementById('med-suggestions');
+    if (box) box.classList.remove('open');
+  }
+});
 
 bootstrap();
 </script>
