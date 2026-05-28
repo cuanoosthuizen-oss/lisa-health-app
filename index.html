@@ -1284,6 +1284,82 @@
 
   .settings-back svg { width: 18px; height: 18px; }
 
+  /* Medical records list */
+  .record-item {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .record-item:last-child { border-bottom: none; }
+  .record-item:first-child { padding-top: 0; }
+
+  .record-icon {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    border-radius: 9px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+  }
+  .record-icon svg { width: 18px; height: 18px; }
+
+  .record-body { flex: 1; min-width: 0; }
+  .record-label {
+    font-size: 14px;
+    color: var(--text);
+    font-weight: 500;
+    margin-bottom: 2px;
+    word-break: break-word;
+  }
+  .record-meta {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.03em;
+  }
+  .record-notes {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+    line-height: 1.4;
+    word-break: break-word;
+  }
+
+  .record-actions {
+    display: flex;
+    flex-shrink: 0;
+    gap: 4px;
+  }
+  .record-action-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .record-action-btn:active { background: var(--surface); color: var(--text); }
+  .record-action-btn svg { width: 14px; height: 14px; }
+  .record-action-btn.danger:active { color: var(--accent2); }
+
+  .records-empty {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+    text-align: center;
+    padding: 18px 0;
+  }
+
   .settings-section-title {
     font-size: 11px;
     letter-spacing: 0.12em;
@@ -2022,9 +2098,9 @@
 
     <div class="settings-section-title">Medical records</div>
     <div class="settings-card">
-      <div class="settings-row disabled">
-        <div class="settings-row-label">Upload tests, scans, letters</div>
-        <div class="settings-coming-soon">Coming soon</div>
+      <div class="settings-row clickable" onclick="openRecords()">
+        <div class="settings-row-label">Tests, scans &amp; letters</div>
+        <div class="settings-row-value" id="records-count-hint">›</div>
       </div>
     </div>
 
@@ -2055,6 +2131,54 @@
         <div class="settings-row-value">0.3.0</div>
       </div>
       <div class="settings-about-foot">Made with care for Lisa</div>
+    </div>
+  </div>
+
+  <!-- RECORDS VIEW (medical files) -->
+  <div class="view main" id="view-records" style="display:none;">
+    <button class="settings-back" onclick="closeRecords()" aria-label="Back to settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+    </button>
+    <div class="section-heading">Tests, scans &amp; <em>letters</em></div>
+
+    <div class="card">
+      <div class="card-title">Add a record</div>
+      <div style="font-size:13px; color:var(--muted); margin-bottom:12px; line-height:1.5;">
+        Upload a PDF or photo (up to 10 MB). Files are private — only you can see them.
+      </div>
+      <input type="file" id="file-input" accept="application/pdf,image/*" style="display:none;" onchange="onFilePicked(event)">
+      <button class="submit-btn" id="file-pick-btn" onclick="document.getElementById('file-input').click()">Choose a file</button>
+      <div id="upload-stage" style="display:none; margin-top:14px;">
+        <div class="form-group">
+          <label class="form-label">Label</label>
+          <input class="text-input" id="upload-label" placeholder="e.g. Blood test — May 2026">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Document date<small>when was this test/scan/letter?</small></label>
+          <input type="hidden" id="upload-date">
+          <button type="button" class="date-trigger" id="upload-date-trigger" onclick="openCalendar('upload-date', () => updateDateTrigger('upload-date'))">
+            <span id="upload-date-label">Today</span>
+            <span class="date-trigger-icon">▾</span>
+          </button>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notes <small>optional</small></label>
+          <textarea class="text-input" rows="2" id="upload-notes" placeholder="Anything worth noting..."></textarea>
+        </div>
+        <div id="upload-filename" style="font-size:12px;color:var(--muted);margin-bottom:10px;"></div>
+        <div style="display:flex; gap:8px;">
+          <button class="cal-close" style="flex:1;" onclick="cancelUpload()">Cancel</button>
+          <button class="submit-btn" style="flex:2; margin:0;" id="upload-submit-btn" onclick="submitUpload()">Save</button>
+        </div>
+        <div id="upload-error" style="display:none; color:var(--accent2); font-size:12px; margin-top:8px;"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Your records</div>
+      <div id="records-list"></div>
     </div>
   </div>
 
@@ -4040,6 +4164,275 @@ function closeSettings() {
   const target = previousView || 'home';
   const targetBtn = document.querySelector(`.nav-btn[onclick*="'${target}'"]`);
   showView(target, targetBtn);
+}
+
+// ── MEDICAL RECORDS (file uploads) ──────────────────────────────────────────
+let pendingFile = null;    // File object selected but not yet uploaded
+let MEDICAL_FILES = [];    // in-memory cache of metadata rows
+
+function openRecords() {
+  // Hide settings header chrome; treat records like its own full-screen view
+  document.body.classList.remove('settings-open');
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-records').style.display = 'block';
+  document.getElementById('view-records').classList.add('active');
+  document.body.classList.add('settings-open');  // re-use the hide-header behaviour
+
+  // Reset upload stage
+  cancelUpload();
+  // Set default doc date to today
+  const dateInput = document.getElementById('upload-date');
+  if (dateInput) { dateInput.value = today(); updateDateTrigger('upload-date'); }
+
+  loadMedicalFiles();
+  window.scrollTo(0, 0);
+}
+
+function closeRecords() {
+  document.getElementById('view-records').style.display = 'none';
+  document.getElementById('view-records').classList.remove('active');
+  // Return to settings
+  goToSettings();
+}
+
+function cancelUpload() {
+  pendingFile = null;
+  document.getElementById('upload-stage').style.display = 'none';
+  document.getElementById('file-pick-btn').style.display = 'block';
+  document.getElementById('upload-label').value = '';
+  document.getElementById('upload-notes').value = '';
+  document.getElementById('upload-filename').textContent = '';
+  document.getElementById('upload-error').style.display = 'none';
+  document.getElementById('file-input').value = '';  // reset the file input
+  const submitBtn = document.getElementById('upload-submit-btn');
+  if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Save'; }
+}
+
+function onFilePicked(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  // Client-side validation (bucket policy is the real gate, but fail fast here)
+  const okTypes = ['application/pdf','image/jpeg','image/png','image/heic','image/webp'];
+  if (!okTypes.includes(file.type) && !file.type.startsWith('image/')) {
+    showUploadError('That file type isn\'t supported. Please choose a PDF or image.');
+    document.getElementById('file-input').value = '';
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    showUploadError(`That file is ${(file.size/1024/1024).toFixed(1)} MB. The limit is 10 MB.`);
+    document.getElementById('file-input').value = '';
+    return;
+  }
+
+  pendingFile = file;
+  document.getElementById('upload-filename').textContent = `${file.name} (${(file.size/1024).toFixed(0)} KB)`;
+  document.getElementById('file-pick-btn').style.display = 'none';
+  document.getElementById('upload-stage').style.display = 'block';
+  // Suggest a sensible default label from the filename (strip extension)
+  const labelInput = document.getElementById('upload-label');
+  if (!labelInput.value) labelInput.value = file.name.replace(/\.[^.]+$/, '');
+  labelInput.focus();
+}
+
+function showUploadError(msg) {
+  const el = document.getElementById('upload-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+async function submitUpload() {
+  if (!pendingFile) return;
+  if (!await ensureFreshToken()) { showUploadError('Please sign in again.'); return; }
+
+  const label = (document.getElementById('upload-label').value || '').trim() || pendingFile.name;
+  const notes = (document.getElementById('upload-notes').value || '').trim();
+  const docDate = document.getElementById('upload-date').value || today();
+
+  // Build storage path: <user_id>/<timestamp>-<safe_filename>
+  // Sanitise filename: remove anything other than letters/digits/dot/dash/underscore
+  const safeName = pendingFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const storagePath = `${currentUser.id}/${Date.now()}-${safeName}`;
+
+  const submitBtn = document.getElementById('upload-submit-btn');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Uploading...';
+  document.getElementById('upload-error').style.display = 'none';
+
+  try {
+    // 1) Upload to Supabase Storage
+    const uploadResp = await fetch(`${SUPABASE_URL}/storage/v1/object/medical-files/${storagePath}`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${currentSession.access_token}`,
+        'Content-Type': pendingFile.type || 'application/octet-stream',
+        'x-upsert': 'false'
+      },
+      body: pendingFile
+    });
+    if (!uploadResp.ok) {
+      const t = await uploadResp.text();
+      throw new Error(`Upload failed: ${t || uploadResp.status}`);
+    }
+
+    // 2) Insert metadata row
+    const metaResp = await fetch(`${SUPABASE_URL}/rest/v1/medical_files`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${currentSession.access_token}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify({
+        user_id: currentUser.id,
+        storage_path: storagePath,
+        file_name: pendingFile.name,
+        mime_type: pendingFile.type,
+        size_bytes: pendingFile.size,
+        label: label,
+        notes: notes,
+        doc_date: docDate
+      })
+    });
+    if (!metaResp.ok) {
+      // Best-effort cleanup: try to remove the uploaded file since metadata failed
+      try {
+        await fetch(`${SUPABASE_URL}/storage/v1/object/medical-files/${storagePath}`, {
+          method: 'DELETE',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${currentSession.access_token}`
+          }
+        });
+      } catch {}
+      throw new Error('Couldn\'t save record details — please try again.');
+    }
+
+    // Refresh list & reset
+    cancelUpload();
+    await loadMedicalFiles();
+  } catch (e) {
+    showUploadError(e.message || 'Upload failed.');
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Save';
+  }
+}
+
+async function loadMedicalFiles() {
+  const el = document.getElementById('records-list');
+  if (!el) return;
+  if (!await ensureFreshToken()) {
+    el.innerHTML = '<div class="records-empty">Sign in to see your records.</div>';
+    return;
+  }
+
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/medical_files?user_id=eq.${currentUser.id}&order=doc_date.desc`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${currentSession.access_token}` }
+    });
+    MEDICAL_FILES = r.ok ? await r.json() : [];
+  } catch {
+    MEDICAL_FILES = [];
+  }
+
+  renderRecords();
+}
+
+function renderRecords() {
+  const el = document.getElementById('records-list');
+  if (!el) return;
+
+  // Update the settings hint with the count
+  const hint = document.getElementById('records-count-hint');
+  if (hint) hint.textContent = MEDICAL_FILES.length ? `${MEDICAL_FILES.length} ›` : '›';
+
+  if (!MEDICAL_FILES.length) {
+    el.innerHTML = '<div class="records-empty">No records yet. Tap "Choose a file" above to add your first one.</div>';
+    return;
+  }
+
+  const pdfIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+  const imgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
+  const trashIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>';
+  const eyeIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+
+  el.innerHTML = MEDICAL_FILES.map(f => {
+    const isImg = (f.mime_type || '').startsWith('image/');
+    const icon = isImg ? imgIcon : pdfIcon;
+    const dateStr = f.doc_date ? fmt(f.doc_date) : '—';
+    const sizeStr = f.size_bytes ? `${(f.size_bytes/1024).toFixed(0)} KB` : '';
+    const notesHtml = f.notes ? `<div class="record-notes">${escapeHtml(f.notes)}</div>` : '';
+    return `
+      <div class="record-item">
+        <div class="record-icon">${icon}</div>
+        <div class="record-body">
+          <div class="record-label">${escapeHtml(f.label || f.file_name)}</div>
+          <div class="record-meta">${dateStr}${sizeStr ? ' · ' + sizeStr : ''}</div>
+          ${notesHtml}
+        </div>
+        <div class="record-actions">
+          <button class="record-action-btn" onclick="viewRecord(${f.id})" aria-label="Open">${eyeIcon}</button>
+          <button class="record-action-btn danger" onclick="deleteRecord(${f.id})" aria-label="Delete">${trashIcon}</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// Open the file in a new tab via a short-lived signed URL (private bucket)
+async function viewRecord(id) {
+  const f = MEDICAL_FILES.find(x => x.id === id);
+  if (!f) return;
+  if (!await ensureFreshToken()) return;
+
+  try {
+    const r = await fetch(`${SUPABASE_URL}/storage/v1/object/sign/medical-files/${f.storage_path}`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${currentSession.access_token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ expiresIn: 60 })   // signed URL valid for 60 seconds
+    });
+    if (!r.ok) throw new Error('Could not open file.');
+    const data = await r.json();
+    const url = `${SUPABASE_URL}/storage/v1${data.signedURL || data.signedUrl}`;
+    window.open(url, '_blank');
+  } catch (e) {
+    alert('Could not open the file. Please try again.');
+  }
+}
+
+async function deleteRecord(id) {
+  const f = MEDICAL_FILES.find(x => x.id === id);
+  if (!f) return;
+  const ok = confirm(`Delete "${f.label || f.file_name}"? This can't be undone.`);
+  if (!ok) return;
+  if (!await ensureFreshToken()) return;
+
+  try {
+    // Delete the file from Storage
+    await fetch(`${SUPABASE_URL}/storage/v1/object/medical-files/${f.storage_path}`, {
+      method: 'DELETE',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${currentSession.access_token}`
+      }
+    });
+    // Delete the metadata row
+    await fetch(`${SUPABASE_URL}/rest/v1/medical_files?id=eq.${id}`, {
+      method: 'DELETE',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${currentSession.access_token}`
+      }
+    });
+    await loadMedicalFiles();
+  } catch {
+    alert('Couldn\'t delete the record. Please try again.');
+  }
 }
 
 function updateProfileInitial() {
