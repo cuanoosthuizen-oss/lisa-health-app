@@ -588,6 +588,46 @@
     margin-top: 8px;
   }
 
+  /* "Not logged yet" slider state (when upgrading a quick-log day) */
+  .slider-value.not-logged {
+    font-size: 13px;
+    font-family: var(--font-sans);
+    color: var(--muted);
+    font-style: italic;
+  }
+  .score-slider.slider-unlogged {
+    opacity: 0.4;
+  }
+
+  /* Full / Quick check-in toggle */
+  .mode-toggle {
+    display: flex;
+    gap: 6px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 4px;
+    margin-bottom: 22px;
+  }
+  .mode-btn {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--muted);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.2s, color 0.2s;
+  }
+  .mode-btn.active {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #0d0d0f;
+  }
+
   /* Bottom nav */
   .nav {
     position: fixed;
@@ -1569,12 +1609,37 @@
         </button>
         <div id="checkin-date-warning" style="display:none; margin-top:8px; font-size:12px; color:var(--accent2);"></div>
       </div>
-      <!-- Scores section -->
+
+      <!-- Full / Quick toggle -->
+      <div class="mode-toggle">
+        <button type="button" class="mode-btn active" id="mode-full" onclick="setCheckinMode('full')">Full check-in</button>
+        <button type="button" class="mode-btn" id="mode-quick" onclick="setCheckinMode('quick')">Quick check-in</button>
+      </div>
+
+      <!-- Quick check-in panel -->
+      <div id="quick-panel" style="display:none;">
+        <div class="form-group">
+          <label class="form-label">How are you overall?<small>just one tap — log the rest another time</small></label>
+          <div class="slider-value" id="val-quick">5</div>
+          <input class="score-slider" type="range" min="1" max="10" value="5" id="sl-quick"
+            oninput="document.getElementById('val-quick').textContent=this.value">
+          <div class="slider-labels"><span>Rough</span><span>Great</span></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Anything to note? <small>optional</small></label>
+          <textarea class="text-input" rows="2" id="quick-note" placeholder="A few words, if you feel like it..."></textarea>
+        </div>
+        <button class="submit-btn" id="quick-submit-btn" onclick="submitQuickCheckin()">Save quick check-in</button>
+        <div style="height: 40px;"></div>
+      </div>
+
+      <!-- Full check-in fields wrapper -->
+      <div id="full-fields">      <!-- Scores section -->
       <div class="form-group">
         <label class="form-label">Overall wellbeing<small>1 = very poor, 10 = great</small></label>
         <div class="slider-value" id="val-wellbeing">5</div>
         <input class="score-slider" type="range" min="1" max="10" value="5" id="sl-wellbeing"
-          oninput="document.getElementById('val-wellbeing').textContent=this.value">
+          oninput="onScoreInput('wellbeing', this.value)">
         <div class="slider-labels"><span>Poor</span><span>Great</span></div>
       </div>
 
@@ -1582,7 +1647,7 @@
         <label class="form-label">Heart health<small>1 = very bad, 10 = no issues</small></label>
         <div class="slider-value" id="val-heart">5</div>
         <input class="score-slider" type="range" min="1" max="10" value="5" id="sl-heart"
-          oninput="document.getElementById('val-heart').textContent=this.value">
+          oninput="onScoreInput('heart', this.value)">
         <div class="slider-labels"><span>Bad</span><span>Good</span></div>
       </div>
 
@@ -1590,7 +1655,7 @@
         <label class="form-label">Spinal health<small>1 = severe pain, 10 = no pain</small></label>
         <div class="slider-value" id="val-spinal">5</div>
         <input class="score-slider" type="range" min="1" max="10" value="5" id="sl-spinal"
-          oninput="document.getElementById('val-spinal').textContent=this.value">
+          oninput="onScoreInput('spinal', this.value)">
         <div class="slider-labels"><span>Severe</span><span>None</span></div>
       </div>
 
@@ -1598,7 +1663,7 @@
         <label class="form-label">Head / migraine<small>1 = severe, 10 = none</small></label>
         <div class="slider-value" id="val-headache">5</div>
         <input class="score-slider" type="range" min="1" max="10" value="5" id="sl-headache"
-          oninput="document.getElementById('val-headache').textContent=this.value">
+          oninput="onScoreInput('headache', this.value)">
         <div class="slider-labels"><span>Severe</span><span>None</span></div>
       </div>
 
@@ -1606,7 +1671,7 @@
         <label class="form-label">Stomach health<small>1 = very bad, 10 = great</small></label>
         <div class="slider-value" id="val-stomach">5</div>
         <input class="score-slider" type="range" min="1" max="10" value="5" id="sl-stomach"
-          oninput="document.getElementById('val-stomach').textContent=this.value">
+          oninput="onScoreInput('stomach', this.value)">
         <div class="slider-labels"><span>Bad</span><span>Great</span></div>
       </div>
 
@@ -1614,7 +1679,7 @@
         <label class="form-label">Gut health<small>1 = very bad, 10 = great</small></label>
         <div class="slider-value" id="val-gut">5</div>
         <input class="score-slider" type="range" min="1" max="10" value="5" id="sl-gut"
-          oninput="document.getElementById('val-gut').textContent=this.value">
+          oninput="onScoreInput('gut', this.value)">
         <div class="slider-labels"><span>Bad</span><span>Great</span></div>
       </div>
 
@@ -1632,7 +1697,7 @@
         <label class="form-label">Menstrual comfort<small>1 = severe pain, 10 = no pain, 0 = N/A</small></label>
         <div class="slider-value" id="val-menstrual">0</div>
         <input class="score-slider" type="range" min="0" max="10" value="0" id="sl-menstrual"
-          oninput="document.getElementById('val-menstrual').textContent=this.value">
+          oninput="onScoreInput('menstrual', this.value)">
         <div class="slider-labels"><span>Severe pain</span><span>No pain / N/A</span></div>
       </div>
 
@@ -1736,7 +1801,7 @@
         <label class="form-label">Intimacy &amp; desire<small>1 = very low, 10 = high</small></label>
         <div class="slider-value" id="val-libido">5</div>
         <input class="score-slider" type="range" min="1" max="10" value="5" id="sl-libido"
-          oninput="document.getElementById('val-libido').textContent=this.value">
+          oninput="onScoreInput('libido', this.value)">
         <div class="slider-labels"><span>Low</span><span>High</span></div>
       </div>
 
@@ -1792,6 +1857,8 @@
       </div>
 
       <div id="checkin-nudge-container"></div>
+
+      </div><!-- end full-fields -->
 
       <button class="submit-btn" id="main-submit-btn" onclick="submitCheckin()">Save today's check-in</button>
       <div style="height: 40px;"></div>
@@ -2443,6 +2510,46 @@ function changeNum(key, delta) {
 // ── MULTI-SELECT ─────────────────────────────────────────────────────────────
 const msSelections = {};
 
+// Tracks which score sliders count as "logged" for the current form session.
+// A score is logged if it was prefilled with a real value OR the user moves it.
+// Unlogged scores save as null (not the default), so upgrading a quick day doesn't
+// silently turn untouched sliders into 5s.
+const SCORE_SLIDERS = ['wellbeing','heart','spinal','headache','stomach','gut','menstrual','libido'];
+let scoreLogged = {};
+
+function markScoreLogged(key, logged) {
+  scoreLogged[key] = logged;
+  const valEl = document.getElementById('val-' + key);
+  const slEl = document.getElementById('sl-' + key);
+  if (!valEl || !slEl) return;
+  if (logged) {
+    valEl.textContent = slEl.value;
+    valEl.classList.remove('not-logged');
+    slEl.classList.remove('slider-unlogged');
+  } else {
+    valEl.textContent = 'Not logged yet';
+    valEl.classList.add('not-logged');
+    slEl.classList.add('slider-unlogged');
+  }
+}
+
+// Called when the user moves a score slider — marks it logged and updates the value
+function onScoreInput(key, val) {
+  scoreLogged[key] = true;
+  const valEl = document.getElementById('val-' + key);
+  if (valEl) { valEl.textContent = val; valEl.classList.remove('not-logged'); }
+  const slEl = document.getElementById('sl-' + key);
+  if (slEl) slEl.classList.remove('slider-unlogged');
+  refreshCheckinNudge();
+}
+
+// Read a score for saving: its value if logged, otherwise null
+function readScore(key) {
+  if (!scoreLogged[key]) return null;
+  const sl = document.getElementById('sl-' + key);
+  return sl ? parseInt(sl.value) : null;
+}
+
 function toggleMs(el, group) {
   if (!msSelections[group]) msSelections[group] = [];
   const val = el.textContent;
@@ -2628,15 +2735,17 @@ function clearForm() {
   ['wellbeing','heart','spinal','headache','stomach','gut','libido'].forEach(k => {
     const sl = document.getElementById('sl-' + k);
     if (sl) {
-      const def = (k === 'libido') ? 5 : 5;
-      sl.value = def;
-      document.getElementById('val-' + k).textContent = def;
+      sl.value = 5;
+      document.getElementById('val-' + k).textContent = 5;
     }
   });
   const slM = document.getElementById('sl-menstrual');
   if (slM) { slM.value = 0; document.getElementById('val-menstrual').textContent = 0; }
   numVals.cycle_day = 1;
   document.getElementById('num-cycle_day').textContent = 1;
+  // Fresh check-in: all scores count as logged (sliders save their value as before)
+  scoreLogged = {};
+  SCORE_SLIDERS.forEach(k => markScoreLogged(k, true));
   ['mental','heart','spinal','headache','stomach','cycle','gut','sexual','diet'].forEach(g => {
     msSelections[g] = [];
     document.querySelectorAll(`#ms-${g} .ms-option`).forEach(el => el.classList.remove('selected'));
@@ -2709,15 +2818,15 @@ async function submitCheckin() {
 
   const entry = {
     date: entryDate,
-    wellbeing: parseInt(document.getElementById('sl-wellbeing').value),
-    heart: parseInt(document.getElementById('sl-heart').value),
-    spinal: parseInt(document.getElementById('sl-spinal').value),
-    headache: parseInt(document.getElementById('sl-headache').value),
-    stomach: parseInt(document.getElementById('sl-stomach').value),
-    gut: parseInt(document.getElementById('sl-gut').value),
-    libido: parseInt(document.getElementById('sl-libido').value),
+    wellbeing: readScore('wellbeing'),
+    heart: readScore('heart'),
+    spinal: readScore('spinal'),
+    headache: readScore('headache'),
+    stomach: readScore('stomach'),
+    gut: readScore('gut'),
+    libido: readScore('libido'),
     cycle_day: numVals.cycle_day,
-    menstrual_pain: parseInt(document.getElementById('sl-menstrual').value),
+    menstrual_pain: readScore('menstrual'),
     num_medications: selectedMeds.length,
     num_vitamins: 0,
     mental_notes: getMs('mental'),
@@ -2735,9 +2844,9 @@ async function submitCheckin() {
     red_flag: false
   };
 
-  // Red flag: any score below 4, OR menstruating with severe pain (1-3)
+  // Red flag: any LOGGED score below 4, OR menstruating with severe pain (1-3)
   const scores = [entry.wellbeing, entry.heart, entry.spinal, entry.headache, entry.stomach, entry.gut];
-  if (scores.some(s => s < 4) || (entry.menstrual_pain > 0 && entry.menstrual_pain < 4)) entry.red_flag = true;
+  if (scores.some(s => typeof s === 'number' && s < 4) || (entry.menstrual_pain > 0 && entry.menstrual_pain < 4)) entry.red_flag = true;
 
   // Check if an entry already exists for this date — if so, update it
   const existingIndex = DATA.findIndex(d => d.date === entryDate);
@@ -2766,6 +2875,65 @@ function newEntry() {
   document.getElementById('form-inner').style.display = 'block';
   document.getElementById('main-submit-btn').style.display = 'block';
   document.getElementById('submitted-state').classList.remove('show');
+  setCheckinMode('full');
+}
+
+// Toggle between full and quick check-in
+let checkinMode = 'full';
+function setCheckinMode(mode) {
+  checkinMode = mode;
+  const isQuick = mode === 'quick';
+  document.getElementById('mode-full').classList.toggle('active', !isQuick);
+  document.getElementById('mode-quick').classList.toggle('active', isQuick);
+  document.getElementById('full-fields').style.display = isQuick ? 'none' : 'block';
+  document.getElementById('main-submit-btn').style.display = isQuick ? 'none' : 'block';
+  document.getElementById('quick-panel').style.display = isQuick ? 'block' : 'none';
+}
+
+// Quick check-in: only wellbeing + optional note. Everything else stays NULL —
+// never faked to a middle value, so it can't corrupt patterns or averages.
+async function submitQuickCheckin() {
+  const dateInput = document.getElementById('checkin-date');
+  const entryDate = (dateInput && dateInput.value) ? dateInput.value : today();
+  const wellbeing = parseInt(document.getElementById('sl-quick').value);
+  const note = document.getElementById('quick-note').value.trim();
+
+  const entry = {
+    date: entryDate,
+    wellbeing: wellbeing,
+    heart: null, spinal: null, headache: null, stomach: null, gut: null,
+    libido: null, cycle_day: null, menstrual_pain: null,
+    num_medications: null, num_vitamins: null,
+    mental_notes: '', heart_notes: '', spinal_notes: '', headache_notes: '',
+    stomach_notes: '', cycle_notes: '', gut_notes: '', sexual_notes: '',
+    body_notes: '', medication_notes: '', diet_notes: '',
+    extra_notes: note,
+    red_flag: wellbeing < 4   // only signal we have on a quick day
+  };
+
+  const existingIndex = DATA.findIndex(d => d.date === entryDate);
+  if (existingIndex !== -1 && DATA[existingIndex].id != null) {
+    const existingId = DATA[existingIndex].id;
+    DATA[existingIndex] = { ...DATA[existingIndex], ...entry };
+    await updateData(existingId, entry);
+  } else if (existingIndex !== -1) {
+    DATA[existingIndex] = { ...DATA[existingIndex], ...entry };
+    await saveData(entry);
+  } else {
+    DATA.push(entry);
+    await saveData(entry);
+  }
+
+  // Reset quick panel
+  document.getElementById('sl-quick').value = 5;
+  document.getElementById('val-quick').textContent = '5';
+  document.getElementById('quick-note').value = '';
+
+  document.getElementById('form-inner').style.display = 'none';
+  document.getElementById('quick-panel').style.display = 'none';
+  document.getElementById('main-submit-btn').style.display = 'none';
+  document.getElementById('submitted-state').classList.add('show');
+  renderHome();
 }
 
 // ── NAVIGATION ───────────────────────────────────────────────────────────────
@@ -2823,12 +2991,14 @@ function renderHome() {
     {label:'Stomach', val: latest.stomach},
     {label:'Gut', val: latest.gut},
   ];
-  scoresEl.innerHTML = scoreItems.map(s => `
+  scoresEl.innerHTML = scoreItems.map(s => {
+    const has = typeof s.val === 'number';
+    return `
     <div class="score-item">
-      <div class="score-value ${scoreColor(s.val)}">${s.val}</div>
+      <div class="score-value ${has ? scoreColor(s.val) : ''}">${has ? s.val : '—'}</div>
       <div class="score-label">${s.label}</div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 
   // Mini chart
   const miniEl = document.getElementById('mini-chart');
@@ -2926,7 +3096,7 @@ function renderSelectedDay() {
     return;
   }
 
-  // Build scores grid
+  // Build scores grid (only tiles for scores that were actually logged)
   const scores = [
     { key: 'wellbeing', label: 'Wellbeing', val: entry.wellbeing },
     { key: 'heart', label: 'Heart', val: entry.heart },
@@ -2938,7 +3108,7 @@ function renderSelectedDay() {
   if (entry.libido != null) {
     scores.push({ key: 'libido', label: 'Desire', val: entry.libido });
   }
-  const scoresHtml = scores.map(s => `
+  const scoresHtml = scores.filter(s => typeof s.val === 'number').map(s => `
     <div class="day-score-tile">
       <div class="day-score-num" style="color:${scoreColorHex(s.val)}">${s.val}</div>
       <div class="day-score-label">${s.label}</div>
@@ -3011,10 +3181,10 @@ function addEntryForDate(date) {
 
   // Make sure the form is visible (not the submitted state)
   document.getElementById('form-inner').style.display = 'block';
-  document.getElementById('main-submit-btn').style.display = 'block';
   document.getElementById('submitted-state').classList.remove('show');
 
   clearForm();
+  setCheckinMode('full');  // editing/adding a past day always uses the full form
 
   // Set the date (this triggers onCheckinDateChange via the change handler path,
   // but we call prefill explicitly to be safe)
@@ -3033,15 +3203,25 @@ function prefillFormForDate(date) {
 
   ['wellbeing','heart','spinal','headache','stomach','gut','libido'].forEach(k => {
     const sl = document.getElementById('sl-' + k);
-    if (sl && existing[k] != null) {
+    if (!sl) return;
+    if (existing[k] != null) {
       sl.value = existing[k];
-      document.getElementById('val-' + k).textContent = existing[k];
+      markScoreLogged(k, true);
+    } else {
+      // This score wasn't logged that day (e.g. a quick-log day) — show as not logged
+      sl.value = 5;
+      markScoreLogged(k, false);
     }
   });
   const slM = document.getElementById('sl-menstrual');
-  if (slM && existing.menstrual_pain != null) {
-    slM.value = existing.menstrual_pain;
-    document.getElementById('val-menstrual').textContent = existing.menstrual_pain;
+  if (slM) {
+    if (existing.menstrual_pain != null) {
+      slM.value = existing.menstrual_pain;
+      markScoreLogged('menstrual', true);
+    } else {
+      slM.value = 0;
+      markScoreLogged('menstrual', false);
+    }
   }
   if (existing.cycle_day != null) {
     numVals.cycle_day = existing.cycle_day;
@@ -3587,13 +3767,19 @@ function renderTrends() {
   });
 
   const dates = Object.keys(byDate).sort();
-  const avg = (arr, key) => arr.reduce((s, d) => s + (d[key] || 0), 0) / arr.length;
+  // Average a score across entries for a date, IGNORING null/missing values
+  // (quick-log days only have wellbeing; their null scores must not count as 0)
+  const avg = (arr, key) => {
+    const vals = arr.map(d => d[key]).filter(v => typeof v === 'number');
+    return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
+  };
 
   const labels = dates.map(d => new Date(d+'T12:00:00').toLocaleDateString('en-AU',{day:'numeric',month:'short'}));
-  const wellbeing = dates.map(d => +avg(byDate[d], 'wellbeing').toFixed(1));
-  const heart = dates.map(d => +avg(byDate[d], 'heart').toFixed(1));
-  const stomach = dates.map(d => +avg(byDate[d], 'stomach').toFixed(1));
-  const spinal = dates.map(d => +avg(byDate[d], 'spinal').toFixed(1));
+  const cleanAvg = (d, key) => { const v = avg(byDate[d], key); return v == null ? null : +v.toFixed(1); };
+  const wellbeing = dates.map(d => cleanAvg(d, 'wellbeing'));
+  const heart = dates.map(d => cleanAvg(d, 'heart'));
+  const stomach = dates.map(d => cleanAvg(d, 'stomach'));
+  const spinal = dates.map(d => cleanAvg(d, 'spinal'));
 
   const chartDefaults = {
     responsive: true,
@@ -3618,6 +3804,7 @@ function renderTrends() {
         borderColor: '#c084fc',
         backgroundColor: 'rgba(192,132,252,0.1)',
         fill: true,
+        spanGaps: true,
         tension: 0.4,
         pointRadius: 4,
         pointBackgroundColor: '#c084fc'
@@ -3632,9 +3819,9 @@ function renderTrends() {
     data: {
       labels,
       datasets: [
-        { label: 'Heart', data: heart, borderColor: '#f472b6', tension: 0.4, pointRadius: 3, borderWidth: 2 },
-        { label: 'Stomach', data: stomach, borderColor: '#fb923c', tension: 0.4, pointRadius: 3, borderWidth: 2 },
-        { label: 'Spinal', data: spinal, borderColor: '#34d399', tension: 0.4, pointRadius: 3, borderWidth: 2 },
+        { label: 'Heart', data: heart, borderColor: '#f472b6', tension: 0.4, pointRadius: 3, borderWidth: 2, spanGaps: true },
+        { label: 'Stomach', data: stomach, borderColor: '#fb923c', tension: 0.4, pointRadius: 3, borderWidth: 2, spanGaps: true },
+        { label: 'Spinal', data: spinal, borderColor: '#34d399', tension: 0.4, pointRadius: 3, borderWidth: 2, spanGaps: true },
       ]
     },
     options: { ...chartDefaults, plugins: { legend: { labels: { color: '#7a7a8c', font: { size: 11 } } } } }
@@ -3646,7 +3833,7 @@ function renderTrends() {
     data: {
       datasets: [{
         label: 'Menstrual comfort by cycle day',
-        data: sorted.map(d => ({ x: d.cycle_day, y: d.menstrual_pain })),
+        data: sorted.filter(d => typeof d.cycle_day === 'number' && typeof d.menstrual_pain === 'number' && d.menstrual_pain > 0).map(d => ({ x: d.cycle_day, y: d.menstrual_pain })),
         backgroundColor: 'rgba(244,114,182,0.6)',
         pointRadius: 6
       }]
@@ -3730,9 +3917,14 @@ function renderTrends() {
 // ── SHARE / DOCTOR VIEW ───────────────────────────────────────────────────────
 async function renderShare() {
   const recent = [...DATA].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,30);
-  const avgWell = (recent.reduce((s,d)=>s+d.wellbeing,0)/recent.length).toFixed(1);
-  const avgHeart = (recent.reduce((s,d)=>s+d.heart,0)/recent.length).toFixed(1);
-  const avgStomach = (recent.reduce((s,d)=>s+d.stomach,0)/recent.length).toFixed(1);
+  // Average only over entries that actually logged that score (quick-logs have nulls)
+  const avgField = (key) => {
+    const vals = recent.map(d => d[key]).filter(v => typeof v === 'number');
+    return vals.length ? (vals.reduce((s,v)=>s+v,0)/vals.length).toFixed(1) : 'N/A';
+  };
+  const avgWell = avgField('wellbeing');
+  const avgHeart = avgField('heart');
+  const avgStomach = avgField('stomach');
   const redFlags = recent.filter(d=>d.red_flag).length;
   const menstrualEntries = recent.filter(d=>d.menstrual_pain > 0);
   const avgMenstrual = menstrualEntries.length
