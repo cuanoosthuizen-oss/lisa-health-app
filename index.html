@@ -396,6 +396,92 @@
   }
   .med-chip .med-chip-x:active { opacity: 1; }
 
+  /* Patterns */
+  .pattern-item {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text);
+  }
+  .pattern-item:last-child { border-bottom: none; }
+  .pattern-item:first-child { padding-top: 0; }
+
+  .pattern-factor { color: var(--accent); font-weight: 500; }
+  .pattern-effect-down { color: #f8a5a5; }
+  .pattern-effect-up { color: var(--good); }
+
+  .patterns-empty {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* Insight unlock progress */
+  .unlock-progress { padding: 2px 0; }
+  .unlock-progress-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .unlock-progress-title { font-size: 13px; color: var(--text); }
+  .unlock-progress-count {
+    font-family: var(--font-serif);
+    font-size: 16px;
+    color: var(--accent);
+  }
+  .unlock-progress-track {
+    height: 8px;
+    background: var(--surface2);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 10px;
+  }
+  .unlock-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 6px;
+    transition: width 0.4s ease;
+  }
+  .unlock-progress-line {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .pattern-disclaimer {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* Check-in history nudge */
+  .checkin-nudge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-left: 2px solid var(--accent);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-top: 10px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text);
+  }
+  .checkin-nudge .nudge-label {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  .checkin-nudge.nudge-up { border-left-color: var(--good); }
+
   .day-detail {
     margin-top: 14px;
     padding-top: 14px;
@@ -1705,6 +1791,8 @@
         <textarea class="text-input" rows="3" id="extra-notes" placeholder="Anything else that happened today..."></textarea>
       </div>
 
+      <div id="checkin-nudge-container"></div>
+
       <button class="submit-btn" id="main-submit-btn" onclick="submitCheckin()">Save today's check-in</button>
       <div style="height: 40px;"></div>
     </div><!-- end form-inner -->
@@ -1735,6 +1823,18 @@
       </div>
       <div id="day-detail"></div>
       <div id="missed-days"></div>
+    </div>
+
+    <!-- Patterns in your data -->
+    <div class="card" id="patterns-card">
+      <div class="card-title">Patterns in your data</div>
+      <div id="patterns-list"></div>
+    </div>
+
+    <!-- What tends to help -->
+    <div class="card" id="helpful-card">
+      <div class="card-title">What tends to help you</div>
+      <div id="helpful-list"></div>
     </div>
 
     <!-- Date range filter -->
@@ -2353,6 +2453,41 @@ function toggleMs(el, group) {
     el.classList.add('selected');
     msSelections[group].push(val);
   }
+  refreshCheckinNudge();
+}
+
+// Gather everything tagged on the form right now and show a history nudge if relevant
+function refreshCheckinNudge() {
+  const container = document.getElementById('checkin-nudge-container');
+  if (!container) return;
+
+  // Only nudge for today's entry, not when editing a past day
+  const dateInput = document.getElementById('checkin-date');
+  if (dateInput && dateInput.value && dateInput.value !== today()) {
+    container.innerHTML = '';
+    return;
+  }
+
+  // Collect tagged factors across diet, mental, symptom groups + selected meds
+  const tagged = [];
+  ['diet','mental','heart','stomach','gut'].forEach(g => {
+    (msSelections[g] || []).forEach(v => tagged.push(v));
+  });
+  selectedMeds.forEach(m => tagged.push(m));
+
+  if (!tagged.length) { container.innerHTML = ''; return; }
+
+  // Nudge is an insight feature — only when unlocked
+  if (!insightsUnlocked()) { container.innerHTML = ''; return; }
+
+  const nudge = getCheckinNudge(tagged);
+  if (nudge) {
+    const toneClass = nudge.tone === 'up' ? 'checkin-nudge nudge-up' : 'checkin-nudge';
+    const label = nudge.tone === 'up' ? 'From your history' : 'From your history';
+    container.innerHTML = `<div class="${toneClass}"><span class="nudge-label">${label}</span>${nudge.text}</div>`;
+  } else {
+    container.innerHTML = '';
+  }
 }
 
 function getMs(group) {
@@ -2467,11 +2602,13 @@ function addMed(name) {
   document.getElementById('med-search').value = '';
   document.getElementById('med-suggestions').classList.remove('open');
   renderMedChips();
+  refreshCheckinNudge();
 }
 
 function removeMed(index) {
   selectedMeds.splice(index, 1);
   renderMedChips();
+  refreshCheckinNudge();
 }
 
 function renderMedChips() {
@@ -2520,6 +2657,8 @@ function clearForm() {
   // Reset date to today
   const dateInput = document.getElementById('checkin-date');
   if (dateInput) { dateInput.value = today(); updateDateTrigger('checkin-date'); }
+  const nudgeC = document.getElementById('checkin-nudge-container');
+  if (nudgeC) nudgeC.innerHTML = '';
   onCheckinDateChange();
 }
 
@@ -2722,6 +2861,13 @@ function renderHome() {
 // ── AI INSIGHT ───────────────────────────────────────────────────────────────
 async function generateInsight() {
   const el = document.getElementById('insight-card');
+
+  // AI insight is gated like the other insight features
+  if (!insightsUnlocked()) {
+    el.innerHTML = `<div class="insight-label">AI insight</div><div class="insight-text" style="color:var(--muted);">${insightLockMessage()}</div>`;
+    return;
+  }
+
   el.innerHTML = `
     <div class="insight-label">AI insight</div>
     <div class="insight-loading">
@@ -2842,6 +2988,10 @@ function renderSelectedDay() {
     ? '<div class="day-redflag">RED FLAG DAY</div>'
     : '';
 
+  const aiTakeBtn = insightsUnlocked()
+    ? `<button class="day-ai-btn" id="day-ai-btn" onclick="generateDayInsight()">Get AI take on this day</button>`
+    : '';
+
   detail.innerHTML = `
     <div class="day-detail">
       <div class="day-scores-grid">${scoresHtml}</div>
@@ -2849,7 +2999,7 @@ function renderSelectedDay() {
       ${sectionsHtml}
       ${redFlagHtml}
       <button class="day-ai-btn" onclick="addEntryForDate('${date}')">Edit this entry</button>
-      <button class="day-ai-btn" id="day-ai-btn" onclick="generateDayInsight()">Get AI take on this day</button>
+      ${aiTakeBtn}
       <div id="day-ai-result"></div>
     </div>`;
 }
@@ -2995,6 +3145,11 @@ async function generateDayInsight() {
   const selectedDate = picker.value;
   if (!selectedDate) return;
 
+  if (!insightsUnlocked()) {
+    resultEl.innerHTML = `<div class="day-ai-result" style="color:var(--muted)">${insightLockMessage()}</div>`;
+    return;
+  }
+
   // Get entries up to and including the selected date
   const upToDate = DATA
     .filter(d => d.date <= selectedDate)
@@ -3069,6 +3224,328 @@ function getDateRange() {
   }
 }
 
+// ── PATTERN ANALYSIS ─────────────────────────────────────────────────────────
+// Retrospective only: reports correlations already present in the data.
+// Never predicts, diagnoses, or implies causation. Strict thresholds kill noise.
+
+const SCORE_FIELDS = [
+  { key: 'wellbeing', label: 'wellbeing' },
+  { key: 'heart', label: 'heart' },
+  { key: 'spinal', label: 'spinal' },
+  { key: 'headache', label: 'head' },
+  { key: 'stomach', label: 'stomach' },
+  { key: 'gut', label: 'gut' }
+];
+
+// Factors Lisa can "tag" on a given day, pulled from the comma-joined note fields
+const FACTOR_SOURCES = [
+  { field: 'diet_notes', prefix: 'diet' },
+  { field: 'medication_notes', prefix: 'med' },
+  { field: 'mental_notes', prefix: 'mental' },
+  { field: 'heart_notes', prefix: 'symptom' },
+  { field: 'stomach_notes', prefix: 'symptom' },
+  { field: 'gut_notes', prefix: 'symptom' }
+];
+
+const PATTERN_MIN_WITH = 5;      // need >=5 days WITH the factor
+const PATTERN_MIN_WITHOUT = 5;   // and >=5 days WITHOUT it
+const PATTERN_MIN_DIFF = 1.0;    // average score gap must be >= 1.0 to matter
+
+const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0;
+
+// Normalise a factor string: take the meaningful part, lowercase for matching
+function normFactor(s) {
+  return s.trim();
+}
+
+// Collect distinct factors that appear across the dataset
+function collectFactors(data) {
+  const map = {}; // factorLabel -> Set of dates it appeared on
+  data.forEach(d => {
+    FACTOR_SOURCES.forEach(src => {
+      const raw = d[src.field];
+      if (!raw) return;
+      raw.split(',').map(normFactor).filter(Boolean).forEach(f => {
+        // skip obvious non-factors / noise
+        const low = f.toLowerCase();
+        if (low === 'none' || low === 'normal' || low === 'neutral' ||
+            low.includes('nothing worth') || low === 'no problem' || f.length < 3) return;
+        const key = src.prefix + '::' + f;
+        if (!map[key]) map[key] = new Set();
+        map[key].add(d.date);
+      });
+    });
+  });
+  return map;
+}
+
+// ── INSIGHT GATE ─────────────────────────────────────────────────────────────
+// Insight features (patterns card, "what helps", AI insights) only unlock once
+// there's enough RECENT data to be statistically meaningful. Gate: 25+ entries in
+// the last 30 days to unlock; with hysteresis so it doesn't flicker — once
+// unlocked, it stays unlocked until entries in the last 30 days fall below 15.
+const INSIGHT_UNLOCK_THRESHOLD = 25;
+const INSIGHT_RELOCK_THRESHOLD = 15;
+let insightsUnlockedThisSession = false;
+
+function entriesInLast30Days() {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 30);
+  const cutoffStr = cutoff.toLocaleDateString('en-CA');
+  // Count distinct days logged in the window
+  const days = new Set(DATA.filter(d => d.date >= cutoffStr).map(d => d.date));
+  return days.size;
+}
+
+function insightsUnlocked() {
+  const recent = entriesInLast30Days();
+  if (insightsUnlockedThisSession) {
+    // Stay unlocked unless data drops well below the bar (hysteresis)
+    if (recent < INSIGHT_RELOCK_THRESHOLD) insightsUnlockedThisSession = false;
+  } else {
+    if (recent >= INSIGHT_UNLOCK_THRESHOLD) insightsUnlockedThisSession = true;
+  }
+  return insightsUnlockedThisSession;
+}
+
+// Friendly message describing how far off unlocking the user is
+// Plain-text version (used where only text fits, e.g. the AI insight card)
+function insightLockMessage() {
+  const recent = entriesInLast30Days();
+  const remaining = Math.max(INSIGHT_UNLOCK_THRESHOLD - recent, 0);
+  return `Your personalised insights unlock once you've logged ${INSIGHT_UNLOCK_THRESHOLD} days within a month. You're at ${recent} of ${INSIGHT_UNLOCK_THRESHOLD} — ${remaining} to go.`;
+}
+
+// Rich progress component with a bar + adaptive, pressure-free encouragement
+function insightLockProgress() {
+  const recent = entriesInLast30Days();
+  const remaining = Math.max(INSIGHT_UNLOCK_THRESHOLD - recent, 0);
+  const pct = Math.min(Math.round((recent / INSIGHT_UNLOCK_THRESHOLD) * 100), 100);
+
+  // Gentle, non-pressuring wording that adapts to how far along she is
+  let line;
+  if (recent === 0) {
+    line = `Log your days and your personalised insights will unlock once there's enough history to spot patterns you can trust.`;
+  } else if (remaining <= 3) {
+    line = `Almost there — just ${remaining} more ${remaining === 1 ? 'day' : 'days'} and your insights unlock.`;
+  } else if (pct >= 50) {
+    line = `You're over halfway. ${remaining} more days of logging and your insights unlock.`;
+  } else {
+    line = `You're building toward your personalised insights — ${remaining} more days to go. No rush; whenever you can.`;
+  }
+
+  return `
+    <div class="unlock-progress">
+      <div class="unlock-progress-head">
+        <span class="unlock-progress-title">Insights unlock at ${INSIGHT_UNLOCK_THRESHOLD} days</span>
+        <span class="unlock-progress-count">${recent} / ${INSIGHT_UNLOCK_THRESHOLD}</span>
+      </div>
+      <div class="unlock-progress-track"><div class="unlock-progress-fill" style="width:${pct}%"></div></div>
+      <div class="unlock-progress-line">${line}</div>
+    </div>`;
+}
+
+// Compute the strongest retrospective correlations
+function computePatterns(data) {
+  if (data.length < 10) return []; // not enough overall history
+
+  const factorMap = collectFactors(data);
+  const results = [];
+
+  Object.entries(factorMap).forEach(([key, datesSet]) => {
+    const [prefix, factor] = key.split('::');
+    const withDays = data.filter(d => datesSet.has(d.date));
+    const withoutDays = data.filter(d => !datesSet.has(d.date));
+    if (withDays.length < PATTERN_MIN_WITH || withoutDays.length < PATTERN_MIN_WITHOUT) return;
+
+    // Compare each score field
+    SCORE_FIELDS.forEach(sf => {
+      const withVals = withDays.map(d => d[sf.key]).filter(v => typeof v === 'number');
+      const withoutVals = withoutDays.map(d => d[sf.key]).filter(v => typeof v === 'number');
+      if (withVals.length < PATTERN_MIN_WITH || withoutVals.length < PATTERN_MIN_WITHOUT) return;
+
+      const diff = avg(withVals) - avg(withoutVals);
+      if (Math.abs(diff) >= PATTERN_MIN_DIFF) {
+        // Down-rank near-tautological links where the symptom is from the same
+        // body system as the score (e.g. "stomach cramps -> low stomach score").
+        // These are obvious; cross-domain patterns (diet->symptom) are the useful ones.
+        const keyLow = key.toLowerCase();
+        const sameSystem = (
+          (keyLow.includes('stomach') && sf.key === 'stomach') ||
+          (keyLow.includes('gut') && sf.key === 'gut') ||
+          (keyLow.includes('heart') && sf.key === 'heart') ||
+          (keyLow.includes('head') && sf.key === 'headache') ||
+          (keyLow.includes('mental') && sf.key === 'wellbeing')
+        );
+        results.push({
+          factor, prefix, scoreLabel: sf.label,
+          direction: diff < 0 ? 'lower' : 'higher',
+          magnitude: Math.abs(diff),
+          rank: Math.abs(diff) - (sameSystem ? 1.5 : 0), // penalise same-system
+          n: withDays.length
+        });
+      }
+    });
+  });
+
+  // Strongest first (rank accounts for same-system penalty), cap to keep it focused
+  results.sort((a,b) => b.rank - a.rank);
+  return results.slice(0, 6);
+}
+
+// "What tends to help you" — factors that appear most on her HIGHEST-scoring days.
+// Retrospective summary (option 2, safe framing): describes what good days looked
+// like, never instructs an action.
+function computeHelpfulFactors(data) {
+  if (data.length < 10) return [];
+
+  // Rank days by overall average of the core scores
+  const scored = data.map(d => {
+    const vals = SCORE_FIELDS.map(sf => d[sf.key]).filter(v => typeof v === 'number');
+    return { d, score: vals.length ? avg(vals) : 0 };
+  }).filter(x => x.score > 0);
+
+  if (scored.length < 10) return [];
+
+  scored.sort((a,b) => b.score - a.score);
+  // Top third = her best days
+  const topCount = Math.max(5, Math.floor(scored.length / 3));
+  const topDays = scored.slice(0, topCount).map(x => x.d);
+  const restDays = scored.slice(topCount).map(x => x.d);
+
+  // Only consider "controllable / lifestyle" factors here — diet + meds.
+  // (Symptoms aren't things she chooses to do, so they don't belong in "what helps".)
+  const goodSources = [
+    { field: 'diet_notes' },
+    { field: 'medication_notes' }
+  ];
+
+  function tallyFactors(days) {
+    const counts = {};
+    days.forEach(d => {
+      goodSources.forEach(src => {
+        const raw = d[src.field];
+        if (!raw) return;
+        const seen = new Set();
+        raw.split(',').map(s => s.trim()).filter(Boolean).forEach(f => {
+          const low = f.toLowerCase();
+          if (low === 'none' || low === 'normal' || f.length < 3) return;
+          if (seen.has(low)) return;
+          seen.add(low);
+          counts[f] = (counts[f] || 0) + 1;
+        });
+      });
+    });
+    return counts;
+  }
+
+  const topCounts = tallyFactors(topDays);
+  const restCounts = tallyFactors(restDays);
+
+  // A factor "tends to help" only if it clears strict tests, to avoid implying
+  // that frequently-logged items (coffee, sugar) are beneficial when they're just
+  // common. Must appear on a strong majority of top days, clearly more than on the
+  // rest, AND be genuinely discriminating (not also common on low days).
+  const helpful = [];
+  Object.keys(topCounts).forEach(factor => {
+    const topRate = topCounts[factor] / topDays.length;
+    const restRate = (restCounts[factor] || 0) / Math.max(restDays.length, 1);
+    if (
+      topCounts[factor] >= 4 &&     // on at least 4 good days
+      topRate >= 0.5 &&             // on a majority of good days
+      topRate >= restRate * 2       // at least twice as common on good vs other days
+    ) {
+      helpful.push({ factor, topRate, lift: topRate - restRate, n: topCounts[factor] });
+    }
+  });
+
+  helpful.sort((a,b) => b.lift - a.lift);
+  return helpful.slice(0, 5);
+}
+
+function renderHelpful() {
+  const el = document.getElementById('helpful-list');
+  if (!el) return;
+
+  if (!insightsUnlocked()) {
+    el.innerHTML = insightLockProgress();
+    return;
+  }
+
+  const helpful = computeHelpfulFactors(DATA);
+
+  if (!helpful.length) {
+    el.innerHTML = `<div class="patterns-empty">Once there's a bit more variety in your logs, this will show what your higher-scoring days have tended to have in common.</div>`;
+    return;
+  }
+
+  const rows = helpful.map(h =>
+    `<div class="pattern-item">
+      <span class="pattern-factor">${escapeHtml(h.factor)}</span>
+      <span style="color:var(--muted)">— appeared on ${h.n} of your higher-scoring days</span>
+    </div>`
+  ).join('');
+
+  el.innerHTML =
+    `<div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:12px;">Your higher-scoring days have often had these in common:</div>` +
+    rows +
+    `<div class="pattern-disclaimer">A reflection of your own past entries, not a recommendation or medical advice. What lines up with good days for you is personal — use your own judgement.</div>`;
+}
+
+function renderPatterns() {
+  const el = document.getElementById('patterns-list');
+  if (!el) return;
+
+  if (!insightsUnlocked()) {
+    el.innerHTML = insightLockProgress();
+    return;
+  }
+
+  const patterns = computePatterns(DATA);
+
+  if (!patterns.length) {
+    el.innerHTML = `<div class="patterns-empty">Keep logging and patterns will appear here once there's enough variety to spot them reliably. We only show a pattern when it's backed by enough days to be meaningful.</div>`;
+    return;
+  }
+
+  const rows = patterns.map(p => {
+    const effectClass = p.direction === 'lower' ? 'pattern-effect-down' : 'pattern-effect-up';
+    return `<div class="pattern-item">
+      On days you logged <span class="pattern-factor">${escapeHtml(p.factor)}</span>,
+      your ${escapeHtml(p.scoreLabel)} scores have tended to be
+      <span class="${effectClass}">${p.direction}</span>
+      <span style="color:var(--muted)">(based on ${p.n} days)</span>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = rows +
+    `<div class="pattern-disclaimer">These are observations from your own past entries, not predictions or medical advice. A pattern here doesn't mean one thing caused another.</div>`;
+}
+
+// Check-in nudge: when Lisa tags a factor today that historically lines up with
+// lower scores, show a gentle, present-tense note about her own history.
+function getCheckinNudge(taggedFactors) {
+  const patterns = computePatterns(DATA);
+  const taggedLower = taggedFactors.map(f => f.toLowerCase());
+  const matches = patterns.filter(p => taggedLower.some(t => t === p.factor.toLowerCase()));
+  if (!matches.length) return null;
+
+  // matches are already ranked strongest-first. Take the strongest.
+  const top = matches[0];
+
+  if (top.direction === 'lower') {
+    return {
+      tone: 'down',
+      text: `In your past entries, ${escapeHtml(top.scoreLabel)} scores have often been lower on days you logged ${escapeHtml(top.factor)}. Just something your history shows — not a prediction.`
+    };
+  } else {
+    return {
+      tone: 'up',
+      text: `Nice — in your past entries, ${escapeHtml(top.scoreLabel)} scores have often been higher on days you logged ${escapeHtml(top.factor)}. Just something your history shows.`
+    };
+  }
+}
+
 function filterDataByRange(data) {
   const range = getDateRange();
   if (!range) return data;
@@ -3087,6 +3564,8 @@ function renderTrends() {
     renderSelectedDay();
   }
   renderMissedDays();
+  renderPatterns();
+  renderHelpful();
 
   const rangeData = filterDataByRange(DATA);
   const sorted = [...rangeData].sort((a,b) => a.date.localeCompare(b.date));
