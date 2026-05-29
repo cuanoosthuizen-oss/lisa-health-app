@@ -6,10 +6,18 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0d0d0f">
-<title>Lisa — Health Journal</title>
+<title>Stilte — Health Journal</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
+    --radius: 16px;
+    --font-serif: 'DM Serif Display', Georgia, serif;
+    --font-sans: 'DM Sans', system-ui, sans-serif;
+  }
+
+  /* Dark theme (default) */
+  :root,
+  [data-theme="dark"] {
     --bg: #0d0d0f;
     --surface: #16161a;
     --surface2: #1e1e24;
@@ -22,9 +30,26 @@
     --warn: #fb923c;
     --danger: #f87171;
     --good: #34d399;
-    --radius: 16px;
-    --font-serif: 'DM Serif Display', Georgia, serif;
-    --font-sans: 'DM Sans', system-ui, sans-serif;
+    --input-bg: #1e1e24;
+    --shadow: rgba(0, 0, 0, 0.4);
+  }
+
+  /* Light theme — clean, cool, neutral */
+  [data-theme="light"] {
+    --bg: #fafbfc;
+    --surface: #ffffff;
+    --surface2: #f3f4f6;
+    --border: #e5e7eb;
+    --text: #1a1a2e;
+    --muted: #6b7280;
+    --accent: #9333ea;
+    --accent2: #db2777;
+    --accent3: #059669;
+    --warn: #ea580c;
+    --danger: #dc2626;
+    --good: #059669;
+    --input-bg: #f9fafb;
+    --shadow: rgba(15, 23, 42, 0.08);
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1478,6 +1503,34 @@
     margin-top: 4px;
   }
 
+  .theme-toggle {
+    display: flex;
+    gap: 6px;
+    background: var(--surface2);
+    padding: 4px;
+    border-radius: 12px;
+  }
+  .theme-opt {
+    flex: 1;
+    padding: 9px 8px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 8px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s, color 0.15s;
+  }
+  .theme-opt.active {
+    background: var(--surface);
+    color: var(--text);
+    font-weight: 600;
+    box-shadow: 0 1px 2px var(--shadow);
+  }
+
   .pw-form button {
     flex: 1;
     padding: 11px;
@@ -1584,9 +1637,12 @@
 <div id="login-screen">
   <!-- Sign in / sign up view -->
   <div id="login-view-signin" class="login-view">
-    <div class="login-logo">Lisa's <span>Journal</span></div>
-    <div class="login-sub">Your daily health companion</div>
+    <div class="login-logo" id="login-logo">Stilte</div>
+    <div class="login-sub" id="login-sub">Your daily health companion</div>
     <div class="login-form">
+      <div id="signup-name-wrap" style="display:none;">
+        <input class="login-input" type="text" id="login-first-name" placeholder="First name" autocomplete="given-name" maxlength="40">
+      </div>
       <input class="login-input" type="email" id="login-email" placeholder="Email address" autocomplete="email">
       <input class="login-input" type="password" id="login-password" placeholder="Password" autocomplete="current-password">
       <button class="login-btn" onclick="handleAuth()">Sign in</button>
@@ -1629,12 +1685,12 @@
 <div id="app">
   <div class="header">
     <div>
-      <div class="header-title">Lisa's <span>Journal</span></div>
+      <div class="header-title" id="header-title">Stilte</div>
       <div class="header-date" id="header-date"></div>
     </div>
     <div style="display: flex; align-items: center;">
       <div class="streak-badge" id="streak-badge">— day streak</div>
-      <button class="profile-btn" id="profile-btn" onclick="goToSettings()" aria-label="Open settings">L</button>
+      <button class="profile-btn" id="profile-btn" onclick="goToSettings()" aria-label="Open settings">·</button>
     </div>
   </div>
 
@@ -1757,6 +1813,14 @@
         <input class="score-slider" type="range" min="1" max="10" value="5" id="sl-gut"
           oninput="onScoreInput('gut', this.value)">
         <div class="slider-labels"><span>Bad</span><span>Great</span></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Exercise<small>1 = sedentary, 10 = very active</small></label>
+        <div class="slider-value" id="val-exercise">5</div>
+        <input class="score-slider" type="range" min="1" max="10" value="5" id="sl-exercise"
+          oninput="onScoreInput('exercise', this.value)">
+        <div class="slider-labels"><span>Sedentary</span><span>Very active</span></div>
       </div>
 
       <!-- Menstrual -->
@@ -1942,7 +2006,7 @@
 
     <div class="submitted-state" id="submitted-state">
       <div class="submitted-icon">✓</div>
-      <h2>All done, Lisa.</h2>
+      <h2 id="done-heading">All done.</h2>
       <p>Your check-in has been saved.<br>Keep it up — the more data, the better the insights.</p>
       <br>
       <button class="submit-btn" onclick="newEntry()">Add another entry</button>
@@ -2031,7 +2095,7 @@
   <div class="view main" id="view-share">
     <div class="share-section">
       <h2>Doctor's summary</h2>
-      <p>A clear, clinical summary of Lisa's recent health data to share with her health team.</p>
+      <p id="share-doctor-desc">A clear, clinical summary of your recent health data to share with your health team.</p>
     </div>
 
     <div class="share-card" id="doctor-summary"></div>
@@ -2058,6 +2122,21 @@
 
     <div class="settings-section-title">Account</div>
     <div class="settings-card">
+      <div class="settings-row clickable" id="firstname-row" onclick="toggleFirstNameEdit()">
+        <div class="settings-row-stack">
+          <div class="settings-row-hint">First name</div>
+          <div class="settings-row-label" id="settings-first-name">Not set</div>
+        </div>
+        <div class="settings-chev">›</div>
+      </div>
+      <div class="pw-form" id="firstname-form">
+        <input type="text" id="firstname-input" placeholder="Your first name" maxlength="40" autocomplete="given-name">
+        <div class="pw-form-actions">
+          <button class="secondary" onclick="cancelFirstNameEdit()">Cancel</button>
+          <button class="primary" onclick="submitFirstName()">Save</button>
+        </div>
+        <div class="pw-form-msg" id="firstname-form-msg"></div>
+      </div>
       <div class="settings-row">
         <div class="settings-row-stack">
           <div class="settings-row-hint">Email</div>
@@ -2096,6 +2175,18 @@
       </div>
     </div>
 
+    <div class="settings-section-title">Appearance</div>
+    <div class="settings-card">
+      <div class="settings-row" style="flex-direction: column; align-items: stretch; gap: 12px;">
+        <div class="settings-row-label">Theme</div>
+        <div class="theme-toggle">
+          <button class="theme-opt" data-theme-option="system" onclick="setThemeMode('system')">Follow device</button>
+          <button class="theme-opt" data-theme-option="light" onclick="setThemeMode('light')">Light</button>
+          <button class="theme-opt" data-theme-option="dark" onclick="setThemeMode('dark')">Dark</button>
+        </div>
+      </div>
+    </div>
+
     <div class="settings-section-title">Medical records</div>
     <div class="settings-card">
       <div class="settings-row clickable" onclick="openRecords()">
@@ -2128,9 +2219,9 @@
     <div class="settings-card">
       <div class="settings-row">
         <div class="settings-row-label">Version</div>
-        <div class="settings-row-value">0.3.0</div>
+        <div class="settings-row-value">0.4.0</div>
       </div>
-      <div class="settings-about-foot">Made with care for Lisa</div>
+      <div class="settings-about-foot" id="settings-about-foot">Made with care</div>
     </div>
   </div>
 
@@ -2233,6 +2324,11 @@ const SEED_DATA = [{"date":"2025-07-29","wellbeing":4,"spinal":3,"heart":3,"head
 const SUPABASE_URL = 'https://rpinusuayvdnckgdaksl.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_ZPmdfr5gBwJoJ4q64sKvQg_0sCRNInu';
 
+// ── BRAND ─────────────────────────────────────────────────────────────────────
+// Single source of truth for the app name. Change here to rename everywhere.
+const APP_NAME = 'Stilte';
+const APP_TAGLINE = 'Your daily health companion';
+
 let currentUser = null;
 let currentSession = null;
 let isSignUp = false;
@@ -2247,13 +2343,33 @@ const auth = {
     });
     return r.json();
   },
-  async signUp(email, password) {
+  async signUp(email, password, firstName) {
     const r = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
       method: 'POST',
       headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({
+        email,
+        password,
+        data: firstName ? { first_name: firstName } : {}
+      })
     });
     return r.json();
+  },
+  async updateUserMetadata(metadata) {
+    if (!currentSession) return { error: { message: 'Not signed in' } };
+    const r = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      method: 'PUT',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${currentSession.access_token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ data: metadata })
+    });
+    const result = await r.json();
+    // Refresh local user record if successful
+    if (result.id) currentUser = result;
+    return result;
   },
   async signOut() {
     if (!currentSession) return;
@@ -2373,22 +2489,25 @@ function toggleAuthMode() {
   document.querySelector('#login-view-signin .login-btn').textContent = isSignUp ? 'Create account' : 'Sign in';
   document.getElementById('login-error').textContent = '';
   document.getElementById('forgot-link').style.display = isSignUp ? 'none' : 'block';
+  document.getElementById('signup-name-wrap').style.display = isSignUp ? 'block' : 'none';
 }
 
 async function handleAuth() {
   const email = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
+  const firstName = (document.getElementById('login-first-name').value || '').trim();
   const errorEl = document.getElementById('login-error');
   errorEl.textContent = '';
 
   if (!email || !password) { errorEl.textContent = 'Please enter your email and password.'; return; }
+  if (isSignUp && !firstName) { errorEl.textContent = 'Please enter your first name.'; return; }
 
   const btn = document.querySelector('#login-view-signin .login-btn');
   btn.textContent = 'Please wait...';
   btn.disabled = true;
 
   try {
-    const result = isSignUp ? await auth.signUp(email, password) : await auth.signIn(email, password);
+    const result = isSignUp ? await auth.signUp(email, password, firstName) : await auth.signIn(email, password);
 
     if (result.error) {
       errorEl.textContent = result.error.message || 'Something went wrong. Please try again.';
@@ -2431,8 +2550,88 @@ async function signOut() {
 
 function showApp() {
   document.getElementById('login-screen').classList.add('hidden');
+  applyBranding();
   showSigninView();
   loadData();
+}
+
+// ── BRAND, USER NAME, AND THEME ──────────────────────────────────────────────
+// Single getter for the user's first name. Reads from Supabase user_metadata.
+// Returns empty string if not set yet (existing users will be prompted in Settings).
+function userName() {
+  if (currentUser && currentUser.user_metadata && currentUser.user_metadata.first_name) {
+    return currentUser.user_metadata.first_name;
+  }
+  return '';
+}
+
+// Capitalised greeting form, falls back to "there" for unset names.
+function greetingName() {
+  const n = userName();
+  return n || 'there';
+}
+
+// Apply the app name everywhere it appears in the DOM. Called on app load.
+function applyBranding() {
+  const setText = (id, text) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  };
+  // Page title
+  document.title = `${APP_NAME} — Health Journal`;
+  // Login + header
+  setText('login-logo', APP_NAME);
+  setText('login-sub', APP_TAGLINE);
+  setText('header-title', APP_NAME);
+  // Settings footer
+  setText('settings-about-foot', `Made with care${userName() ? ' for ' + userName() : ''}`);
+  // Done-screen greeting
+  const done = document.getElementById('done-heading');
+  if (done) done.textContent = userName() ? `All done, ${userName()}.` : 'All done.';
+  // Share patient name
+  setText('share-patient-name', userName() || '—');
+  // Profile button initial
+  const pBtn = document.getElementById('profile-btn');
+  if (pBtn) pBtn.textContent = userName() ? userName().charAt(0).toUpperCase() : '·';
+  // Settings email + first name display (if present)
+  if (currentUser) {
+    setText('settings-email', currentUser.email || '—');
+    const fnEl = document.getElementById('settings-first-name');
+    if (fnEl) fnEl.textContent = userName() || 'Not set';
+  }
+}
+
+// Theme system. Three modes: 'system' (default), 'light', 'dark'.
+// Stored in localStorage. System mode follows OS via prefers-color-scheme.
+function getStoredThemeMode() {
+  return localStorage.getItem('theme_mode') || 'system';
+}
+function applyTheme(mode) {
+  const root = document.documentElement;
+  let effective = mode;
+  if (mode === 'system') {
+    effective = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  }
+  root.setAttribute('data-theme', effective);
+  // Update theme-color meta for mobile chrome
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', effective === 'light' ? '#fafbfc' : '#0d0d0f');
+}
+function setThemeMode(mode) {
+  localStorage.setItem('theme_mode', mode);
+  applyTheme(mode);
+  // Update toggle UI if visible
+  document.querySelectorAll('[data-theme-option]').forEach(el => {
+    el.classList.toggle('active', el.dataset.themeOption === mode);
+  });
+}
+// Apply theme as early as possible (re-applied on showApp too)
+applyTheme(getStoredThemeMode());
+// Listen for OS theme changes when in system mode
+if (window.matchMedia) {
+  window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
+    if (getStoredThemeMode() === 'system') applyTheme('system');
+  });
 }
 
 // ── DATA ──────────────────────────────────────────────────────────────────────
@@ -2638,7 +2837,7 @@ const msSelections = {};
 // A score is logged if it was prefilled with a real value OR the user moves it.
 // Unlogged scores save as null (not the default), so upgrading a quick day doesn't
 // silently turn untouched sliders into 5s.
-const SCORE_SLIDERS = ['wellbeing','heart','spinal','headache','stomach','gut','menstrual','libido'];
+const SCORE_SLIDERS = ['wellbeing','heart','spinal','headache','stomach','gut','exercise','menstrual','libido'];
 let scoreLogged = {};
 
 function markScoreLogged(key, logged) {
@@ -2728,7 +2927,7 @@ function getMs(group) {
 // ── MEDICATION PICKER ────────────────────────────────────────────────────────
 // Curated seed list of common Australian medications & supplements, grouped by
 // active ingredient so brand/generic variants don't show as separate entries.
-// Each entry: display name (what shows + saves). Weighted toward Lisa's areas:
+// Each entry: display name (what shows + saves). Curated AU medications and supplements:
 // pain, endometriosis/hormonal, gut, mental health, cardiovascular, allergy.
 const MED_SEED = [
   // Pain / anti-inflammatory
@@ -2773,7 +2972,7 @@ const MED_SEED = [
 // Selected meds for the current entry (array of display strings)
 let selectedMeds = [];
 
-// Build the pool of suggestable meds: curated seed + everything Lisa has logged before
+// Build the pool of suggestable meds: curated seed + everything the user has logged before
 function getMedPool() {
   const fromHistory = new Set();
   DATA.forEach(d => {
@@ -2783,7 +2982,7 @@ function getMedPool() {
       });
     }
   });
-  // History first (most relevant to Lisa), then seed items not already in history
+  // History first (most relevant to the user), then seed items not already in history
   const historyArr = [...fromHistory];
   const historyLower = new Set(historyArr.map(m => m.toLowerCase()));
   const seedExtra = MED_SEED.filter(m => !historyLower.has(m.toLowerCase()));
@@ -2856,7 +3055,7 @@ function escAttr(s) {
 }
 
 function clearForm() {
-  ['wellbeing','heart','spinal','headache','stomach','gut','libido'].forEach(k => {
+  ['wellbeing','heart','spinal','headache','stomach','gut','exercise','libido'].forEach(k => {
     const sl = document.getElementById('sl-' + k);
     if (sl) {
       sl.value = 5;
@@ -2948,6 +3147,7 @@ async function submitCheckin() {
     headache: readScore('headache'),
     stomach: readScore('stomach'),
     gut: readScore('gut'),
+    exercise: readScore('exercise'),
     libido: readScore('libido'),
     cycle_day: numVals.cycle_day,
     menstrual_pain: readScore('menstrual'),
@@ -2965,11 +3165,12 @@ async function submitCheckin() {
     medication_notes: selectedMeds.join(', '),
     diet_notes: [getMs('diet'), document.getElementById('diet-notes').value].filter(Boolean).join(', '),
     extra_notes: document.getElementById('extra-notes').value,
+    exercise_notes: '',
     red_flag: false
   };
 
   // Red flag: any LOGGED score below 4, OR menstruating with severe pain (1-3)
-  const scores = [entry.wellbeing, entry.heart, entry.spinal, entry.headache, entry.stomach, entry.gut];
+  const scores = [entry.wellbeing, entry.heart, entry.spinal, entry.headache, entry.stomach, entry.gut, entry.exercise];
   if (scores.some(s => typeof s === 'number' && s < 4) || (entry.menstrual_pain > 0 && entry.menstrual_pain < 4)) entry.red_flag = true;
 
   // Check if an entry already exists for this date — if so, update it
@@ -3026,12 +3227,14 @@ async function submitQuickCheckin() {
     date: entryDate,
     wellbeing: wellbeing,
     heart: null, spinal: null, headache: null, stomach: null, gut: null,
+    exercise: null,
     libido: null, cycle_day: null, menstrual_pain: null,
     num_medications: null, num_vitamins: null,
     mental_notes: '', heart_notes: '', spinal_notes: '', headache_notes: '',
     stomach_notes: '', cycle_notes: '', gut_notes: '', sexual_notes: '',
     body_notes: '', medication_notes: '', diet_notes: '',
     extra_notes: note,
+    exercise_notes: '',
     red_flag: wellbeing < 4   // only signal we have on a quick day
   };
 
@@ -3114,6 +3317,7 @@ function renderHome() {
     {label:'Head', val: latest.headache},
     {label:'Stomach', val: latest.stomach},
     {label:'Gut', val: latest.gut},
+    {label:'Exercise', val: latest.exercise},
   ];
   scoresEl.innerHTML = scoreItems.map(s => {
     const has = typeof s.val === 'number';
@@ -3179,7 +3383,7 @@ async function generateInsight() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        data: `Here are Lisa's most recent health entries:\n\n${summary}\n\nWhat patterns or insights stand out from this data?`
+        data: `Here are ${userName()}'s most recent health entries:\n\n${summary}\n\nWhat patterns or insights stand out from this data?`
       })
     });
 
@@ -3227,7 +3431,8 @@ function renderSelectedDay() {
     { key: 'spinal', label: 'Spinal', val: entry.spinal },
     { key: 'headache', label: 'Head', val: entry.headache },
     { key: 'stomach', label: 'Stomach', val: entry.stomach },
-    { key: 'gut', label: 'Gut', val: entry.gut }
+    { key: 'gut', label: 'Gut', val: entry.gut },
+    { key: 'exercise', label: 'Exercise', val: entry.exercise }
   ];
   if (entry.libido != null) {
     scores.push({ key: 'libido', label: 'Desire', val: entry.libido });
@@ -3265,6 +3470,7 @@ function renderSelectedDay() {
     { title: 'Head / migraine notes', text: entry.headache_notes },
     { title: 'Stomach notes', text: entry.stomach_notes },
     { title: 'Gut notes', text: entry.gut_notes },
+    { title: 'Exercise notes', text: entry.exercise_notes },
     { title: 'Sexual health', text: entry.sexual_notes },
     { title: 'Medication', text: entry.medication_notes },
     { title: 'Diet', text: entry.diet_notes },
@@ -3325,7 +3531,7 @@ function prefillFormForDate(date) {
   const existing = DATA.find(d => d.date === date);
   if (!existing) return;
 
-  ['wellbeing','heart','spinal','headache','stomach','gut','libido'].forEach(k => {
+  ['wellbeing','heart','spinal','headache','stomach','gut','exercise','libido'].forEach(k => {
     const sl = document.getElementById('sl-' + k);
     if (!sl) return;
     if (existing[k] != null) {
@@ -3478,7 +3684,7 @@ async function generateDayInsight() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        data: `Lisa is reviewing her entry from ${selectedDate}. Here is her entry for that day plus the days leading up to it (most recent first):\n\n${summary}\n\nFocus on the entry from ${selectedDate}. What stands out about that day, and how does it compare to the days leading up to it? Speak to Lisa about that specific day.`
+        data: `${userName()} is reviewing their entry from ${selectedDate}. Here is their entry for that day plus the days leading up to it (most recent first):\n\n${summary}\n\nFocus on the entry from ${selectedDate}. What stands out about that day, and how does it compare to the days leading up to it? Speak to ${userName()} about that specific day.`
       })
     });
     const result = await resp.json();
@@ -3538,10 +3744,11 @@ const SCORE_FIELDS = [
   { key: 'spinal', label: 'spinal' },
   { key: 'headache', label: 'head' },
   { key: 'stomach', label: 'stomach' },
-  { key: 'gut', label: 'gut' }
+  { key: 'gut', label: 'gut' },
+  { key: 'exercise', label: 'exercise' }
 ];
 
-// Factors Lisa can "tag" on a given day, pulled from the comma-joined note fields
+// Factors the user can "tag" on a given day, pulled from the comma-joined note fields
 const FACTOR_SOURCES = [
   { field: 'diet_notes', prefix: 'diet' },
   { field: 'medication_notes', prefix: 'med' },
@@ -3826,7 +4033,7 @@ function renderPatterns() {
     `<div class="pattern-disclaimer">These are observations from your own past entries, not predictions or medical advice. A pattern here doesn't mean one thing caused another.</div>`;
 }
 
-// Check-in nudge: when Lisa tags a factor today that historically lines up with
+// Check-in nudge: when the user tags a factor today that historically lines up with
 // lower scores, show a gentle, present-tense note about her own history.
 function getCheckinNudge(taggedFactors) {
   const patterns = computePatterns(DATA);
@@ -3904,6 +4111,7 @@ function renderTrends() {
   const heart = dates.map(d => cleanAvg(d, 'heart'));
   const stomach = dates.map(d => cleanAvg(d, 'stomach'));
   const spinal = dates.map(d => cleanAvg(d, 'spinal'));
+  const exercise = dates.map(d => cleanAvg(d, 'exercise'));
 
   const chartDefaults = {
     responsive: true,
@@ -3946,6 +4154,7 @@ function renderTrends() {
         { label: 'Heart', data: heart, borderColor: '#f472b6', tension: 0.4, pointRadius: 3, borderWidth: 2, spanGaps: true },
         { label: 'Stomach', data: stomach, borderColor: '#fb923c', tension: 0.4, pointRadius: 3, borderWidth: 2, spanGaps: true },
         { label: 'Spinal', data: spinal, borderColor: '#34d399', tension: 0.4, pointRadius: 3, borderWidth: 2, spanGaps: true },
+        { label: 'Exercise', data: exercise, borderColor: '#60a5fa', tension: 0.4, pointRadius: 3, borderWidth: 2, spanGaps: true },
       ]
     },
     options: { ...chartDefaults, plugins: { legend: { labels: { color: '#7a7a8c', font: { size: 11 } } } } }
@@ -4049,6 +4258,7 @@ async function renderShare() {
   const avgWell = avgField('wellbeing');
   const avgHeart = avgField('heart');
   const avgStomach = avgField('stomach');
+  const avgExercise = avgField('exercise');
   const redFlags = recent.filter(d=>d.red_flag).length;
   const menstrualEntries = recent.filter(d=>d.menstrual_pain > 0);
   const avgMenstrual = menstrualEntries.length
@@ -4061,7 +4271,7 @@ async function renderShare() {
   document.getElementById('doctor-summary').innerHTML = `
     <div class="share-row">
       <span class="share-row-label">Patient</span>
-      <span class="share-row-val">Lisa</span>
+      <span class="share-row-val" id="share-patient-name">—</span>
     </div>
     <div class="share-row">
       <span class="share-row-label">Period</span>
@@ -4084,6 +4294,10 @@ async function renderShare() {
       <span class="share-row-val" style="color:${scoreColorHex(avgStomach)}">${avgStomach} / 10</span>
     </div>
     <div class="share-row">
+      <span class="share-row-label">Avg exercise</span>
+      <span class="share-row-val" style="color:${scoreColorHex(avgExercise)}">${avgExercise} / 10</span>
+    </div>
+    <div class="share-row">
       <span class="share-row-label">Avg menstrual comfort</span>
       <span class="share-row-val">${avgMenstrual} / 10</span>
     </div>
@@ -4096,7 +4310,7 @@ async function renderShare() {
   // AI clinical summary
   const insightEl = document.getElementById('doctor-insight');
   const summary = recent.slice(0,15).map(d =>
-    `${d.date}: wellbeing=${d.wellbeing}, heart=${d.heart}, spinal=${d.spinal}, headache=${d.headache}, stomach=${d.stomach}, gut=${d.gut}, libido=${d.libido}, cycle_day=${d.cycle_day}, menstrual_comfort=${d.menstrual_pain}, sexual_health="${d.sexual_notes}", diet="${d.diet_notes}", symptoms: heart="${d.heart_notes}", mental="${d.mental_notes}", stomach="${d.stomach_notes}", red_flag=${d.red_flag}`
+    `${d.date}: wellbeing=${d.wellbeing}, heart=${d.heart}, spinal=${d.spinal}, headache=${d.headache}, stomach=${d.stomach}, gut=${d.gut}, exercise=${d.exercise}, libido=${d.libido}, cycle_day=${d.cycle_day}, menstrual_comfort=${d.menstrual_pain}, sexual_health="${d.sexual_notes}", diet="${d.diet_notes}", symptoms: heart="${d.heart_notes}", mental="${d.mental_notes}", stomach="${d.stomach_notes}", red_flag=${d.red_flag}`
   ).join('\n');
 
   try {
@@ -4105,7 +4319,7 @@ async function renderShare() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         type: 'clinical',
-        data: `Patient name: Lisa. Recent health journal data:\n\n${summary}\n\nProvide a clinical summary for her health team.`
+        data: `Patient name: ${userName()}. Recent health journal data:\n\n${summary}\n\nProvide a clinical summary for their health team.`
       })
     });
     const result = await resp.json();
@@ -4123,7 +4337,7 @@ async function copyReport() {
   ).join('\n');
 
   try {
-    await navigator.clipboard.writeText('LISA HEALTH REPORT\n\n' + text);
+    await navigator.clipboard.writeText(`${(userName() || 'YOUR').toUpperCase()} HEALTH REPORT\n\n` + text);
     showToast('Report copied to clipboard');
   } catch {
     showToast('Unable to copy — try selecting the text manually');
@@ -4144,16 +4358,21 @@ function goToSettings() {
   document.getElementById('view-settings').classList.add('active');
   document.body.classList.add('settings-open');
 
-  // Show user email in settings
-  if (currentUser && currentUser.email) {
-    document.getElementById('settings-email').textContent = currentUser.email;
-  }
+  // Re-apply branding so first-name display + email + footer are fresh
+  applyBranding();
 
   // Show user's initial in profile button
   updateProfileInitial();
 
-  // Reset the change password form state
+  // Sync theme toggle UI to current setting
+  const mode = getStoredThemeMode();
+  document.querySelectorAll('[data-theme-option]').forEach(el => {
+    el.classList.toggle('active', el.dataset.themeOption === mode);
+  });
+
+  // Reset the change password and first-name form states
   cancelChangePassword();
+  cancelFirstNameEdit();
 
   window.scrollTo(0, 0);
 }
@@ -4438,10 +4657,75 @@ async function deleteRecord(id) {
 function updateProfileInitial() {
   const btn = document.getElementById('profile-btn');
   if (!btn) return;
-  if (currentUser && currentUser.email) {
+  const n = userName();
+  if (n) {
+    btn.textContent = n.charAt(0).toUpperCase();
+  } else if (currentUser && currentUser.email) {
     btn.textContent = currentUser.email.charAt(0).toUpperCase();
   } else {
-    btn.textContent = 'L';
+    btn.textContent = '·';
+  }
+}
+
+// ── EDIT FIRST NAME (from settings) ──────────────────────────────────────────
+function toggleFirstNameEdit() {
+  const form = document.getElementById('firstname-form');
+  const row = document.getElementById('firstname-row');
+  const input = document.getElementById('firstname-input');
+  if (form.classList.contains('open')) {
+    cancelFirstNameEdit();
+  } else {
+    form.classList.add('open');
+    row.querySelector('.settings-chev').textContent = '⌄';
+    input.value = userName() || '';
+    input.focus();
+  }
+}
+
+function cancelFirstNameEdit() {
+  const form = document.getElementById('firstname-form');
+  const row = document.getElementById('firstname-row');
+  form.classList.remove('open');
+  if (row) row.querySelector('.settings-chev').textContent = '›';
+  document.getElementById('firstname-input').value = '';
+  const msg = document.getElementById('firstname-form-msg');
+  msg.textContent = '';
+  msg.className = 'pw-form-msg';
+}
+
+async function submitFirstName() {
+  const newName = (document.getElementById('firstname-input').value || '').trim();
+  const msg = document.getElementById('firstname-form-msg');
+  msg.className = 'pw-form-msg';
+  msg.textContent = '';
+
+  if (!newName) {
+    msg.textContent = 'Please enter a name.';
+    msg.className = 'pw-form-msg err';
+    return;
+  }
+  if (newName.length > 40) {
+    msg.textContent = 'Please keep it under 40 characters.';
+    msg.className = 'pw-form-msg err';
+    return;
+  }
+
+  try {
+    await ensureFreshToken();
+    const result = await auth.updateUserMetadata({ first_name: newName });
+    if (result.error) {
+      msg.textContent = result.error.message || 'Could not save your name.';
+      msg.className = 'pw-form-msg err';
+      return;
+    }
+    // Re-apply branding so name updates everywhere instantly
+    applyBranding();
+    msg.textContent = 'Saved.';
+    msg.className = 'pw-form-msg ok';
+    setTimeout(cancelFirstNameEdit, 1200);
+  } catch (e) {
+    msg.textContent = 'Could not save. Please try again.';
+    msg.className = 'pw-form-msg err';
   }
 }
 
@@ -4655,6 +4939,7 @@ async function handleNewPassword() {
 
 // ── INIT ─────────────────────────────────────────────────────────────────────
 function initApp() {
+  applyBranding();
   renderHome();
   updateProfileInitial();
   // Initialise date pickers to today and set their trigger labels
@@ -4705,6 +4990,10 @@ document.addEventListener('click', (e) => {
   }
 });
 
+// Apply brand name to login + DOM elements before bootstrap runs (covers
+// users not yet signed in — userName() returns '' so name-dependent bits
+// gracefully no-op until signup/signin completes).
+applyBranding();
 bootstrap();
 </script>
 </body>
