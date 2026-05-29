@@ -41,7 +41,7 @@
     --surface2: #f3f4f6;
     --border: #e5e7eb;
     --text: #1a1a2e;
-    --muted: #6b7280;
+    --muted: #4b5563;
     --accent: #9333ea;
     --accent2: #db2777;
     --accent3: #059669;
@@ -700,6 +700,7 @@
   body.settings-open .nav { display: none; }
   body.settings-open .header { display: none; }
   body.settings-open #view-settings { padding-top: calc(8px + env(safe-area-inset-top, 0px)); }
+  body.settings-open #view-records { padding-top: calc(8px + env(safe-area-inset-top, 0px)); }
 
   /* Cards */
   .card {
@@ -1075,6 +1076,34 @@
     font-size: 14px;
     color: var(--good);
   }
+
+  /* Today prompt — tappable card prompting check-in */
+  .today-prompt-tap {
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin: 0 16px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s;
+  }
+  .today-prompt-tap:active { background: var(--surface2); }
+  .today-prompt-tap-text { font-size: 14px; color: var(--text); font-weight: 500; }
+  .today-prompt-tap-arrow { color: var(--accent); font-size: 18px; }
+
+  /* Compact latest entry summary */
+  .latest-summary-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+  }
+  .latest-summary-label { color: var(--muted); }
+  .latest-summary-value { color: var(--text); font-weight: 500; }
 
   /* History list */
   .history-item {
@@ -1696,21 +1725,8 @@
 
   <!-- HOME VIEW -->
   <div class="view active main" id="view-home">
-    <div id="today-banner"></div>
 
-    <!-- Latest scores -->
-    <div style="padding: 16px 0 4px 24px;">
-      <div class="card-title">Latest check-in</div>
-    </div>
-    <div class="score-grid" id="latest-scores"></div>
-
-    <!-- 7-day mini charts -->
-    <div class="card">
-      <div class="card-title">7-day wellbeing</div>
-      <div class="mini-chart" id="mini-chart"></div>
-    </div>
-
-    <!-- AI insight -->
+    <!-- AI insight hero (promoted to top) -->
     <div class="insight-card" id="insight-card">
       <div class="insight-label">AI insight</div>
       <div class="insight-loading">
@@ -1719,10 +1735,25 @@
       </div>
     </div>
 
-    <!-- Recent red flags -->
-    <div class="card" id="red-flag-card" style="display:none;">
-      <div class="card-title">Recent alerts</div>
-      <div id="red-flag-list"></div>
+    <!-- Today prompt (tappable; deep-links to check-in if today not logged) -->
+    <div id="today-prompt"></div>
+
+    <!-- Top pattern observation (only shown when a strong pattern exists) -->
+    <div class="card" id="top-pattern-card" style="display:none;">
+      <div class="card-title">A pattern in your data</div>
+      <div id="top-pattern-body" style="font-size:14px; line-height:1.5;"></div>
+      <div style="margin-top:10px; font-size:11px; color:var(--muted); cursor:pointer;" onclick="goToTrends()">See all patterns →</div>
+    </div>
+
+    <!-- Compact latest entry summary -->
+    <div class="card" id="latest-summary-card" style="display:none;">
+      <div class="latest-summary-row" id="latest-summary-row"></div>
+    </div>
+
+    <!-- 7-day mini chart -->
+    <div class="card">
+      <div class="card-title">7-day wellbeing</div>
+      <div class="mini-chart" id="mini-chart"></div>
     </div>
   </div>
 
@@ -2219,7 +2250,7 @@
     <div class="settings-card">
       <div class="settings-row">
         <div class="settings-row-label">Version</div>
-        <div class="settings-row-value">0.4.0</div>
+        <div class="settings-row-value">0.4.2</div>
       </div>
       <div class="settings-about-foot" id="settings-about-foot">Made with care</div>
     </div>
@@ -2227,12 +2258,14 @@
 
   <!-- RECORDS VIEW (medical files) -->
   <div class="view main" id="view-records" style="display:none;">
-    <button class="settings-back" onclick="closeRecords()" aria-label="Back to settings">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <polyline points="15 18 9 12 15 6"/>
-      </svg>
-    </button>
-    <div class="section-heading">Tests, scans &amp; <em>letters</em></div>
+    <div style="display:flex; align-items:center; gap:14px; padding: 4px 16px 8px;">
+      <button class="settings-back" onclick="closeRecords()" aria-label="Back to settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+      </button>
+      <div style="font-family: var(--font-serif); font-size: 22px; line-height: 1.1;">Tests, scans &amp; <em style="color: var(--accent); font-style: italic;">letters</em></div>
+    </div>
 
     <div class="card">
       <div class="card-title">Add a record</div>
@@ -2624,13 +2657,23 @@ function setThemeMode(mode) {
   document.querySelectorAll('[data-theme-option]').forEach(el => {
     el.classList.toggle('active', el.dataset.themeOption === mode);
   });
+  // Re-render charts so they pick up new theme colours
+  if (typeof renderTrends === 'function' && document.getElementById('view-trends')?.classList.contains('active')) {
+    renderTrends();
+  }
 }
 // Apply theme as early as possible (re-applied on showApp too)
 applyTheme(getStoredThemeMode());
 // Listen for OS theme changes when in system mode
 if (window.matchMedia) {
   window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
-    if (getStoredThemeMode() === 'system') applyTheme('system');
+    if (getStoredThemeMode() === 'system') {
+      applyTheme('system');
+      // Re-render charts if visible
+      if (typeof renderTrends === 'function' && document.getElementById('view-trends')?.classList.contains('active')) {
+        renderTrends();
+      }
+    }
   });
 }
 
@@ -3275,6 +3318,16 @@ function showView(name, btn) {
   if (name === 'share') renderShare();
 }
 
+// Deep-link helpers from home page taps — find the matching nav button so it gets the active highlight
+function goToCheckin() {
+  const btn = document.querySelector('.nav-btn[onclick*="checkin"]');
+  showView('checkin', btn);
+}
+function goToTrends() {
+  const btn = document.querySelector('.nav-btn[onclick*="trends"]');
+  showView('trends', btn);
+}
+
 // ── TOAST ────────────────────────────────────────────────────────────────────
 function showToast(msg) {
   const t = document.getElementById('toast');
@@ -3295,38 +3348,54 @@ function renderHome() {
   const streak = computeStreak();
   document.getElementById('streak-badge').textContent = streak + ' day streak';
 
-  // Today's banner
+  // Today prompt: tap-to-log if not done, success state if done
   const todayEntries = DATA.filter(d => d.date === today());
-  const bannerEl = document.getElementById('today-banner');
+  const promptEl = document.getElementById('today-prompt');
   if (todayEntries.length) {
-    bannerEl.innerHTML = `<div class="today-done">Check-in complete for today</div>`;
+    promptEl.innerHTML = `<div class="today-done">Check-in complete for today</div>`;
   } else {
-    bannerEl.innerHTML = '';
+    promptEl.innerHTML = `
+      <div class="today-prompt-tap" onclick="goToCheckin()">
+        <span class="today-prompt-tap-text">Log today's check-in</span>
+        <span class="today-prompt-tap-arrow">→</span>
+      </div>`;
   }
 
-  // Latest scores
-  const scoresEl = document.getElementById('latest-scores');
-  if (!latest) {
-    scoresEl.innerHTML = '';
-    return;
+  // Top pattern card (single strongest pattern from engine, if available)
+  const patternCard = document.getElementById('top-pattern-card');
+  const patternBody = document.getElementById('top-pattern-body');
+  if (insightsUnlocked()) {
+    const patterns = computePatterns(DATA);
+    if (patterns.length > 0) {
+      const p = patterns[0];
+      const dirColor = p.direction === 'higher' ? 'var(--good)' : 'var(--accent2)';
+      patternBody.innerHTML = `
+        On days you logged <strong style="color:var(--accent);">${escapeHtml(p.factor)}</strong>,
+        your ${escapeHtml(p.scoreLabel)} scores have tended to be
+        <strong style="color:${dirColor};">${p.direction}</strong>
+        <span style="color:var(--muted);">(based on ${p.n} days)</span>`;
+      patternCard.style.display = 'block';
+    } else {
+      patternCard.style.display = 'none';
+    }
+  } else {
+    patternCard.style.display = 'none';
   }
-  const scoreItems = [
-    {label:'Wellbeing', val: latest.wellbeing},
-    {label:'Heart', val: latest.heart},
-    {label:'Spinal', val: latest.spinal},
-    {label:'Head', val: latest.headache},
-    {label:'Stomach', val: latest.stomach},
-    {label:'Gut', val: latest.gut},
-    {label:'Exercise', val: latest.exercise},
-  ];
-  scoresEl.innerHTML = scoreItems.map(s => {
-    const has = typeof s.val === 'number';
-    return `
-    <div class="score-item">
-      <div class="score-value ${has ? scoreColor(s.val) : ''}">${has ? s.val : '—'}</div>
-      <div class="score-label">${s.label}</div>
-    </div>`;
-  }).join('');
+
+  // Compact latest entry summary
+  const summaryCard = document.getElementById('latest-summary-card');
+  const summaryRow = document.getElementById('latest-summary-row');
+  if (latest) {
+    summaryCard.style.display = 'block';
+    const dateStr = fmt(latest.date);
+    const wb = typeof latest.wellbeing === 'number' ? latest.wellbeing : '—';
+    const wbColor = typeof latest.wellbeing === 'number' ? scoreColorHex(latest.wellbeing) : 'var(--muted)';
+    summaryRow.innerHTML = `
+      <span class="latest-summary-label">Last logged · ${dateStr}</span>
+      <span class="latest-summary-value" style="color:${wbColor};">Wellbeing ${wb}/10</span>`;
+  } else {
+    summaryCard.style.display = 'none';
+  }
 
   // Mini chart
   const miniEl = document.getElementById('mini-chart');
@@ -3337,22 +3406,7 @@ function renderHome() {
     return `<div class="mini-bar" style="height:${pct}%;background:${col};"></div>`;
   }).join('');
 
-  // Red flags
-  const flagDays = DATA.filter(d => d.red_flag).slice(-5).reverse();
-  const flagCard = document.getElementById('red-flag-card');
-  if (flagDays.length) {
-    flagCard.style.display = 'block';
-    document.getElementById('red-flag-list').innerHTML = flagDays.map(d => `
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
-        <span style="font-size:13px;color:var(--muted);">${fmt(d.date)}</span>
-        <span style="font-size:13px;color:var(--danger);">Wellbeing ${d.wellbeing}/10</span>
-      </div>
-    `).join('');
-  } else {
-    flagCard.style.display = 'none';
-  }
-
-  // AI insight
+  // AI insight (now the top element)
   generateInsight();
 }
 
@@ -3758,20 +3812,34 @@ const FACTOR_SOURCES = [
   { field: 'gut_notes', prefix: 'symptom' }
 ];
 
-const PATTERN_MIN_WITH = 5;      // need >=5 days WITH the factor
-const PATTERN_MIN_WITHOUT = 5;   // and >=5 days WITHOUT it
-const PATTERN_MIN_DIFF = 1.0;    // average score gap must be >= 1.0 to matter
+const PATTERN_MIN_WITH = 8;      // need >=8 days WITH the factor (was 5)
+const PATTERN_MIN_WITHOUT = 8;   // and >=8 days WITHOUT it (was 5)
+const PATTERN_MIN_DIFF = 1.5;    // average score gap must be >= 1.5 to matter (was 1.0)
 
 const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0;
 
-// Normalise a factor string: take the meaningful part, lowercase for matching
+// Normalise a factor string: trim whitespace
 function normFactor(s) {
   return s.trim();
 }
 
-// Collect distinct factors that appear across the dataset
+// Build a normalised matching key from a factor — lowercase, strip trailing 's',
+// collapse internal whitespace. So "1-2 Coffee", "1-2 coffees", "1-2  COFFEES"
+// all map to the same key. The original first-seen label is preserved for display.
+function factorMatchKey(s) {
+  let k = s.toLowerCase().trim().replace(/\s+/g, ' ');
+  // Drop trailing 's' if the word is long enough to make this safe (so "us" stays "us")
+  k = k.replace(/s\b/g, m => m); // no-op pass to keep things explicit
+  // Strip trailing 's' from each word longer than 3 chars
+  k = k.split(' ').map(w => (w.length > 3 && w.endsWith('s')) ? w.slice(0, -1) : w).join(' ');
+  return k;
+}
+
+// Collect distinct factors that appear across the dataset.
+// Tags with the same normalised key (e.g. "Coffee" and "coffees") are merged.
 function collectFactors(data) {
-  const map = {}; // factorLabel -> Set of dates it appeared on
+  // matchKey -> { label, dates }
+  const merged = {};
   data.forEach(d => {
     FACTOR_SOURCES.forEach(src => {
       const raw = d[src.field];
@@ -3781,12 +3849,24 @@ function collectFactors(data) {
         const low = f.toLowerCase();
         if (low === 'none' || low === 'normal' || low === 'neutral' ||
             low.includes('nothing worth') || low === 'no problem' || f.length < 3) return;
-        const key = src.prefix + '::' + f;
-        if (!map[key]) map[key] = new Set();
-        map[key].add(d.date);
+        const matchKey = src.prefix + '::' + factorMatchKey(f);
+        if (!merged[matchKey]) {
+          merged[matchKey] = { label: f, dates: new Set() };
+        }
+        merged[matchKey].dates.add(d.date);
       });
     });
   });
+  // Reshape to match the existing { key -> Set } contract,
+  // but also surface the chosen label via a side map.
+  const map = {};
+  const labelByKey = {};
+  Object.entries(merged).forEach(([k, v]) => {
+    map[k] = v.dates;
+    labelByKey[k] = v.label;
+  });
+  // Stash labelByKey on the function so computePatterns can read it without changing signature
+  collectFactors._labels = labelByKey;
   return map;
 }
 
@@ -3861,10 +3941,12 @@ function computePatterns(data) {
   if (data.length < 10) return []; // not enough overall history
 
   const factorMap = collectFactors(data);
+  const labels = collectFactors._labels || {};
   const results = [];
 
   Object.entries(factorMap).forEach(([key, datesSet]) => {
-    const [prefix, factor] = key.split('::');
+    const [prefix /* , matchKey */] = key.split('::');
+    const factor = labels[key] || key.split('::')[1]; // friendly first-seen label
     const withDays = data.filter(d => datesSet.has(d.date));
     const withoutDays = data.filter(d => !datesSet.has(d.date));
     if (withDays.length < PATTERN_MIN_WITH || withoutDays.length < PATTERN_MIN_WITHOUT) return;
@@ -3932,7 +4014,8 @@ function computeHelpfulFactors(data) {
   ];
 
   function tallyFactors(days) {
-    const counts = {};
+    const counts = {};   // matchKey -> count
+    const labels = {};   // matchKey -> first-seen friendly label
     days.forEach(d => {
       goodSources.forEach(src => {
         const raw = d[src.field];
@@ -3941,32 +4024,37 @@ function computeHelpfulFactors(data) {
         raw.split(',').map(s => s.trim()).filter(Boolean).forEach(f => {
           const low = f.toLowerCase();
           if (low === 'none' || low === 'normal' || f.length < 3) return;
-          if (seen.has(low)) return;
-          seen.add(low);
-          counts[f] = (counts[f] || 0) + 1;
+          const mk = factorMatchKey(f);
+          if (seen.has(mk)) return;
+          seen.add(mk);
+          if (!labels[mk]) labels[mk] = f;
+          counts[mk] = (counts[mk] || 0) + 1;
         });
       });
     });
-    return counts;
+    return { counts, labels };
   }
 
-  const topCounts = tallyFactors(topDays);
-  const restCounts = tallyFactors(restDays);
+  const top = tallyFactors(topDays);
+  const rest = tallyFactors(restDays);
+  const topCounts = top.counts;
+  const restCounts = rest.counts;
+  const factorLabels = top.labels; // first-seen labels from the top tier
 
   // A factor "tends to help" only if it clears strict tests, to avoid implying
   // that frequently-logged items (coffee, sugar) are beneficial when they're just
   // common. Must appear on a strong majority of top days, clearly more than on the
   // rest, AND be genuinely discriminating (not also common on low days).
   const helpful = [];
-  Object.keys(topCounts).forEach(factor => {
-    const topRate = topCounts[factor] / topDays.length;
-    const restRate = (restCounts[factor] || 0) / Math.max(restDays.length, 1);
+  Object.keys(topCounts).forEach(mk => {
+    const topRate = topCounts[mk] / topDays.length;
+    const restRate = (restCounts[mk] || 0) / Math.max(restDays.length, 1);
     if (
-      topCounts[factor] >= 4 &&     // on at least 4 good days
+      topCounts[mk] >= 4 &&     // on at least 4 good days
       topRate >= 0.5 &&             // on a majority of good days
       topRate >= restRate * 2       // at least twice as common on good vs other days
     ) {
-      helpful.push({ factor, topRate, lift: topRate - restRate, n: topCounts[factor] });
+      helpful.push({ factor: factorLabels[mk] || mk, topRate, lift: topRate - restRate, n: topCounts[mk] });
     }
   });
 
@@ -4113,13 +4201,18 @@ function renderTrends() {
   const spinal = dates.map(d => cleanAvg(d, 'spinal'));
   const exercise = dates.map(d => cleanAvg(d, 'exercise'));
 
+  // Read theme colours from CSS so charts adapt to light/dark mode
+  const cs = getComputedStyle(document.documentElement);
+  const tickColor = cs.getPropertyValue('--muted').trim() || '#7a7a8c';
+  const gridColor = cs.getPropertyValue('--border').trim() || '#2a2a33';
+
   const chartDefaults = {
     responsive: true,
     maintainAspectRatio: false,
-    plugins: { legend: { labels: { color: '#7a7a8c', font: { size: 11 } } } },
+    plugins: { legend: { labels: { color: tickColor, font: { size: 11 } } } },
     scales: {
-      x: { ticks: { color: '#7a7a8c', font: { size: 10 }, maxTicksLimit: 6 }, grid: { color: '#2a2a33' } },
-      y: { ticks: { color: '#7a7a8c', font: { size: 10 } }, grid: { color: '#2a2a33' }, min: 0, max: 10 }
+      x: { ticks: { color: tickColor, font: { size: 10 }, maxTicksLimit: 6 }, grid: { color: gridColor } },
+      y: { ticks: { color: tickColor, font: { size: 10 } }, grid: { color: gridColor }, min: 0, max: 10 }
     }
   };
 
@@ -4151,13 +4244,13 @@ function renderTrends() {
     data: {
       labels,
       datasets: [
-        { label: 'Heart', data: heart, borderColor: '#f472b6', tension: 0.4, pointRadius: 3, borderWidth: 2, spanGaps: true },
-        { label: 'Stomach', data: stomach, borderColor: '#fb923c', tension: 0.4, pointRadius: 3, borderWidth: 2, spanGaps: true },
-        { label: 'Spinal', data: spinal, borderColor: '#34d399', tension: 0.4, pointRadius: 3, borderWidth: 2, spanGaps: true },
-        { label: 'Exercise', data: exercise, borderColor: '#60a5fa', tension: 0.4, pointRadius: 3, borderWidth: 2, spanGaps: true },
+        { label: 'Heart', data: heart, borderColor: '#f472b6', backgroundColor: '#f472b6', tension: 0.4, pointRadius: 3, borderWidth: 2, spanGaps: true, fill: false },
+        { label: 'Stomach', data: stomach, borderColor: '#fb923c', backgroundColor: '#fb923c', tension: 0.4, pointRadius: 3, borderWidth: 2, spanGaps: true, fill: false },
+        { label: 'Spinal', data: spinal, borderColor: '#34d399', backgroundColor: '#34d399', tension: 0.4, pointRadius: 3, borderWidth: 2, spanGaps: true, fill: false },
+        { label: 'Exercise', data: exercise, borderColor: '#60a5fa', backgroundColor: '#60a5fa', tension: 0.4, pointRadius: 3, borderWidth: 2, spanGaps: true, fill: false },
       ]
     },
-    options: { ...chartDefaults, plugins: { legend: { labels: { color: '#7a7a8c', font: { size: 11 } } } } }
+    options: { ...chartDefaults, plugins: { legend: { labels: { color: tickColor, font: { size: 11 } } } } }
   });
 
   destroy('cycle');
@@ -4174,29 +4267,38 @@ function renderTrends() {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { labels: { color: '#7a7a8c', font: { size: 11 } } } },
+      plugins: { legend: { display: false } },
       scales: {
-        x: { title: { display: true, text: 'Cycle day', color: '#7a7a8c' }, ticks: { color: '#7a7a8c', font: { size: 10 } }, grid: { color: '#2a2a33' }, min: 0 },
-        y: { title: { display: true, text: 'Comfort (1-10)', color: '#7a7a8c' }, ticks: { color: '#7a7a8c', font: { size: 10 } }, grid: { color: '#2a2a33' }, min: 0, max: 10 }
+        x: { title: { display: true, text: 'Cycle day', color: tickColor }, ticks: { color: tickColor, font: { size: 10 } }, grid: { color: gridColor }, min: 0 },
+        y: { title: { display: true, text: 'Comfort (1-10)', color: tickColor }, ticks: { color: tickColor, font: { size: 10 } }, grid: { color: gridColor }, min: 0, max: 10 }
       }
     }
   });
 
-  // Diet triggers on bad days
+  // Diet triggers on bad days — merge variants (e.g. "1-2 Coffee" + "1-2 coffees") into one row
   const badDays = rangeData.filter(d => d.wellbeing <= 5 || d.red_flag);
-  const dietCount = {};
+  const dietCount = {};   // matchKey -> count
+  const dietLabel = {};   // matchKey -> first-seen friendly label
   badDays.forEach(d => {
+    if (!d.diet_notes) return;
     const items = d.diet_notes.split(',').map(x => x.trim()).filter(Boolean);
     items.forEach(item => {
-      const key = item.split(' ')[0];
-      if (key.length > 2) dietCount[key] = (dietCount[key] || 0) + 1;
+      if (item.length < 3) return;
+      const low = item.toLowerCase();
+      if (low === 'none' || low === 'normal') return;
+      const mk = factorMatchKey(item);
+      if (!dietLabel[mk]) dietLabel[mk] = item;
+      dietCount[mk] = (dietCount[mk] || 0) + 1;
     });
   });
 
-  const sortedDiet = Object.entries(dietCount).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const sortedDiet = Object.entries(dietCount)
+    .sort((a,b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([mk, count]) => [dietLabel[mk] || mk, count]);
   document.getElementById('triggers-list').innerHTML = sortedDiet.map(([label, count]) => `
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-      <div style="font-size:13px;color:var(--text);min-width:100px;">${label}</div>
+      <div style="font-size:13px;color:var(--text);min-width:100px;">${escapeHtml(label)}</div>
       <div style="flex:1;background:var(--surface2);border-radius:4px;height:6px;overflow:hidden;">
         <div style="width:${(count/Math.max(badDays.length,1)*100).toFixed(0)}%;height:100%;background:var(--warn);border-radius:4px;"></div>
       </div>
@@ -4240,8 +4342,8 @@ function renderTrends() {
       maintainAspectRatio: false,
       plugins: { legend: { display: false } },
       scales: {
-        x: { ticks: { color: '#7a7a8c', font: { size: 9 }, maxRotation: 45 }, grid: { display: false } },
-        y: { ticks: { color: '#7a7a8c', font: { size: 10 }, stepSize: 1 }, grid: { color: '#2a2a33' }, min: 0 }
+        x: { ticks: { color: tickColor, font: { size: 9 }, maxRotation: 45 }, grid: { display: false } },
+        y: { ticks: { color: tickColor, font: { size: 10 }, stepSize: 1 }, grid: { color: gridColor }, min: 0 }
       }
     }
   });
