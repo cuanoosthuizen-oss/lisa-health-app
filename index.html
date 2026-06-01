@@ -534,6 +534,32 @@
     -webkit-tap-highlight-color: transparent;
   }
   .checkin-customise-link:active { opacity: 0.6; }
+
+  /* AI generate button (home + day detail) */
+  .ai-generate-btn {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: white;
+    border: none;
+    border-radius: 999px;
+    padding: 10px 22px;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: opacity 0.15s;
+  }
+  .ai-generate-btn:active { opacity: 0.8; }
+  .ai-generate-btn:disabled { opacity: 0.5; cursor: default; }
+
+  /* AI usage counter line */
+  .insight-meta {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
   /* End v0.5.0 styles ─────────────────────────────────────────────────── */
 
   /* Medication picker */
@@ -3150,6 +3176,9 @@ async function loadData() {
   } catch {
     DATA = [];
   }
+  // Load AI tier + monthly usage in parallel (non-blocking — AI features will
+  // still render with the default 'free' tier if this fails)
+  loadAiUsage().catch(e => console.error('AI usage load failed:', e));
   initApp();
 }
 
@@ -3911,24 +3940,101 @@ function renderHome() {
 }
 
 // ── AI INSIGHT ───────────────────────────────────────────────────────────────
+// Behaviour (Session 2.5):
+//   1. On render, check ai_insights table for cached insight for today's date
+//   2. If cached: show it immediately + usage counter
+//   3. If not cached but gate is open: show "Generate insight" button
+//   4. If at cap: show "Cap reached" message + counter
+//   5. If gate closed: show lock message
+//
+// generateInsight() renders the card state. The actual API call happens in
+// requestAiInsight() when user taps the button.
+
 async function generateInsight() {
   const el = document.getElementById('insight-card');
+  if (!el) return;
 
-  // AI insight is gated like the other insight features
-  if (!insightsUnlocked()) {
-    el.innerHTML = `<div class="insight-label">AI insight</div><div class="insight-text" style="color:var(--muted);">${insightLockMessage()}</div>`;
+  // Gate check — must have enough data first (free tier only)
+  if (!aiInsightsUnlocked()) {
+    el.innerHTML = `
+      <div class="insight-label">AI insight</div>
+      <div class="insight-text" style="color:var(--muted);">${aiInsightLockMessage()}</div>`;
     return;
   }
+
+  // Latest entry's date is what "today's insight" is anchored to
+  const sortedData = [...DATA].sort((a, b) => b.date.localeCompare(a.date));
+  if (!sortedData.length) {
+    el.innerHTML = `
+      <div class="insight-label">AI insight</div>
+      <div class="insight-text" style="color:var(--muted);">Log a check-in first to generate an insight.</div>`;
+    return;
+  }
+  const latestDate = sortedData[0].date;
+
+  // Check for cached insight for the latest date
+  let cachedInsight = null;
+  if (currentUser && await ensureFreshToken()) {
+    try {
+      const resp = await fetch(`${SUPABASE_URL}/rest/v1/ai_insights?user_id=eq.${currentUser.id}&entry_date=eq.${latestDate}&insight_type=eq.daily&select=content`, {
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentSession.access_token}` }
+      });
+      if (resp.ok) {
+        const rows = await resp.json();
+        if (rows && rows[0]) cachedInsight = rows[0].content;
+      }
+    } catch (e) {
+      console.error('Cached insight lookup failed:', e);
+    }
+  }
+
+  // Render based on state
+  if (cachedInsight) {
+    el.innerHTML = `
+      <div class="insight-label">AI insight</div>
+      <div class="insight-text">${cachedInsight}</div>
+      <div class="insight-meta">${aiUsageLabel()}</div>`;
+    return;
+  }
+
+  if (aiAtCap()) {
+    el.innerHTML = `
+      <div class="insight-label">AI insight</div>
+      <div class="insight-text" style="color:var(--muted);">You've used your ${AI_USAGE.effectiveCap} insights this month. Resets next month.</div>
+      <div class="insight-meta">${aiUsageLabel()}</div>`;
+    return;
+  }
+
+  // Default: show generate button
+  el.innerHTML = `
+    <div class="insight-label">AI insight</div>
+    <div class="insight-text" style="color:var(--muted); margin-bottom: 12px;">Tap to generate a fresh insight based on your most recent entries.</div>
+    <button class="ai-generate-btn" id="ai-generate-home-btn" onclick="requestAiInsight()">Generate insight</button>
+    <div class="insight-meta">${aiUsageLabel()}</div>`;
+}
+
+async function requestAiInsight() {
+  const el = document.getElementById('insight-card');
+  if (!el) return;
+  const btn = document.getElementById('ai-generate-home-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Analysing...'; }
 
   el.innerHTML = `
     <div class="insight-label">AI insight</div>
     <div class="insight-loading">
       <div class="dot-pulse"><span></span><span></span><span></span></div>
-      Analysing your recent data...
+      Analysing your data...
     </div>`;
 
-  const recent = [...DATA].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
-  const summary = recent.map(d =>
+  const sortedData = [...DATA].sort((a, b) => b.date.localeCompare(a.date));
+  const latestDate = sortedData[0]?.date;
+  if (!latestDate) {
+    el.innerHTML = `<div class="insight-label">AI insight</div><div class="insight-text" style="color:var(--muted);">No data to analyse yet.</div>`;
+    return;
+  }
+
+  // Use the full history (per v0.5.0 design — "entire history" not last 30)
+  const summary = sortedData.map(d =>
     `${d.date}: wellbeing=${d.wellbeing}, heart=${d.heart}, spinal=${d.spinal}, headache=${d.headache}, stomach=${d.stomach}, gut=${d.gut}, libido=${d.libido}, cycle_day=${d.cycle_day}, menstrual_comfort=${d.menstrual_pain}, sexual_health="${d.sexual_notes}", diet="${d.diet_notes}", mental="${d.mental_notes}", red_flag=${d.red_flag}`
   ).join('\n');
 
@@ -3937,15 +4043,45 @@ async function generateInsight() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        data: `Here are ${userName()}'s most recent health entries:\n\n${summary}\n\nWhat patterns or insights stand out from this data?`
+        userId: currentUser.id,
+        entryDate: latestDate,
+        type: 'daily',
+        data: `Here are ${userName()}'s health journal entries (most recent first):\n\n${summary}\n\nLook at the patterns across this data and offer one or two grounded observations.`
       })
     });
 
     const result = await resp.json();
-    const text = result.insight || 'Unable to generate insight right now.';
-    el.innerHTML = `<div class="insight-label">AI insight</div><div class="insight-text">${text}</div>`;
-  } catch {
-    el.innerHTML = `<div class="insight-label">AI insight</div><div class="insight-text" style="color:var(--muted);">Connect to the internet to generate AI insights from your data.</div>`;
+
+    if (!resp.ok) {
+      // Handle specific error cases
+      if (result.error === 'cap_reached') {
+        if (result.usage) AI_USAGE = result.usage;
+        el.innerHTML = `
+          <div class="insight-label">AI insight</div>
+          <div class="insight-text" style="color:var(--muted);">You've used your ${AI_USAGE.effectiveCap} insights this month. Resets next month.</div>
+          <div class="insight-meta">${aiUsageLabel()}</div>`;
+        return;
+      }
+      if (result.error === 'circuit_breaker') {
+        el.innerHTML = `
+          <div class="insight-label">AI insight</div>
+          <div class="insight-text" style="color:var(--muted);">AI insights are temporarily unavailable. Please try again tomorrow.</div>`;
+        return;
+      }
+      throw new Error(result.error || 'unknown_error');
+    }
+
+    if (result.usage) AI_USAGE = result.usage;
+    el.innerHTML = `
+      <div class="insight-label">AI insight</div>
+      <div class="insight-text">${result.content}</div>
+      <div class="insight-meta">${aiUsageLabel()}</div>`;
+  } catch (e) {
+    console.error('Insight request failed:', e);
+    el.innerHTML = `
+      <div class="insight-label">AI insight</div>
+      <div class="insight-text" style="color:var(--muted);">Connect to the internet to generate AI insights.</div>
+      <button class="ai-generate-btn" onclick="requestAiInsight()" style="margin-top: 12px;">Try again</button>`;
   }
 }
 
@@ -4042,7 +4178,7 @@ function renderSelectedDay() {
     ? '<div class="day-redflag">RED FLAG DAY</div>'
     : '';
 
-  const aiTakeBtn = insightsUnlocked()
+  const aiTakeBtn = aiInsightsUnlocked()
     ? `<button class="day-ai-btn" id="day-ai-btn" onclick="generateDayInsight()">Get AI take on this day</button>`
     : '';
 
@@ -4209,16 +4345,40 @@ async function generateDayInsight() {
   const selectedDate = picker.value;
   if (!selectedDate) return;
 
-  if (!insightsUnlocked()) {
-    resultEl.innerHTML = `<div class="day-ai-result" style="color:var(--muted)">${insightLockMessage()}</div>`;
+  if (!aiInsightsUnlocked()) {
+    resultEl.innerHTML = `<div class="day-ai-result" style="color:var(--muted)">${aiInsightLockMessage()}</div>`;
     return;
   }
 
-  // Get entries up to and including the selected date
+  // Check for cached insight first
+  if (currentUser && await ensureFreshToken()) {
+    try {
+      const cacheResp = await fetch(`${SUPABASE_URL}/rest/v1/ai_insights?user_id=eq.${currentUser.id}&entry_date=eq.${selectedDate}&insight_type=eq.daily&select=content`, {
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentSession.access_token}` }
+      });
+      if (cacheResp.ok) {
+        const rows = await cacheResp.json();
+        if (rows && rows[0]) {
+          resultEl.innerHTML = `<div class="day-ai-result">${escapeHtml(rows[0].content)}</div>`;
+          btn.textContent = 'Insight saved for this day';
+          btn.disabled = true;
+          return;
+        }
+      }
+    } catch (e) {
+      console.error('Day cached lookup failed:', e);
+    }
+  }
+
+  if (aiAtCap()) {
+    resultEl.innerHTML = `<div class="day-ai-result" style="color:var(--muted);">You've used your ${AI_USAGE.effectiveCap} insights this month. Resets next month.</div>`;
+    return;
+  }
+
+  // Use full history up to and including selected date
   const upToDate = DATA
     .filter(d => d.date <= selectedDate)
-    .sort((a, b) => b.date.localeCompare(a.date))
-    .slice(0, 10);
+    .sort((a, b) => b.date.localeCompare(a.date));
 
   if (!upToDate.length) {
     resultEl.innerHTML = '<div class="day-ai-result">No data available before this date.</div>';
@@ -4238,18 +4398,42 @@ async function generateDayInsight() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        data: `${userName()} is reviewing their entry from ${selectedDate}. Here is their entry for that day plus the days leading up to it (most recent first):\n\n${summary}\n\nFocus on the entry from ${selectedDate}. What stands out about that day, and how does it compare to the days leading up to it? Speak to ${userName()} about that specific day.`
+        userId: currentUser.id,
+        entryDate: selectedDate,
+        type: 'daily',
+        data: `${userName()} is reviewing their entry from ${selectedDate}. Here is their full health history (most recent first):\n\n${summary}\n\nFocus on the entry from ${selectedDate}. What stands out about that day, and how does it compare to the rest of their history? Speak to ${userName()} about that specific day.`
       })
     });
-    const result = await resp.json();
-    const text = result.insight || 'Unable to generate insight right now.';
-    resultEl.innerHTML = `<div class="day-ai-result">${escapeHtml(text)}</div>`;
-  } catch {
-    resultEl.innerHTML = '<div class="day-ai-result" style="color:var(--muted);">Connection error. Please try again.</div>';
-  }
 
-  btn.disabled = false;
-  btn.textContent = 'Get AI take on this day';
+    const result = await resp.json();
+
+    if (!resp.ok) {
+      if (result.error === 'cap_reached') {
+        if (result.usage) AI_USAGE = result.usage;
+        resultEl.innerHTML = `<div class="day-ai-result" style="color:var(--muted);">You've used your ${AI_USAGE.effectiveCap} insights this month. Resets next month.</div>`;
+        btn.disabled = false;
+        btn.textContent = 'Get AI take on this day';
+        return;
+      }
+      if (result.error === 'circuit_breaker') {
+        resultEl.innerHTML = `<div class="day-ai-result" style="color:var(--muted);">AI insights are temporarily unavailable. Please try again tomorrow.</div>`;
+        btn.disabled = false;
+        btn.textContent = 'Get AI take on this day';
+        return;
+      }
+      throw new Error(result.error || 'unknown_error');
+    }
+
+    if (result.usage) AI_USAGE = result.usage;
+    resultEl.innerHTML = `<div class="day-ai-result">${escapeHtml(result.content)}</div>`;
+    btn.textContent = 'Insight saved for this day';
+    btn.disabled = true;
+  } catch (e) {
+    console.error('Day insight failed:', e);
+    resultEl.innerHTML = '<div class="day-ai-result" style="color:var(--muted);">Connection error. Please try again.</div>';
+    btn.disabled = false;
+    btn.textContent = 'Get AI take on this day';
+  }
 }
 
 // ── TRENDS ───────────────────────────────────────────────────────────────────
@@ -4378,6 +4562,108 @@ function collectFactors(data) {
 const INSIGHT_UNLOCK_THRESHOLD = 25;
 const INSIGHT_RELOCK_THRESHOLD = 15;
 let insightsUnlockedThisSession = false;
+
+// ── v0.5.0 Session 2.5: AI tier + usage tracking ─────────────────────────────
+// Cached on session start. Refreshed after each AI call.
+let USER_TIER = 'free';
+let AI_USAGE = { used: 0, cap: 5, tier: 'free', effectiveCap: 5, extraCreditsStandard: 0, extraCreditsAdvanced: 0 };
+
+async function loadAiUsage() {
+  if (!currentUser) return;
+  try {
+    if (!await ensureFreshToken()) return;
+    // Fetch tier
+    const tierResp = await fetch(`${SUPABASE_URL}/rest/v1/user_tiers?user_id=eq.${currentUser.id}&select=tier,extra_credits_standard,extra_credits_advanced`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentSession.access_token}` }
+    });
+    let tier = 'free', extraStd = 0, extraAdv = 0;
+    if (tierResp.ok) {
+      const rows = await tierResp.json();
+      if (rows && rows[0]) {
+        tier = rows[0].tier || 'free';
+        extraStd = rows[0].extra_credits_standard || 0;
+        extraAdv = rows[0].extra_credits_advanced || 0;
+      }
+    }
+    USER_TIER = tier;
+
+    // Fetch current month's usage
+    const d = new Date();
+    const yearMonth = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+    const usageResp = await fetch(`${SUPABASE_URL}/rest/v1/ai_usage?user_id=eq.${currentUser.id}&year_month=eq.${yearMonth}&select=insight_count`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentSession.access_token}` }
+    });
+    let used = 0;
+    if (usageResp.ok) {
+      const rows = await usageResp.json();
+      if (rows && rows[0]) used = rows[0].insight_count || 0;
+    }
+    const tierCaps = { free: 5, plus: 31, pro: 31 };
+    const cap = tierCaps[tier] || 5;
+    const isAdvanced = tier === 'pro';
+    const extra = isAdvanced ? extraAdv : extraStd;
+    AI_USAGE = {
+      used, cap, tier,
+      effectiveCap: cap + extra,
+      extraCreditsStandard: extraStd,
+      extraCreditsAdvanced: extraAdv
+    };
+  } catch (e) {
+    console.error('loadAiUsage failed (non-fatal):', e);
+  }
+}
+
+// AI-specific gate (separate from the existing insightsUnlocked which controls
+// other things like patterns/nudges). Looser than the general gate.
+// Free tier: needs 7+ days since signup AND 5+ distinct entry dates.
+// Paid tiers: no gate.
+function aiInsightsUnlocked() {
+  if (USER_TIER === 'plus' || USER_TIER === 'pro') return true;
+  // Distinct date count
+  const distinctDates = new Set(DATA.map(d => d.date)).size;
+  if (distinctDates < 5) return false;
+  // Days since signup — use earliest entry date as a proxy if account
+  // creation time isn't available. currentUser.created_at is the Supabase
+  // auth user creation timestamp.
+  const createdAt = currentUser && currentUser.created_at
+    ? new Date(currentUser.created_at)
+    : null;
+  if (!createdAt) return distinctDates >= 5; // Fallback if no created_at
+  const daysSinceSignup = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24);
+  return daysSinceSignup >= 7;
+}
+
+function aiInsightLockMessage() {
+  const distinctDates = new Set(DATA.map(d => d.date)).size;
+  const datesRemaining = Math.max(5 - distinctDates, 0);
+  const createdAt = currentUser && currentUser.created_at ? new Date(currentUser.created_at) : null;
+  const daysSinceSignup = createdAt ? Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+  const daysRemaining = Math.max(7 - daysSinceSignup, 0);
+
+  if (datesRemaining > 0 && daysRemaining > 0) {
+    return `AI insights unlock after 7 days and 5 logged dates. You're at day ${daysSinceSignup} with ${distinctDates} dates logged.`;
+  }
+  if (datesRemaining > 0) {
+    return `Log ${datesRemaining} more day${datesRemaining === 1 ? '' : 's'} to unlock AI insights.`;
+  }
+  if (daysRemaining > 0) {
+    return `AI insights unlock in ${daysRemaining} day${daysRemaining === 1 ? '' : 's'}.`;
+  }
+  return '';
+}
+
+function aiUsageLabel() {
+  if (USER_TIER === 'pro' || USER_TIER === 'plus') {
+    // Paid tiers: show count only, no cap pressure
+    return `${AI_USAGE.used} insight${AI_USAGE.used === 1 ? '' : 's'} this month`;
+  }
+  // Free: show used / cap
+  return `${AI_USAGE.used} of ${AI_USAGE.effectiveCap} insights this month`;
+}
+
+function aiAtCap() {
+  return AI_USAGE.used >= AI_USAGE.effectiveCap;
+}
 
 function entriesInLast30Days() {
   const cutoff = new Date();
@@ -4920,14 +5206,28 @@ async function renderShare() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        userId: currentUser.id,
         type: 'clinical',
         data: `Patient name: ${userName()}. Recent health journal data:\n\n${summary}\n\nProvide a clinical summary for their health team.`
       })
     });
     const result = await resp.json();
-    const text = result.insight || 'Unable to generate summary.';
-    insightEl.innerHTML = `<div class="insight-label">AI clinical summary</div><div class="insight-text">${text}</div>`;
-  } catch {
+    if (!resp.ok) {
+      if (result.error === 'cap_reached') {
+        if (result.usage) AI_USAGE = result.usage;
+        insightEl.innerHTML = `<div class="insight-label">AI clinical summary</div><div class="insight-text" style="color:var(--muted);">You've used your ${AI_USAGE.effectiveCap} insights this month. Resets next month.</div>`;
+        return;
+      }
+      if (result.error === 'circuit_breaker') {
+        insightEl.innerHTML = `<div class="insight-label">AI clinical summary</div><div class="insight-text" style="color:var(--muted);">AI insights are temporarily unavailable. Please try again tomorrow.</div>`;
+        return;
+      }
+      throw new Error(result.error || 'unknown_error');
+    }
+    if (result.usage) AI_USAGE = result.usage;
+    insightEl.innerHTML = `<div class="insight-label">AI clinical summary</div><div class="insight-text">${result.content}</div>`;
+  } catch (e) {
+    console.error('Clinical summary failed:', e);
     insightEl.innerHTML = `<div class="insight-label">AI clinical summary</div><div class="insight-text" style="color:var(--muted);">Connect to the internet to generate AI summaries.</div>`;
   }
 }
