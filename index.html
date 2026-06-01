@@ -1948,7 +1948,7 @@
     <div id="checkin-scroll">
       <div class="section-heading" id="checkin-heading">How are you <em>today?</em></div>
       <div style="padding: 0 24px 12px;">
-        <a href="#" class="checkin-customise-link" onclick="goToCustomise(event)">Edit my metrics →</a>
+        <a href="#" class="checkin-customise-link" onclick="openMetricsFromCheckin(event)">Edit my metrics →</a>
       </div>
       <div id="form-inner">
       <!-- Entry date -->
@@ -2333,20 +2333,13 @@
 
   <!-- CUSTOMISE VIEW (nav tab) -->
   <div class="view main" id="view-customise">
-    <div class="header customise-header">
-      <div>
-        <div class="header-title">Customise</div>
-        <div class="header-date">Make Stilte yours</div>
-      </div>
-    </div>
-
-    <div class="settings-section-title">Tracking</div>
+    <div class="settings-section-title" style="margin-top: 8px;">Tracking</div>
     <div class="settings-card">
-      <div class="settings-row clickable" onclick="openMetrics()">
+      <div class="settings-row clickable" onclick="openMetrics('customise')">
         <div class="settings-row-label">Metrics</div>
         <div class="settings-row-value" id="customise-metrics-count">›</div>
       </div>
-      <div class="settings-row clickable" onclick="openCategories()">
+      <div class="settings-row clickable" onclick="openCategories('customise')">
         <div class="settings-row-label">Categories</div>
         <div class="settings-row-value" id="customise-categories-count">›</div>
       </div>
@@ -2392,6 +2385,13 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
       </button>
       <div style="font-family: var(--font-serif); font-size: 26px; line-height: 1;">Settings</div>
+    </div>
+
+    <div class="settings-card" style="margin-bottom: 18px;">
+      <div class="settings-row clickable" onclick="goToCustomiseFromSettings()">
+        <div class="settings-row-label">Customise app</div>
+        <div class="settings-row-value">›</div>
+      </div>
     </div>
 
     <div class="settings-section-title">Account</div>
@@ -3814,6 +3814,20 @@ function goToCustomise(e) {
   showView('customise', btn);
 }
 
+// From the Settings overlay: close Settings styling and switch to Customise tab.
+function goToCustomiseFromSettings() {
+  document.body.classList.remove('settings-open');
+  const btn = document.querySelector('.nav-btn[onclick*="customise"]');
+  showView('customise', btn);
+}
+
+// Deep-link from check-in's "Edit my metrics" — jump straight to the Metrics
+// screen with check-in as the return view, so the back arrow returns there.
+function openMetricsFromCheckin(e) {
+  if (e) e.preventDefault();
+  openMetrics('checkin');
+}
+
 // ── TOAST ────────────────────────────────────────────────────────────────────
 function showToast(msg) {
   const t = document.getElementById('toast');
@@ -4991,7 +5005,13 @@ async function refreshMetricsCache() {
 }
 
 // ── METRICS VIEW ─────────────────────────────────────────────────────────────
-async function openMetrics() {
+// Track where the user came from so the back arrow returns there. Default to
+// 'settings' for legacy/unknown callers; current callers pass either
+// 'customise' (Customise tab → Metrics) or 'checkin' (deep-link from check-in).
+let METRICS_RETURN_VIEW = 'customise';
+
+async function openMetrics(returnView) {
+  if (returnView) METRICS_RETURN_VIEW = returnView;
   document.body.classList.remove('settings-open');
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.getElementById('view-metrics').style.display = 'block';
@@ -5006,7 +5026,16 @@ async function openMetrics() {
 function closeMetrics() {
   document.getElementById('view-metrics').style.display = 'none';
   document.getElementById('view-metrics').classList.remove('active');
-  goToSettings();
+  document.body.classList.remove('settings-open');
+  if (METRICS_RETURN_VIEW === 'checkin') {
+    const btn = document.querySelector('.nav-btn[onclick*="checkin"]');
+    showView('checkin', btn);
+  } else if (METRICS_RETURN_VIEW === 'customise') {
+    const btn = document.querySelector('.nav-btn[onclick*="customise"]');
+    showView('customise', btn);
+  } else {
+    goToSettings();
+  }
 }
 
 function renderMetricsList() {
@@ -5290,7 +5319,10 @@ async function deleteCurrentMetric() {
 }
 
 // ── CATEGORIES VIEW ─────────────────────────────────────────────────────────
-async function openCategories() {
+let CATEGORIES_RETURN_VIEW = 'customise';
+
+async function openCategories(returnView) {
+  if (returnView) CATEGORIES_RETURN_VIEW = returnView;
   document.body.classList.remove('settings-open');
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.getElementById('view-categories').style.display = 'block';
@@ -5305,7 +5337,13 @@ async function openCategories() {
 function closeCategories() {
   document.getElementById('view-categories').style.display = 'none';
   document.getElementById('view-categories').classList.remove('active');
-  goToSettings();
+  document.body.classList.remove('settings-open');
+  if (CATEGORIES_RETURN_VIEW === 'customise') {
+    const btn = document.querySelector('.nav-btn[onclick*="customise"]');
+    showView('customise', btn);
+  } else {
+    goToSettings();
+  }
 }
 
 function renderCategoriesList() {
