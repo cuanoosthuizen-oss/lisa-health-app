@@ -2348,10 +2348,6 @@
 
     <div class="insight-card" id="doctor-insight" style="margin-top:4px;">
       <div class="insight-label">AI clinical summary</div>
-      <div class="insight-loading">
-        <div class="dot-pulse"><span></span><span></span><span></span></div>
-        Generating summary...
-      </div>
     </div>
 
     <button class="copy-btn" onclick="copyReport()">Copy report to clipboard</button>
@@ -4555,12 +4551,12 @@ function collectFactors(data) {
 }
 
 // ── INSIGHT GATE ─────────────────────────────────────────────────────────────
-// Insight features (patterns card, "what helps", AI insights) only unlock once
-// there's enough RECENT data to be statistically meaningful. Gate: 25+ entries in
-// the last 30 days to unlock; with hysteresis so it doesn't flicker — once
-// unlocked, it stays unlocked until entries in the last 30 days fall below 15.
-const INSIGHT_UNLOCK_THRESHOLD = 25;
-const INSIGHT_RELOCK_THRESHOLD = 15;
+// Insight features (patterns card, "what helps", AI insights, doctor's summary)
+// ALL share one gate: enough recent data to be meaningful. Gate: 7+ distinct days
+// logged in the last 30 days to unlock; with hysteresis so it doesn't flicker —
+// once unlocked, it stays unlocked until logged days in the last 30 fall below 5.
+const INSIGHT_UNLOCK_THRESHOLD = 7;
+const INSIGHT_RELOCK_THRESHOLD = 5;
 let insightsUnlockedThisSession = false;
 
 // ── v0.5.0 Session 2.5: AI tier + usage tracking ─────────────────────────────
@@ -4613,43 +4609,20 @@ async function loadAiUsage() {
   }
 }
 
-// AI-specific gate (separate from the existing insightsUnlocked which controls
-// other things like patterns/nudges). Looser than the general gate.
-// Free tier: needs 7+ days since signup AND 5+ distinct entry dates.
+// AI gate now shares the SAME threshold and measure as the general insight gate
+// (INSIGHT_UNLOCK_THRESHOLD distinct days logged in the last 30). Measured off
+// actual logged data, not account age — so back-dated/seeded history counts.
 // Paid tiers: no gate.
 function aiInsightsUnlocked() {
   if (USER_TIER === 'plus' || USER_TIER === 'pro') return true;
-  // Distinct date count
-  const distinctDates = new Set(DATA.map(d => d.date)).size;
-  if (distinctDates < 5) return false;
-  // Days since signup — use earliest entry date as a proxy if account
-  // creation time isn't available. currentUser.created_at is the Supabase
-  // auth user creation timestamp.
-  const createdAt = currentUser && currentUser.created_at
-    ? new Date(currentUser.created_at)
-    : null;
-  if (!createdAt) return distinctDates >= 5; // Fallback if no created_at
-  const daysSinceSignup = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24);
-  return daysSinceSignup >= 7;
+  return insightsUnlocked();
 }
 
 function aiInsightLockMessage() {
-  const distinctDates = new Set(DATA.map(d => d.date)).size;
-  const datesRemaining = Math.max(5 - distinctDates, 0);
-  const createdAt = currentUser && currentUser.created_at ? new Date(currentUser.created_at) : null;
-  const daysSinceSignup = createdAt ? Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24)) : 0;
-  const daysRemaining = Math.max(7 - daysSinceSignup, 0);
-
-  if (datesRemaining > 0 && daysRemaining > 0) {
-    return `AI insights unlock after 7 days and 5 logged dates. You're at day ${daysSinceSignup} with ${distinctDates} dates logged.`;
-  }
-  if (datesRemaining > 0) {
-    return `Log ${datesRemaining} more day${datesRemaining === 1 ? '' : 's'} to unlock AI insights.`;
-  }
-  if (daysRemaining > 0) {
-    return `AI insights unlock in ${daysRemaining} day${daysRemaining === 1 ? '' : 's'}.`;
-  }
-  return '';
+  const recent = entriesInLast30Days();
+  const remaining = Math.max(INSIGHT_UNLOCK_THRESHOLD - recent, 0);
+  if (remaining <= 0) return '';
+  return `AI insights unlock once you've logged ${INSIGHT_UNLOCK_THRESHOLD} days. You're at ${recent} of ${INSIGHT_UNLOCK_THRESHOLD} — ${remaining} to go.`;
 }
 
 function aiUsageLabel() {
@@ -5195,8 +5168,39 @@ async function renderShare() {
     </div>
   `;
 
-  // AI clinical summary
+  // AI clinical summary — manual trigger only (counts against the AI cap).
+  // Do NOT auto-fetch on view load; show a Generate button, gated + cap-aware,
+  // mirroring the home insight card.
   const insightEl = document.getElementById('doctor-insight');
+  if (!aiInsightsUnlocked()) {
+    insightEl.innerHTML = `<div class="insight-label">AI clinical summary</div><div class="insight-text" style="color:var(--muted);">${aiInsightLockMessage()}</div>`;
+    return;
+  }
+  if (aiAtCap()) {
+    insightEl.innerHTML = `<div class="insight-label">AI clinical summary</div><div class="insight-text" style="color:var(--muted);">You've used your ${AI_USAGE.effectiveCap} insights this month. Resets next month.</div><div class="insight-meta">${aiUsageLabel()}</div>`;
+    return;
+  }
+  insightEl.innerHTML = `
+    <div class="insight-label">AI clinical summary</div>
+    <div class="insight-text" style="color:var(--muted); margin-bottom:12px;">Generate an AI clinical summary of your recent data to share with your health team.</div>
+    <button class="ai-generate-btn" id="doctor-generate-btn" onclick="requestDoctorSummary()">Generate clinical summary</button>
+    <div class="insight-meta">${aiUsageLabel()}</div>`;
+}
+
+async function requestDoctorSummary() {
+  const insightEl = document.getElementById('doctor-insight');
+  if (!insightEl) return;
+  const btn = document.getElementById('doctor-generate-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Generating...'; }
+
+  insightEl.innerHTML = `
+    <div class="insight-label">AI clinical summary</div>
+    <div class="insight-loading">
+      <div class="dot-pulse"><span></span><span></span><span></span></div>
+      Generating summary...
+    </div>`;
+
+  const recent = [...DATA].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,30);
   const summary = recent.slice(0,15).map(d =>
     `${d.date}: wellbeing=${d.wellbeing}, heart=${d.heart}, spinal=${d.spinal}, headache=${d.headache}, stomach=${d.stomach}, gut=${d.gut}, exercise=${d.exercise}, libido=${d.libido}, cycle_day=${d.cycle_day}, menstrual_comfort=${d.menstrual_pain}, sexual_health="${d.sexual_notes}", diet="${d.diet_notes}", symptoms: heart="${d.heart_notes}", mental="${d.mental_notes}", stomach="${d.stomach_notes}", red_flag=${d.red_flag}`
   ).join('\n');
@@ -5215,7 +5219,7 @@ async function renderShare() {
     if (!resp.ok) {
       if (result.error === 'cap_reached') {
         if (result.usage) AI_USAGE = result.usage;
-        insightEl.innerHTML = `<div class="insight-label">AI clinical summary</div><div class="insight-text" style="color:var(--muted);">You've used your ${AI_USAGE.effectiveCap} insights this month. Resets next month.</div>`;
+        insightEl.innerHTML = `<div class="insight-label">AI clinical summary</div><div class="insight-text" style="color:var(--muted);">You've used your ${AI_USAGE.effectiveCap} insights this month. Resets next month.</div><div class="insight-meta">${aiUsageLabel()}</div>`;
         return;
       }
       if (result.error === 'circuit_breaker') {
@@ -5225,10 +5229,10 @@ async function renderShare() {
       throw new Error(result.error || 'unknown_error');
     }
     if (result.usage) AI_USAGE = result.usage;
-    insightEl.innerHTML = `<div class="insight-label">AI clinical summary</div><div class="insight-text">${result.content}</div>`;
+    insightEl.innerHTML = `<div class="insight-label">AI clinical summary</div><div class="insight-text">${result.content}</div><div class="insight-meta">${aiUsageLabel()}</div>`;
   } catch (e) {
     console.error('Clinical summary failed:', e);
-    insightEl.innerHTML = `<div class="insight-label">AI clinical summary</div><div class="insight-text" style="color:var(--muted);">Connect to the internet to generate AI summaries.</div>`;
+    insightEl.innerHTML = `<div class="insight-label">AI clinical summary</div><div class="insight-text" style="color:var(--muted);">Connect to the internet to generate AI summaries.</div><button class="ai-generate-btn" onclick="requestDoctorSummary()" style="margin-top:12px;">Try again</button>`;
   }
 }
 
