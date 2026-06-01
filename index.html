@@ -32,6 +32,7 @@
     --good: #34d399;
     --input-bg: #1e1e24;
     --shadow: rgba(0, 0, 0, 0.4);
+    --nav-bg: rgba(13, 13, 15, 0.95);
   }
 
   /* Light theme — clean, cool, neutral */
@@ -50,6 +51,7 @@
     --good: #059669;
     --input-bg: #f9fafb;
     --shadow: rgba(15, 23, 42, 0.08);
+    --nav-bg: rgba(255, 255, 255, 0.95);
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -491,6 +493,47 @@
   }
   .category-row-name { font-size: 14px; color: var(--text); }
   .category-row-count { font-size: 11px; color: var(--muted); }
+
+  /* Subtle "+ Add" pill in headers */
+  .add-pill {
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    border-radius: 999px;
+    padding: 7px 14px;
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s;
+    white-space: nowrap;
+  }
+  .add-pill:active { background: var(--surface2); }
+
+  /* "Show/hide archived" toggle — pill-shaped subtle button */
+  .archived-toggle-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 8px 18px;
+    font-family: var(--font-sans);
+    font-size: 12px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s;
+  }
+  .archived-toggle-btn:active { background: var(--surface2); }
+
+  /* "Edit my metrics" inline link at top of check-in */
+  .checkin-customise-link {
+    color: var(--accent);
+    font-size: 12px;
+    text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .checkin-customise-link:active { opacity: 0.6; }
   /* End v0.5.0 styles ─────────────────────────────────────────────────── */
 
   /* Medication picker */
@@ -798,7 +841,7 @@
     transform: translateX(-50%);
     width: 100%;
     max-width: 480px;
-    background: rgba(13, 13, 15, 0.95);
+    background: var(--nav-bg);
     backdrop-filter: blur(20px);
     border-top: 1px solid var(--border);
     display: flex;
@@ -808,6 +851,7 @@
 
   .nav-btn {
     flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -815,19 +859,22 @@
     background: none;
     border: none;
     cursor: pointer;
-    padding: 4px 4px;
+    padding: 4px 2px;
     color: var(--muted);
     font-family: var(--font-sans);
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 500;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.4px;
     text-transform: uppercase;
     transition: color 0.2s;
     -webkit-tap-highlight-color: transparent;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .nav-btn.active { color: var(--accent); }
-  .nav-btn svg { width: 20px; height: 20px; }
+  .nav-btn svg { width: 19px; height: 19px; }
 
   /* Views */
   .view { display: none; }
@@ -1900,6 +1947,9 @@
   <div class="view main" id="view-checkin">
     <div id="checkin-scroll">
       <div class="section-heading" id="checkin-heading">How are you <em>today?</em></div>
+      <div style="padding: 0 24px 12px;">
+        <a href="#" class="checkin-customise-link" onclick="goToCustomise(event)">Edit my metrics →</a>
+      </div>
       <div id="form-inner">
       <!-- Entry date -->
       <div class="form-group">
@@ -2281,6 +2331,60 @@
     <button class="copy-btn" onclick="copyReport()">Copy report to clipboard</button>
   </div>
 
+  <!-- CUSTOMISE VIEW (nav tab) -->
+  <div class="view main" id="view-customise">
+    <div class="header customise-header">
+      <div>
+        <div class="header-title">Customise</div>
+        <div class="header-date">Make Stilte yours</div>
+      </div>
+    </div>
+
+    <div class="settings-section-title">Tracking</div>
+    <div class="settings-card">
+      <div class="settings-row clickable" onclick="openMetrics()">
+        <div class="settings-row-label">Metrics</div>
+        <div class="settings-row-value" id="customise-metrics-count">›</div>
+      </div>
+      <div class="settings-row clickable" onclick="openCategories()">
+        <div class="settings-row-label">Categories</div>
+        <div class="settings-row-value" id="customise-categories-count">›</div>
+      </div>
+    </div>
+
+    <div class="settings-section-title">Appearance</div>
+    <div class="settings-card">
+      <div class="settings-row" style="flex-direction: column; align-items: stretch; gap: 12px;">
+        <div class="settings-row-label">Theme</div>
+        <div class="theme-toggle">
+          <button class="theme-opt" data-theme-option="system" onclick="setThemeMode('system')">Follow device</button>
+          <button class="theme-opt" data-theme-option="light" onclick="setThemeMode('light')">Light</button>
+          <button class="theme-opt" data-theme-option="dark" onclick="setThemeMode('dark')">Dark</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-section-title">Reminders</div>
+    <div class="settings-card">
+      <div class="settings-row disabled">
+        <div class="settings-row-label">Daily check-in reminder</div>
+        <div class="settings-coming-soon">Coming soon</div>
+      </div>
+    </div>
+
+    <div class="settings-section-title">Goals &amp; Streaks</div>
+    <div class="settings-card">
+      <div class="settings-row disabled">
+        <div class="settings-row-label">Set personal goals</div>
+        <div class="settings-coming-soon">Coming soon</div>
+      </div>
+      <div class="settings-row disabled">
+        <div class="settings-row-label">Configure streak rules</div>
+        <div class="settings-coming-soon">Coming soon</div>
+      </div>
+    </div>
+  </div>
+
   <!-- SETTINGS VIEW -->
   <div class="view main" id="view-settings">
     <div style="display:flex; align-items:center; gap:14px; padding: 4px 0 18px;">
@@ -2333,55 +2437,11 @@
       </div>
     </div>
 
-    <div class="settings-section-title">Health profile</div>
-    <div class="settings-card">
-      <div class="settings-row disabled">
-        <div class="settings-row-label">Conditions I track</div>
-        <div class="settings-coming-soon">Coming soon</div>
-      </div>
-      <div class="settings-row disabled">
-        <div class="settings-row-label">Customise categories</div>
-        <div class="settings-coming-soon">Coming soon</div>
-      </div>
-    </div>
-
-    <div class="settings-section-title">Appearance</div>
-    <div class="settings-card">
-      <div class="settings-row" style="flex-direction: column; align-items: stretch; gap: 12px;">
-        <div class="settings-row-label">Theme</div>
-        <div class="theme-toggle">
-          <button class="theme-opt" data-theme-option="system" onclick="setThemeMode('system')">Follow device</button>
-          <button class="theme-opt" data-theme-option="light" onclick="setThemeMode('light')">Light</button>
-          <button class="theme-opt" data-theme-option="dark" onclick="setThemeMode('dark')">Dark</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="settings-section-title">Your tracking</div>
-    <div class="settings-card">
-      <div class="settings-row clickable" onclick="openMetrics()">
-        <div class="settings-row-label">Metrics</div>
-        <div class="settings-row-value" id="metrics-count-hint">›</div>
-      </div>
-      <div class="settings-row clickable" onclick="openCategories()">
-        <div class="settings-row-label">Categories</div>
-        <div class="settings-row-value" id="categories-count-hint">›</div>
-      </div>
-    </div>
-
     <div class="settings-section-title">Medical records</div>
     <div class="settings-card">
       <div class="settings-row clickable" onclick="openRecords()">
         <div class="settings-row-label">Tests, scans &amp; letters</div>
         <div class="settings-row-value" id="records-count-hint">›</div>
-      </div>
-    </div>
-
-    <div class="settings-section-title">Notifications</div>
-    <div class="settings-card">
-      <div class="settings-row disabled">
-        <div class="settings-row-label">Daily check-in reminder</div>
-        <div class="settings-coming-soon">Coming soon</div>
       </div>
     </div>
 
@@ -2465,30 +2525,26 @@
           <polyline points="15 18 9 12 15 6"/>
         </svg>
       </button>
-      <div style="font-family: var(--font-serif); font-size: 22px; line-height: 1.1;">Your <em style="color: var(--accent); font-style: italic;">metrics</em></div>
+      <div style="font-family: var(--font-serif); font-size: 22px; line-height: 1.1; flex:1;">Your <em style="color: var(--accent); font-style: italic;">metrics</em></div>
+      <button class="add-pill" id="metrics-add-btn" onclick="openMetricEditor()">+ Add</button>
     </div>
 
     <!-- Empty state — shown only when no metrics exist -->
     <div class="card" id="metrics-empty-state" style="display:none;">
-      <div style="text-align:center; padding: 14px 6px 6px;">
-        <div style="font-family: var(--font-serif); font-size:18px; margin-bottom:8px;">No metrics yet</div>
-        <div style="font-size:13px; color:var(--muted); margin-bottom:18px; line-height:1.5;">
-          Metrics are the things you want to track day-to-day — wellbeing, energy, pain, sleep, anything that matters to you. Add your first to get started.
+      <div style="text-align:center; padding: 20px 8px;">
+        <div style="font-family: var(--font-serif); font-size:20px; margin-bottom:10px;">Build your journal</div>
+        <div style="font-size:13px; color:var(--muted); margin-bottom:18px; line-height:1.55;">
+          Metrics are the things you want to track over time — wellbeing, energy, pain, sleep, anything that matters to you. You can change them whenever you like.
         </div>
-        <button class="submit-btn" onclick="openMetricEditor()">Add your first metric</button>
+        <button class="submit-btn" onclick="openMetricEditor()" style="margin: 0;">Add your first metric</button>
       </div>
-    </div>
-
-    <!-- Add button (shown when metrics exist) -->
-    <div id="metrics-add-wrap" style="padding: 0 16px 8px;">
-      <button class="submit-btn" id="metrics-add-btn" onclick="openMetricEditor()" style="width:100%;">Add metric</button>
     </div>
 
     <!-- Metrics list, grouped by category -->
     <div id="metrics-list"></div>
 
     <div style="padding: 8px 16px 24px;">
-      <a href="#" onclick="toggleArchivedMetrics(event)" id="archived-toggle" style="font-size:13px; color:var(--muted); text-decoration:none;">Show archived</a>
+      <button class="archived-toggle-btn" onclick="toggleArchivedMetrics(event)" id="archived-toggle">Show archived</button>
     </div>
   </div>
 
@@ -2500,11 +2556,8 @@
           <polyline points="15 18 9 12 15 6"/>
         </svg>
       </button>
-      <div style="font-family: var(--font-serif); font-size: 22px; line-height: 1.1;">Your <em style="color: var(--accent); font-style: italic;">categories</em></div>
-    </div>
-
-    <div style="padding: 0 16px 8px;">
-      <button class="submit-btn" onclick="openCategoryEditor()" style="width:100%;">Add category</button>
+      <div style="font-family: var(--font-serif); font-size: 22px; line-height: 1.1; flex:1;">Your <em style="color: var(--accent); font-style: italic;">categories</em></div>
+      <button class="add-pill" onclick="openCategoryEditor()">+ Add</button>
     </div>
 
     <div id="categories-list"></div>
@@ -2551,7 +2604,7 @@
 
       <div class="form-group">
         <label class="form-label">Category</label>
-        <select class="text-input" id="me-category"></select>
+        <select class="text-input" id="me-category" onchange="onMetricCategoryChange()"></select>
       </div>
 
       <div class="form-group" style="display:flex; align-items:center; justify-content:space-between;">
@@ -2622,6 +2675,10 @@
     <button class="nav-btn" onclick="showView('trends',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
       Trends
+    </button>
+    <button class="nav-btn" onclick="showView('customise',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="4" y1="6" x2="11" y2="6"/><line x1="15" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="7" y2="12"/><line x1="11" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="13" y2="18"/><line x1="17" y1="18" x2="20" y2="18"/><circle cx="13" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="15" cy="18" r="2"/></svg>
+      Customise
     </button>
     <button class="nav-btn" onclick="showView('share',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
@@ -3718,6 +3775,28 @@ function showView(name, btn) {
 
   if (name === 'trends') renderTrends();
   if (name === 'share') renderShare();
+  if (name === 'customise') renderCustomise();
+}
+
+// Render Customise view: refresh metric counts, set theme toggle active state
+async function renderCustomise() {
+  // Theme toggle reflects current mode
+  const mode = getStoredThemeMode();
+  document.querySelectorAll('[data-theme-option]').forEach(el => {
+    el.classList.toggle('active', el.dataset.themeOption === mode);
+  });
+  // Refresh metric/category counts if user is signed in
+  if (currentUser) {
+    try {
+      await refreshMetricsCache();
+      const activeMetricCount = METRICS_CACHE.filter(m => !m.archived).length;
+      const catCount = CATEGORIES_CACHE.length;
+      const metricsHint = document.getElementById('customise-metrics-count');
+      const categoriesHint = document.getElementById('customise-categories-count');
+      if (metricsHint) metricsHint.textContent = activeMetricCount > 0 ? `${activeMetricCount} ›` : '›';
+      if (categoriesHint) categoriesHint.textContent = catCount > 0 ? `${catCount} ›` : '›';
+    } catch (e) { /* non-fatal */ }
+  }
 }
 
 // Deep-link helpers from home page taps — find the matching nav button so it gets the active highlight
@@ -3728,6 +3807,11 @@ function goToCheckin() {
 function goToTrends() {
   const btn = document.querySelector('.nav-btn[onclick*="trends"]');
   showView('trends', btn);
+}
+function goToCustomise(e) {
+  if (e) e.preventDefault();
+  const btn = document.querySelector('.nav-btn[onclick*="customise"]');
+  showView('customise', btn);
 }
 
 // ── TOAST ────────────────────────────────────────────────────────────────────
@@ -4928,19 +5012,16 @@ function closeMetrics() {
 function renderMetricsList() {
   const listEl = document.getElementById('metrics-list');
   const emptyEl = document.getElementById('metrics-empty-state');
-  const addWrap = document.getElementById('metrics-add-wrap');
 
   const activeMetrics = METRICS_CACHE.filter(m => !m.archived);
 
   // Empty state: no active metrics at all
   if (activeMetrics.length === 0 && !SHOW_ARCHIVED) {
     emptyEl.style.display = 'block';
-    addWrap.style.display = 'none';
     listEl.innerHTML = '';
     return;
   }
   emptyEl.style.display = 'none';
-  addWrap.style.display = 'block';
 
   // Group by category — preserve order: categories by position, then a final
   // "Uncategorised" group for metrics with no category_id.
@@ -4961,15 +5042,15 @@ function renderMetricsList() {
     groups.push({ id: null, name: 'Uncategorised', metrics: uncategorised });
   }
 
-  listEl.innerHTML = groups.map(g => `
+  // Filter out empty categories so we don't render headers for nothing
+  const nonEmpty = groups.filter(g => g.metrics.length > 0);
+
+  listEl.innerHTML = nonEmpty.map(g => `
     <div class="metric-category-block">
       <div class="metric-category-header">
         <span>${escapeHtml(g.name)}</span>
-        <span>${g.metrics.length} metric${g.metrics.length === 1 ? '' : 's'}</span>
       </div>
-      ${g.metrics.length === 0
-        ? `<div class="metric-category-empty">No metrics in this category</div>`
-        : g.metrics.map(m => renderMetricRow(m)).join('')}
+      ${g.metrics.map(m => renderMetricRow(m)).join('')}
     </div>
   `).join('');
 }
@@ -5022,10 +5103,11 @@ function openMetricEditor(metricId) {
   document.getElementById('metric-editor-title').textContent = isEdit ? 'Edit metric' : 'Add metric';
   document.getElementById('me-error').style.display = 'none';
 
-  // Populate categories dropdown
+  // Populate categories dropdown (with inline "+ New category..." option at the end)
   const catSel = document.getElementById('me-category');
   catSel.innerHTML = '<option value="">(no category)</option>' +
-    CATEGORIES_CACHE.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+    CATEGORIES_CACHE.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('') +
+    '<option value="__new__">+ New category...</option>';
 
   if (isEdit) {
     const m = EDITING_METRIC;
@@ -5074,6 +5156,35 @@ function onMetricTypeChange() {
     (t === 'scale_10' || t === 'number') ? 'block' : 'none';
   // Unit only for number
   document.getElementById('me-unit-wrap').style.display = (t === 'number') ? 'block' : 'none';
+}
+
+// Inline category creation from the metric editor's dropdown.
+// When user picks "+ New category...", prompt for name, create it, and select it.
+async function onMetricCategoryChange() {
+  const sel = document.getElementById('me-category');
+  if (sel.value !== '__new__') return;
+  const name = prompt('New category name:');
+  if (!name || !name.trim()) {
+    sel.value = '';
+    return;
+  }
+  // Create category at end of list
+  const pos = CATEGORIES_CACHE.length
+    ? Math.max(...CATEGORIES_CACHE.map(c => c.position)) + 1
+    : 0;
+  const created = await sbMetrics.createCategory({ name: name.trim(), position: pos });
+  if (!created) {
+    sel.value = '';
+    document.getElementById('me-error').textContent = 'Could not create category. Try again.';
+    document.getElementById('me-error').style.display = 'block';
+    return;
+  }
+  // Update local cache and rebuild dropdown with the new option selected
+  CATEGORIES_CACHE.push(created);
+  sel.innerHTML = '<option value="">(no category)</option>' +
+    CATEGORIES_CACHE.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('') +
+    '<option value="__new__">+ New category...</option>';
+  sel.value = created.id;
 }
 
 async function saveMetric() {
