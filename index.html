@@ -356,6 +356,143 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  /* ── v0.5.0: modal + metric list + iOS switch ─────────────────────────── */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+  }
+  .modal {
+    position: fixed;
+    z-index: 1001;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: calc(100% - 32px);
+    max-width: 420px;
+    max-height: 88vh;
+    overflow-y: auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    box-sizing: border-box;
+  }
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-serif);
+    font-size: 18px;
+  }
+  .modal-close {
+    background: none; border: none; color: var(--muted);
+    font-size: 18px; cursor: pointer; padding: 4px 8px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .modal-body { padding: 18px 20px; }
+
+  /* iOS-style toggle */
+  .ios-switch { position: relative; display: inline-block; width: 44px; height: 26px; flex-shrink: 0; }
+  .ios-switch input { opacity: 0; width: 0; height: 0; }
+  .ios-switch-slider {
+    position: absolute; cursor: pointer; inset: 0;
+    background-color: var(--surface2);
+    border: 1px solid var(--border);
+    transition: 0.2s;
+    border-radius: 26px;
+  }
+  .ios-switch-slider:before {
+    position: absolute; content: "";
+    height: 20px; width: 20px;
+    left: 2px; top: 2px;
+    background-color: white;
+    transition: 0.2s;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  }
+  .ios-switch input:checked + .ios-switch-slider { background-color: var(--accent); border-color: var(--accent); }
+  .ios-switch input:checked + .ios-switch-slider:before { transform: translateX(18px); }
+
+  /* Metrics list */
+  .metric-category-block { margin: 0 16px 16px; }
+  .metric-category-header {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 0 4px 8px;
+  }
+  .metric-category-empty {
+    background: var(--surface);
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+  }
+  .metric-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .metric-row.archived { opacity: 0.55; }
+  .metric-row-name {
+    flex: 1;
+    font-size: 14px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .metric-row-meta {
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .metric-row-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: white;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 2px 8px;
+    border-radius: 6px;
+  }
+  .metric-row-direction-up    { color: var(--good); }
+  .metric-row-direction-down  { color: var(--accent2); }
+  .metric-row-direction-flat  { color: var(--muted); }
+  .metric-row-chev { color: var(--muted); font-size: 16px; }
+
+  /* Category list */
+  .category-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin: 0 16px 6px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .category-row-name { font-size: 14px; color: var(--text); }
+  .category-row-count { font-size: 11px; color: var(--muted); }
+  /* End v0.5.0 styles ─────────────────────────────────────────────────── */
+
   /* Medication picker */
   .med-search-wrap { position: relative; }
 
@@ -701,6 +838,8 @@
   body.settings-open .header { display: none; }
   body.settings-open #view-settings { padding-top: calc(8px + env(safe-area-inset-top, 0px)); }
   body.settings-open #view-records { padding-top: calc(8px + env(safe-area-inset-top, 0px)); }
+  body.settings-open #view-metrics { padding-top: calc(8px + env(safe-area-inset-top, 0px)); }
+  body.settings-open #view-categories { padding-top: calc(8px + env(safe-area-inset-top, 0px)); }
 
   /* Cards */
   .card {
@@ -2218,6 +2357,18 @@
       </div>
     </div>
 
+    <div class="settings-section-title">Your tracking</div>
+    <div class="settings-card">
+      <div class="settings-row clickable" onclick="openMetrics()">
+        <div class="settings-row-label">Metrics</div>
+        <div class="settings-row-value" id="metrics-count-hint">›</div>
+      </div>
+      <div class="settings-row clickable" onclick="openCategories()">
+        <div class="settings-row-label">Categories</div>
+        <div class="settings-row-value" id="categories-count-hint">›</div>
+      </div>
+    </div>
+
     <div class="settings-section-title">Medical records</div>
     <div class="settings-card">
       <div class="settings-row clickable" onclick="openRecords()">
@@ -2250,7 +2401,7 @@
     <div class="settings-card">
       <div class="settings-row">
         <div class="settings-row-label">Version</div>
-        <div class="settings-row-value">0.4.2</div>
+        <div class="settings-row-value">0.5.0-dev</div>
       </div>
       <div class="settings-about-foot" id="settings-about-foot">Made with care</div>
     </div>
@@ -2303,6 +2454,158 @@
     <div class="card">
       <div class="card-title">Your records</div>
       <div id="records-list"></div>
+    </div>
+  </div>
+
+  <!-- METRICS VIEW (Settings → Metrics) -->
+  <div class="view main" id="view-metrics" style="display:none;">
+    <div style="display:flex; align-items:center; gap:14px; padding: 4px 16px 8px;">
+      <button class="settings-back" onclick="closeMetrics()" aria-label="Back to settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+      </button>
+      <div style="font-family: var(--font-serif); font-size: 22px; line-height: 1.1;">Your <em style="color: var(--accent); font-style: italic;">metrics</em></div>
+    </div>
+
+    <!-- Empty state — shown only when no metrics exist -->
+    <div class="card" id="metrics-empty-state" style="display:none;">
+      <div style="text-align:center; padding: 14px 6px 6px;">
+        <div style="font-family: var(--font-serif); font-size:18px; margin-bottom:8px;">No metrics yet</div>
+        <div style="font-size:13px; color:var(--muted); margin-bottom:18px; line-height:1.5;">
+          Metrics are the things you want to track day-to-day — wellbeing, energy, pain, sleep, anything that matters to you. Add your first to get started.
+        </div>
+        <button class="submit-btn" onclick="openMetricEditor()">Add your first metric</button>
+      </div>
+    </div>
+
+    <!-- Add button (shown when metrics exist) -->
+    <div id="metrics-add-wrap" style="padding: 0 16px 8px;">
+      <button class="submit-btn" id="metrics-add-btn" onclick="openMetricEditor()" style="width:100%;">Add metric</button>
+    </div>
+
+    <!-- Metrics list, grouped by category -->
+    <div id="metrics-list"></div>
+
+    <div style="padding: 8px 16px 24px;">
+      <a href="#" onclick="toggleArchivedMetrics(event)" id="archived-toggle" style="font-size:13px; color:var(--muted); text-decoration:none;">Show archived</a>
+    </div>
+  </div>
+
+  <!-- CATEGORIES VIEW (Settings → Categories) -->
+  <div class="view main" id="view-categories" style="display:none;">
+    <div style="display:flex; align-items:center; gap:14px; padding: 4px 16px 8px;">
+      <button class="settings-back" onclick="closeCategories()" aria-label="Back to settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+      </button>
+      <div style="font-family: var(--font-serif); font-size: 22px; line-height: 1.1;">Your <em style="color: var(--accent); font-style: italic;">categories</em></div>
+    </div>
+
+    <div style="padding: 0 16px 8px;">
+      <button class="submit-btn" onclick="openCategoryEditor()" style="width:100%;">Add category</button>
+    </div>
+
+    <div id="categories-list"></div>
+  </div>
+
+  <!-- EDIT METRIC modal -->
+  <div class="modal-backdrop" id="metric-editor-backdrop" style="display:none;" onclick="closeMetricEditor()"></div>
+  <div class="modal" id="metric-editor" style="display:none;">
+    <div class="modal-header">
+      <span id="metric-editor-title">Add metric</span>
+      <button class="modal-close" onclick="closeMetricEditor()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Name</label>
+        <input type="text" class="text-input" id="me-name" placeholder="e.g. Energy, Knee pain, Hours of sleep">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Type</label>
+        <select class="text-input" id="me-type" onchange="onMetricTypeChange()">
+          <option value="scale_10">Scale (1–10)</option>
+          <option value="yes_no">Yes / No</option>
+          <option value="number">Number (with unit)</option>
+          <option value="free_text">Free text</option>
+          <option value="tag_list">Tags</option>
+        </select>
+        <div id="me-type-locked" style="display:none; font-size:11px; color:var(--muted); margin-top:6px;">Type can't be changed after data is recorded for this metric.</div>
+      </div>
+
+      <div class="form-group" id="me-direction-wrap">
+        <label class="form-label">Direction <small>which way is good?</small></label>
+        <select class="text-input" id="me-direction">
+          <option value="higher_better">Higher is better</option>
+          <option value="lower_better">Lower is better</option>
+          <option value="neutral">Neither — just data</option>
+        </select>
+      </div>
+
+      <div class="form-group" id="me-unit-wrap" style="display:none;">
+        <label class="form-label">Unit <small>optional, e.g. hours, cups, mg</small></label>
+        <input type="text" class="text-input" id="me-unit" placeholder="">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Category</label>
+        <select class="text-input" id="me-category"></select>
+      </div>
+
+      <div class="form-group" style="display:flex; align-items:center; justify-content:space-between;">
+        <label class="form-label" style="margin:0;">Show in quick check-in</label>
+        <label class="ios-switch">
+          <input type="checkbox" id="me-quick">
+          <span class="ios-switch-slider"></span>
+        </label>
+      </div>
+
+      <div id="me-primary-row" class="form-group" style="display:flex; align-items:center; justify-content:space-between;">
+        <label class="form-label" style="margin:0;">Set as primary metric <small style="display:block; margin-top:2px;">drives streak &amp; home page</small></label>
+        <label class="ios-switch">
+          <input type="checkbox" id="me-primary">
+          <span class="ios-switch-slider"></span>
+        </label>
+      </div>
+
+      <div id="me-error" style="display:none; color:var(--danger); font-size:12px; margin-bottom:10px;"></div>
+
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <button class="cal-close" style="flex:1;" onclick="closeMetricEditor()">Cancel</button>
+        <button class="submit-btn" style="flex:2; margin:0;" id="me-save-btn" onclick="saveMetric()">Save</button>
+      </div>
+
+      <div id="me-danger-zone" style="display:none; margin-top:24px; padding-top:18px; border-top:1px solid var(--border);">
+        <div style="font-size:11px; text-transform:uppercase; color:var(--muted); letter-spacing:0.08em; margin-bottom:10px;">Danger zone</div>
+        <button class="cal-close" id="me-archive-btn" onclick="archiveCurrentMetric()" style="width:100%; margin-bottom:8px;">Archive metric</button>
+        <button class="cal-close" id="me-delete-btn" onclick="deleteCurrentMetric()" style="width:100%; color:var(--danger); border-color:var(--danger);">Delete permanently</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- EDIT CATEGORY modal -->
+  <div class="modal-backdrop" id="category-editor-backdrop" style="display:none;" onclick="closeCategoryEditor()"></div>
+  <div class="modal" id="category-editor" style="display:none;">
+    <div class="modal-header">
+      <span id="category-editor-title">Add category</span>
+      <button class="modal-close" onclick="closeCategoryEditor()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Name</label>
+        <input type="text" class="text-input" id="ce-name" placeholder="e.g. Sleep, Workouts, Diet">
+      </div>
+      <div id="ce-error" style="display:none; color:var(--danger); font-size:12px; margin-bottom:10px;"></div>
+      <div style="display:flex; gap:8px;">
+        <button class="cal-close" style="flex:1;" onclick="closeCategoryEditor()">Cancel</button>
+        <button class="submit-btn" style="flex:2; margin:0;" id="ce-save-btn" onclick="saveCategory()">Save</button>
+      </div>
+      <div id="ce-danger-zone" style="display:none; margin-top:24px; padding-top:18px; border-top:1px solid var(--border);">
+        <div style="font-size:11px; text-transform:uppercase; color:var(--muted); letter-spacing:0.08em; margin-bottom:10px;">Danger zone</div>
+        <button class="cal-close" id="ce-delete-btn" onclick="deleteCurrentCategory()" style="width:100%; color:var(--danger); border-color:var(--danger);">Delete category</button>
+      </div>
     </div>
   </div>
 
@@ -2510,6 +2813,105 @@ const sb = {
       body: JSON.stringify(entry)
     });
     return r.ok;
+  }
+};
+
+// ── NEW (v0.5.0): user-defined metrics wrapper layer ─────────────────────────
+// Talks to user_categories, user_metrics, metric_values tables. Independent
+// from the `sb` wrapper above so the old check-in flow is undisturbed.
+async function _fetch(path, options = {}) {
+  if (!await ensureFreshToken()) return null;
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    ...options,
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${currentSession.access_token}`,
+      'Content-Type': 'application/json',
+      ...(options.headers || {})
+    }
+  });
+  if (!r.ok) {
+    console.error('Supabase request failed:', path, r.status, await r.text());
+    return null;
+  }
+  return r;
+}
+
+const sbMetrics = {
+  // --- Categories ---
+  async listCategories() {
+    const r = await _fetch(`user_categories?user_id=eq.${currentUser.id}&order=position.asc`);
+    return r ? await r.json() : [];
+  },
+  async createCategory({ name, position = 0 }) {
+    const r = await _fetch(`user_categories`, {
+      method: 'POST',
+      headers: { Prefer: 'return=representation' },
+      body: JSON.stringify({ user_id: currentUser.id, name, position })
+    });
+    if (!r) return null;
+    const rows = await r.json();
+    return rows && rows[0] ? rows[0] : null;
+  },
+  async updateCategory(id, patch) {
+    const r = await _fetch(`user_categories?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify(patch)
+    });
+    return !!r;
+  },
+  async deleteCategory(id) {
+    const r = await _fetch(`user_categories?id=eq.${id}`, { method: 'DELETE' });
+    return !!r;
+  },
+
+  // --- Metrics ---
+  async listMetrics({ includeArchived = false } = {}) {
+    const filter = includeArchived ? '' : '&archived=eq.false';
+    const r = await _fetch(`user_metrics?user_id=eq.${currentUser.id}${filter}&order=position.asc`);
+    return r ? await r.json() : [];
+  },
+  async createMetric(metric) {
+    const r = await _fetch(`user_metrics`, {
+      method: 'POST',
+      headers: { Prefer: 'return=representation' },
+      body: JSON.stringify({ ...metric, user_id: currentUser.id })
+    });
+    if (!r) return null;
+    const rows = await r.json();
+    return rows && rows[0] ? rows[0] : null;
+  },
+  async updateMetric(id, patch) {
+    const r = await _fetch(`user_metrics?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({ ...patch, updated_at: new Date().toISOString() })
+    });
+    return !!r;
+  },
+  async deleteMetric(id) {
+    const r = await _fetch(`user_metrics?id=eq.${id}`, { method: 'DELETE' });
+    return !!r;
+  },
+  // Set a metric as primary: clears any existing primary, then sets this one.
+  // Done as two sequential calls because the partial unique index would
+  // otherwise reject a flip-from-A-to-B in a single round trip.
+  async setPrimary(metricId) {
+    // First, clear current primary (whichever it is) for this user
+    await _fetch(`user_metrics?user_id=eq.${currentUser.id}&is_primary=eq.true`, {
+      method: 'PATCH',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({ is_primary: false, updated_at: new Date().toISOString() })
+    });
+    // Then set this one
+    return this.updateMetric(metricId, { is_primary: true });
+  },
+
+  // --- Values ---
+  async listValuesForDate(date) {
+    const r = await _fetch(`metric_values?user_id=eq.${currentUser.id}&entry_date=eq.${date}`);
+    return r ? await r.json() : [];
   }
 };
 
@@ -4490,6 +4892,403 @@ function closeSettings() {
 // ── MEDICAL RECORDS (file uploads) ──────────────────────────────────────────
 let pendingFile = null;    // File object selected but not yet uploaded
 let MEDICAL_FILES = [];    // in-memory cache of metadata rows
+
+// ── v0.5.0: Settings → Metrics & Categories ────────────────────────────────
+// In-memory caches refreshed when views are opened or edits happen.
+let METRICS_CACHE = [];
+let CATEGORIES_CACHE = [];
+let SHOW_ARCHIVED = false;
+let EDITING_METRIC = null;    // currently-edited metric (null = creating new)
+let EDITING_CATEGORY = null;  // currently-edited category (null = creating new)
+
+async function refreshMetricsCache() {
+  METRICS_CACHE = await sbMetrics.listMetrics({ includeArchived: true });
+  CATEGORIES_CACHE = await sbMetrics.listCategories();
+}
+
+// ── METRICS VIEW ─────────────────────────────────────────────────────────────
+async function openMetrics() {
+  document.body.classList.remove('settings-open');
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-metrics').style.display = 'block';
+  document.getElementById('view-metrics').classList.add('active');
+  document.body.classList.add('settings-open');
+  window.scrollTo(0, 0);
+
+  await refreshMetricsCache();
+  renderMetricsList();
+}
+
+function closeMetrics() {
+  document.getElementById('view-metrics').style.display = 'none';
+  document.getElementById('view-metrics').classList.remove('active');
+  goToSettings();
+}
+
+function renderMetricsList() {
+  const listEl = document.getElementById('metrics-list');
+  const emptyEl = document.getElementById('metrics-empty-state');
+  const addWrap = document.getElementById('metrics-add-wrap');
+
+  const activeMetrics = METRICS_CACHE.filter(m => !m.archived);
+
+  // Empty state: no active metrics at all
+  if (activeMetrics.length === 0 && !SHOW_ARCHIVED) {
+    emptyEl.style.display = 'block';
+    addWrap.style.display = 'none';
+    listEl.innerHTML = '';
+    return;
+  }
+  emptyEl.style.display = 'none';
+  addWrap.style.display = 'block';
+
+  // Group by category — preserve order: categories by position, then a final
+  // "Uncategorised" group for metrics with no category_id.
+  const sortedCats = [...CATEGORIES_CACHE].sort((a, b) => a.position - b.position);
+  const groups = sortedCats.map(c => ({
+    id: c.id,
+    name: c.name,
+    metrics: METRICS_CACHE.filter(m =>
+      m.category_id === c.id &&
+      (SHOW_ARCHIVED || !m.archived)
+    ).sort((a, b) => a.position - b.position)
+  }));
+  const uncategorised = METRICS_CACHE.filter(m =>
+    !m.category_id &&
+    (SHOW_ARCHIVED || !m.archived)
+  );
+  if (uncategorised.length) {
+    groups.push({ id: null, name: 'Uncategorised', metrics: uncategorised });
+  }
+
+  listEl.innerHTML = groups.map(g => `
+    <div class="metric-category-block">
+      <div class="metric-category-header">
+        <span>${escapeHtml(g.name)}</span>
+        <span>${g.metrics.length} metric${g.metrics.length === 1 ? '' : 's'}</span>
+      </div>
+      ${g.metrics.length === 0
+        ? `<div class="metric-category-empty">No metrics in this category</div>`
+        : g.metrics.map(m => renderMetricRow(m)).join('')}
+    </div>
+  `).join('');
+}
+
+function renderMetricRow(m) {
+  const dirIcon = m.direction === 'higher_better' ? '↑'
+                : m.direction === 'lower_better'  ? '↓'
+                : m.direction === 'neutral'       ? '—'
+                : '';
+  const dirClass = m.direction === 'higher_better' ? 'metric-row-direction-up'
+                 : m.direction === 'lower_better'  ? 'metric-row-direction-down'
+                 : 'metric-row-direction-flat';
+  const typeLabel = ({
+    scale_10: '1–10',
+    yes_no: 'Yes/No',
+    number: 'Number',
+    free_text: 'Text',
+    tag_list: 'Tags'
+  })[m.type] || m.type;
+  return `
+    <div class="metric-row ${m.archived ? 'archived' : ''}" onclick="openMetricEditor('${m.id}')">
+      <div class="metric-row-name">
+        <span>${escapeHtml(m.name)}</span>
+        ${m.is_primary ? `<span class="metric-row-primary">Primary</span>` : ''}
+        ${m.archived ? `<span class="metric-row-meta">archived</span>` : ''}
+      </div>
+      <div class="metric-row-meta">
+        <span>${typeLabel}</span>
+        ${dirIcon ? `<span class="${dirClass}">${dirIcon}</span>` : ''}
+      </div>
+      <div class="metric-row-chev">›</div>
+    </div>`;
+}
+
+function toggleArchivedMetrics(e) {
+  if (e) e.preventDefault();
+  SHOW_ARCHIVED = !SHOW_ARCHIVED;
+  document.getElementById('archived-toggle').textContent =
+    SHOW_ARCHIVED ? 'Hide archived' : 'Show archived';
+  renderMetricsList();
+}
+
+// ── METRIC EDITOR modal ─────────────────────────────────────────────────────
+function openMetricEditor(metricId) {
+  EDITING_METRIC = metricId
+    ? METRICS_CACHE.find(m => m.id === metricId)
+    : null;
+  const isEdit = !!EDITING_METRIC;
+
+  document.getElementById('metric-editor-title').textContent = isEdit ? 'Edit metric' : 'Add metric';
+  document.getElementById('me-error').style.display = 'none';
+
+  // Populate categories dropdown
+  const catSel = document.getElementById('me-category');
+  catSel.innerHTML = '<option value="">(no category)</option>' +
+    CATEGORIES_CACHE.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+
+  if (isEdit) {
+    const m = EDITING_METRIC;
+    document.getElementById('me-name').value = m.name || '';
+    document.getElementById('me-type').value = m.type || 'scale_10';
+    document.getElementById('me-direction').value = m.direction || 'higher_better';
+    document.getElementById('me-unit').value = m.unit || '';
+    document.getElementById('me-category').value = m.category_id || '';
+    document.getElementById('me-quick').checked = !!m.show_in_quick;
+    document.getElementById('me-primary').checked = !!m.is_primary;
+    document.getElementById('me-danger-zone').style.display = 'block';
+    document.getElementById('me-archive-btn').textContent =
+      m.archived ? 'Restore metric' : 'Archive metric';
+    // Lock type — we don't allow changing type after creation
+    document.getElementById('me-type').disabled = true;
+    document.getElementById('me-type-locked').style.display = 'block';
+  } else {
+    document.getElementById('me-name').value = '';
+    document.getElementById('me-type').value = 'scale_10';
+    document.getElementById('me-direction').value = 'higher_better';
+    document.getElementById('me-unit').value = '';
+    document.getElementById('me-category').value = '';
+    document.getElementById('me-quick').checked = false;
+    document.getElementById('me-primary').checked = false;
+    document.getElementById('me-danger-zone').style.display = 'none';
+    document.getElementById('me-type').disabled = false;
+    document.getElementById('me-type-locked').style.display = 'none';
+  }
+
+  onMetricTypeChange();
+
+  document.getElementById('metric-editor-backdrop').style.display = 'block';
+  document.getElementById('metric-editor').style.display = 'block';
+}
+
+function closeMetricEditor() {
+  document.getElementById('metric-editor-backdrop').style.display = 'none';
+  document.getElementById('metric-editor').style.display = 'none';
+  EDITING_METRIC = null;
+}
+
+function onMetricTypeChange() {
+  const t = document.getElementById('me-type').value;
+  // Direction is only meaningful for scale_10 and number
+  document.getElementById('me-direction-wrap').style.display =
+    (t === 'scale_10' || t === 'number') ? 'block' : 'none';
+  // Unit only for number
+  document.getElementById('me-unit-wrap').style.display = (t === 'number') ? 'block' : 'none';
+}
+
+async function saveMetric() {
+  const name = document.getElementById('me-name').value.trim();
+  const type = document.getElementById('me-type').value;
+  const direction = (type === 'scale_10' || type === 'number')
+    ? document.getElementById('me-direction').value
+    : null;
+  const unit = (type === 'number') ? (document.getElementById('me-unit').value.trim() || null) : null;
+  const category_id = document.getElementById('me-category').value || null;
+  const show_in_quick = document.getElementById('me-quick').checked;
+  const want_primary = document.getElementById('me-primary').checked;
+
+  const errEl = document.getElementById('me-error');
+  errEl.style.display = 'none';
+
+  if (!name) {
+    errEl.textContent = 'Give your metric a name.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const btn = document.getElementById('me-save-btn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+
+  try {
+    if (EDITING_METRIC) {
+      // Update existing
+      const patch = { name, direction, unit, category_id, show_in_quick };
+      const ok = await sbMetrics.updateMetric(EDITING_METRIC.id, patch);
+      if (!ok) throw new Error('Update failed');
+      // Handle primary flip separately (atomic-ish via sbMetrics.setPrimary)
+      if (want_primary && !EDITING_METRIC.is_primary) {
+        await sbMetrics.setPrimary(EDITING_METRIC.id);
+      } else if (!want_primary && EDITING_METRIC.is_primary) {
+        // Soft-prevent: if user is removing primary on the only metric flagged,
+        // it's fine, but we want to surface a hint. For now: allow.
+        await sbMetrics.updateMetric(EDITING_METRIC.id, { is_primary: false });
+      }
+    } else {
+      // Create new — pick next position within category
+      const inCat = METRICS_CACHE.filter(m => m.category_id === category_id);
+      const pos = inCat.length ? Math.max(...inCat.map(m => m.position)) + 1 : 0;
+      const created = await sbMetrics.createMetric({
+        name, type, direction, unit, category_id,
+        position: pos,
+        show_in_quick,
+        is_primary: false,
+        archived: false
+      });
+      if (!created) throw new Error('Create failed');
+      // Apply primary after create if requested
+      if (want_primary) await sbMetrics.setPrimary(created.id);
+    }
+
+    closeMetricEditor();
+    await refreshMetricsCache();
+    renderMetricsList();
+    showToast('Saved');
+  } catch (e) {
+    console.error(e);
+    errEl.textContent = 'Something went wrong. Try again.';
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save';
+  }
+}
+
+async function archiveCurrentMetric() {
+  if (!EDITING_METRIC) return;
+  const isUnarchive = EDITING_METRIC.archived;
+  if (EDITING_METRIC.is_primary && !isUnarchive) {
+    document.getElementById('me-error').textContent =
+      'This is your primary metric. Set another metric as primary first.';
+    document.getElementById('me-error').style.display = 'block';
+    return;
+  }
+  const ok = await sbMetrics.updateMetric(EDITING_METRIC.id, { archived: !isUnarchive });
+  if (ok) {
+    closeMetricEditor();
+    await refreshMetricsCache();
+    renderMetricsList();
+    showToast(isUnarchive ? 'Restored' : 'Archived');
+  }
+}
+
+async function deleteCurrentMetric() {
+  if (!EDITING_METRIC) return;
+  if (EDITING_METRIC.is_primary) {
+    document.getElementById('me-error').textContent =
+      'This is your primary metric. Set another metric as primary first.';
+    document.getElementById('me-error').style.display = 'block';
+    return;
+  }
+  if (!confirm(`Delete "${EDITING_METRIC.name}" permanently? This also deletes all its recorded values and cannot be undone.`)) return;
+  const ok = await sbMetrics.deleteMetric(EDITING_METRIC.id);
+  if (ok) {
+    closeMetricEditor();
+    await refreshMetricsCache();
+    renderMetricsList();
+    showToast('Deleted');
+  }
+}
+
+// ── CATEGORIES VIEW ─────────────────────────────────────────────────────────
+async function openCategories() {
+  document.body.classList.remove('settings-open');
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-categories').style.display = 'block';
+  document.getElementById('view-categories').classList.add('active');
+  document.body.classList.add('settings-open');
+  window.scrollTo(0, 0);
+
+  await refreshMetricsCache();
+  renderCategoriesList();
+}
+
+function closeCategories() {
+  document.getElementById('view-categories').style.display = 'none';
+  document.getElementById('view-categories').classList.remove('active');
+  goToSettings();
+}
+
+function renderCategoriesList() {
+  const listEl = document.getElementById('categories-list');
+  const sorted = [...CATEGORIES_CACHE].sort((a, b) => a.position - b.position);
+
+  if (sorted.length === 0) {
+    listEl.innerHTML = `<div class="metric-category-empty" style="margin: 0 16px;">No categories yet — tap "Add category" to create one.</div>`;
+    return;
+  }
+
+  listEl.innerHTML = sorted.map(c => {
+    const count = METRICS_CACHE.filter(m => m.category_id === c.id && !m.archived).length;
+    return `
+      <div class="category-row" onclick="openCategoryEditor('${c.id}')">
+        <div class="category-row-name">${escapeHtml(c.name)}</div>
+        <div class="category-row-count">${count} metric${count === 1 ? '' : 's'} ›</div>
+      </div>`;
+  }).join('');
+}
+
+function openCategoryEditor(categoryId) {
+  EDITING_CATEGORY = categoryId
+    ? CATEGORIES_CACHE.find(c => c.id === categoryId)
+    : null;
+  const isEdit = !!EDITING_CATEGORY;
+
+  document.getElementById('category-editor-title').textContent = isEdit ? 'Edit category' : 'Add category';
+  document.getElementById('ce-error').style.display = 'none';
+  document.getElementById('ce-name').value = isEdit ? EDITING_CATEGORY.name : '';
+  document.getElementById('ce-danger-zone').style.display = isEdit ? 'block' : 'none';
+
+  document.getElementById('category-editor-backdrop').style.display = 'block';
+  document.getElementById('category-editor').style.display = 'block';
+}
+
+function closeCategoryEditor() {
+  document.getElementById('category-editor-backdrop').style.display = 'none';
+  document.getElementById('category-editor').style.display = 'none';
+  EDITING_CATEGORY = null;
+}
+
+async function saveCategory() {
+  const name = document.getElementById('ce-name').value.trim();
+  const errEl = document.getElementById('ce-error');
+  errEl.style.display = 'none';
+
+  if (!name) {
+    errEl.textContent = 'Give your category a name.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const btn = document.getElementById('ce-save-btn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+
+  try {
+    if (EDITING_CATEGORY) {
+      await sbMetrics.updateCategory(EDITING_CATEGORY.id, { name });
+    } else {
+      const pos = CATEGORIES_CACHE.length
+        ? Math.max(...CATEGORIES_CACHE.map(c => c.position)) + 1
+        : 0;
+      await sbMetrics.createCategory({ name, position: pos });
+    }
+    closeCategoryEditor();
+    await refreshMetricsCache();
+    renderCategoriesList();
+    showToast('Saved');
+  } catch (e) {
+    console.error(e);
+    errEl.textContent = 'Something went wrong. Try again.';
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save';
+  }
+}
+
+async function deleteCurrentCategory() {
+  if (!EDITING_CATEGORY) return;
+  const inUse = METRICS_CACHE.filter(m => m.category_id === EDITING_CATEGORY.id).length;
+  const msg = inUse > 0
+    ? `Delete "${EDITING_CATEGORY.name}"? Its ${inUse} metric${inUse === 1 ? '' : 's'} will become uncategorised.`
+    : `Delete "${EDITING_CATEGORY.name}"?`;
+  if (!confirm(msg)) return;
+  // ON DELETE SET NULL on user_metrics.category_id means the metrics survive.
+  const ok = await sbMetrics.deleteCategory(EDITING_CATEGORY.id);
+  if (ok) {
+    closeCategoryEditor();
+    await refreshMetricsCache();
+    renderCategoriesList();
+    showToast('Deleted');
+  }
+}
 
 function openRecords() {
   // Hide settings header chrome; treat records like its own full-screen view
