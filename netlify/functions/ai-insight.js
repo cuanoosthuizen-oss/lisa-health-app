@@ -181,23 +181,13 @@ exports.handler = async function(event) {
   }
 
   // STEP 5: Call Anthropic
-  const dataDictionary = `CRITICAL - HOW TO READ THE DATA:
+  const dataDictionary = `HOW TO READ THE DATA:
 
-All numeric health scores use the SAME scale direction where HIGHER = BETTER and LOWER = WORSE.
+The user defines their own metrics. Each metric's name, type, and direction are given in the message — rely on those, not on assumptions.
 
-- wellbeing: 1 = very poor, 10 = feeling great
-- heart: 1 = severe symptoms, 10 = no heart issues
-- spinal: 1 = severe pain, 10 = no pain
-- headache: 1 = severe, 10 = no headache
-- stomach: 1 = very bad, 10 = stomach feels great
-- gut: 1 = very bad, 10 = gut feels great
-- libido: 1 = very low desire for intimacy, 10 = high desire
-- sexual_health: free-text tags about physical sexual symptoms. Empty or "Not applicable" means nothing logged.
-- menstrual_comfort: 1 = severe pain, 10 = no pain, 0 = N/A (NOT menstruating that day). EXCLUDE all 0 values.
-- cycle_day: which day of menstrual cycle (1 = first day of period)
-- red_flag: true if she flagged the day as concerning
-
-Never describe a high score as a problem or a low score as good.`;
+- Respect each metric's stated direction. "higher_better": a higher number is better. "lower_better": a higher number is worse (e.g. pain, anxiety). "neutral": treat the number as descriptive, neither good nor bad.
+- Not every metric is a 1-10 score. Metrics may also be yes/no, a number with a unit, free text, or a list of tags. A "cyclical" metric (such as a menstrual cycle day) describes position within a cycle, not severity — never read it as good or bad.
+- Only discuss the metrics present in the data. Never invent metrics, values, or measurements, and never assume a direction that wasn't given.`;
 
   const systemPrompt = type === 'clinical'
     ? `You are summarising a patient's health journal data for their doctor or health team. Be clinical, factual, and concise. Structure your response with clear observations about patterns. Mention recurring symptoms, potential triggers, and anything worth clinical attention. Do not diagnose. Keep it to 4-6 sentences.\n\n${dataDictionary}`
