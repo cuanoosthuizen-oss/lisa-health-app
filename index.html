@@ -562,71 +562,6 @@
   }
   /* End v0.5.0 styles ─────────────────────────────────────────────────── */
 
-  /* Medication picker */
-  .med-search-wrap { position: relative; }
-
-  .med-suggestions {
-    margin-top: 6px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    overflow: hidden;
-    display: none;
-  }
-
-  .med-suggestions.open { display: block; }
-
-  .med-suggestion {
-    padding: 11px 14px;
-    font-size: 14px;
-    color: var(--text);
-    cursor: pointer;
-    border-bottom: 1px solid var(--border);
-    -webkit-tap-highlight-color: transparent;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .med-suggestion:last-child { border-bottom: none; }
-  .med-suggestion:active { background: var(--surface); }
-  .med-suggestion .med-tag-label {
-    font-size: 10px;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .med-suggestion .med-add-new { color: var(--accent); }
-
-  .med-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 10px;
-  }
-
-  .med-chip {
-    background: rgba(192,132,252,0.15);
-    border: 1px solid var(--accent);
-    color: var(--accent);
-    border-radius: 8px;
-    padding: 7px 10px 7px 12px;
-    font-size: 13px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .med-chip .med-chip-x {
-    cursor: pointer;
-    font-size: 16px;
-    line-height: 1;
-    opacity: 0.7;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .med-chip .med-chip-x:active { opacity: 1; }
-
   /* Patterns */
   .pattern-item {
     padding: 12px 0;
@@ -2322,7 +2257,6 @@
         </div>
         <div id="upload-error" style="display:none; color:var(--accent2); font-size:12px; margin-top:8px;"></div>
       </div>
-      <div id="records-pro-gate" style="display:none; font-size:13px; color:var(--muted); line-height:1.5; margin-top:4px;">Uploading and AI analysis of your records is a <strong>Pro</strong> feature.</div>
     </div>
 
     <div class="card">
@@ -2525,8 +2459,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
 // ── SEED DATA FROM SPREADSHEET ──────────────────────────────────────────────
-const SEED_DATA = [{"date":"2025-07-29","wellbeing":4,"spinal":3,"heart":3,"headache":5,"stomach":4,"gut":4,"cycle_day":19,"menstrual_pain":1,"num_medications":1,"num_vitamins":0.0,"heart_notes":"","mental_notes":"Felt / feeling anxious","spinal_notes":"Neck pain","headache_notes":"Right side head ache","stomach_notes":"Nauseous","cycle_notes":"No bleeding","gut_notes":"No poo","body_notes":"Left leg","medication_notes":"Magnesium","diet_notes":"1-2 Coffee","red_flag":true},{"date":"2025-07-29","wellbeing":5,"spinal":5,"heart":6,"headache":4,"stomach":7,"gut":6,"cycle_day":3,"menstrual_pain":2,"num_medications":0,"num_vitamins":2.0,"heart_notes":"Racing heart, Heart Burn, Struggled to sleep, racing heart","mental_notes":"Happy, Took the day off","spinal_notes":"Neck pain, Lower back pain, Great neck rub","headache_notes":"Whole head, head ache, no medication","stomach_notes":"no problem","cycle_notes":"No bleeding, no problems","gut_notes":"Normal poo, Finally","body_notes":"Left leg, thigh","medication_notes":"CBD","diet_notes":"1-2 Coffee, not very hungry","red_flag":true},{"date":"2025-07-29","wellbeing":7,"spinal":5,"heart":9,"headache":7,"stomach":8,"gut":8,"cycle_day":20,"menstrual_pain":0,"num_medications":1,"num_vitamins":0.0,"heart_notes":"","mental_notes":"Felt / feeling anxious","spinal_notes":"Neck pain, Shoulder pain, Slight neck pain ","headache_notes":"","stomach_notes":"Bit sore in the morning before toilet ","cycle_notes":"","gut_notes":"Normal poo","body_notes":"Left leg, When I stand up","medication_notes":"CBD","diet_notes":"More than 2 coffee, Two were half strength ","red_flag":false},{"date":"2025-07-30","wellbeing":8,"spinal":6,"heart":9,"headache":7,"stomach":7,"gut":7,"cycle_day":21,"menstrual_pain":1,"num_medications":0,"num_vitamins":1.0,"heart_notes":"","mental_notes":"Happy, Neutral","spinal_notes":"Neck pain, Slight in morning ","headache_notes":"","stomach_notes":"","cycle_notes":"","gut_notes":"No poo","body_notes":"Right leg","medication_notes":"CBD","diet_notes":"1-2 Coffee, Less than 2L water","red_flag":false},{"date":"2025-08-02","wellbeing":7,"spinal":8,"heart":6,"headache":7,"stomach":7,"gut":7,"cycle_day":23,"menstrual_pain":3,"num_medications":1,"num_vitamins":0.0,"heart_notes":"Racing heart","mental_notes":"Neutral","spinal_notes":"","headache_notes":"","stomach_notes":"Stomach ache, Mild and temporary ","cycle_notes":"No bleeding, Moody","gut_notes":"No poo","body_notes":"","medication_notes":"CBD","diet_notes":"More than 2 coffee, More than 2L water, Sugar, Biltong, toast with marmalade, meatballs and rice, froyo ","red_flag":false},{"date":"2025-08-02","wellbeing":7,"spinal":8,"heart":6,"headache":9,"stomach":7,"gut":7,"cycle_day":24,"menstrual_pain":0,"num_medications":1,"num_vitamins":0.0,"heart_notes":"Racing heart, Chest pain, Could be anxiety ","mental_notes":"Felt / feeling anxious, Not all day, just at the end ","spinal_notes":"","headache_notes":"","stomach_notes":"","cycle_notes":"","gut_notes":"No poo","body_notes":"","medication_notes":"CBD","diet_notes":"More than 2 coffee, Less than 2L water, Dairy","red_flag":false},{"date":"2025-08-03","wellbeing":7,"spinal":8,"heart":7,"headache":1,"stomach":7,"gut":8,"cycle_day":24,"menstrual_pain":0,"num_medications":0,"num_vitamins":0.0,"heart_notes":"Racing heart, Chest pain, Heart Burn, Dunno which one, just a fluttering feeling again ","mental_notes":"Felt / feeling anxious, Maybe anxiety with the fluttering maybe not ","spinal_notes":"Back pain, Middle back pain","headache_notes":"","stomach_notes":"","cycle_notes":"Moody","gut_notes":"Normal poo","body_notes":"","medication_notes":"","diet_notes":"1-2 Coffee, Less than 2L water, Sugar, Gluten, Pizza, scone, coffee, tea, 1.5lt water ","red_flag":true},{"date":"2025-08-04","wellbeing":8,"spinal":8,"heart":8,"headache":8,"stomach":8,"gut":8,"cycle_day":25,"menstrual_pain":4,"num_medications":5,"num_vitamins":0.0,"heart_notes":"Racing heart, Slightly racing in the morning ","mental_notes":"Neutral","spinal_notes":"","headache_notes":"","stomach_notes":"","cycle_notes":"Cramps, Sore lower back ","gut_notes":"No poo","body_notes":"Cold sore ","medication_notes":"Neurofen, Cold sore pills","diet_notes":"More than 2 coffee, More than 2L water, Sugar, Gluten, Dairy","red_flag":true},{"date":"2025-08-06","wellbeing":7,"spinal":7,"heart":6,"headache":8,"stomach":7,"gut":7,"cycle_day":1,"menstrual_pain":7,"num_medications":1,"num_vitamins":0.0,"heart_notes":"Heart Burn, Took medication for heart health, Just heart burn tablet ","mental_notes":"Sad, Neutral","spinal_notes":"","headache_notes":"","stomach_notes":"Indigestion","cycle_notes":"Light bleeding, Cramps, Bloating, Extremely heavy. ","gut_notes":"No poo","body_notes":"","medication_notes":"Heart burn","diet_notes":"1-2 Coffee, More than 2L water, Sugar, Gluten, Soy ","red_flag":true},{"date":"2025-08-08","wellbeing":8,"spinal":6,"heart":7,"headache":6,"stomach":7,"gut":7,"cycle_day":3,"menstrual_pain":3,"num_medications":0,"num_vitamins":0.0,"heart_notes":"Racing heart","mental_notes":"Happy, Neutral","spinal_notes":"Neck pain","headache_notes":"Left side head ache","stomach_notes":"","cycle_notes":"Light bleeding","gut_notes":"No poo","body_notes":"Left leg","medication_notes":"","diet_notes":"More than 2 coffee, 4 x half coffees with soy ","red_flag":false},{"date":"2025-08-10","wellbeing":5,"spinal":3,"heart":9,"headache":4,"stomach":8,"gut":8,"cycle_day":4,"menstrual_pain":7,"num_medications":7,"num_vitamins":0.0,"heart_notes":"","mental_notes":"Happy, Neutral","spinal_notes":"Neck pain, Shoulder pain, Back pain, Took medication for spinal health","headache_notes":"Left side head ache, Back head, head ache, Took medication for head ache / migraine","stomach_notes":"","cycle_notes":"Heavy bleeding, Light bleeding","gut_notes":"No poo","body_notes":"","medication_notes":"Neurofen, CBD","diet_notes":"1-2 Coffee, More than 2L water, Take away","red_flag":true},{"date":"2025-08-10","wellbeing":7,"spinal":4,"heart":5,"headache":6,"stomach":5,"gut":6,"cycle_day":5,"menstrual_pain":5,"num_medications":0,"num_vitamins":0.0,"heart_notes":"Racing heart, Heart Burn, Not sure what it is. Very reactive today ","mental_notes":"Felt / feeling anxious, Neutral","spinal_notes":"Neck pain, Shoulder pain, Back pain","headache_notes":"Left side head ache, Back head, head ache","stomach_notes":"Stomach ache","cycle_notes":"Spotting, Dark blood ","gut_notes":"No poo","body_notes":"","medication_notes":"","diet_notes":"1-2 Coffee, More than 2L water, Alcohol, Sugar, Dairy","red_flag":true},{"date":"2025-08-11","wellbeing":6,"spinal":4,"heart":6,"headache":5,"stomach":7,"gut":6,"cycle_day":6,"menstrual_pain":8,"num_medications":1,"num_vitamins":0.0,"heart_notes":"Heart Burn","mental_notes":"Felt / feeling anxious","spinal_notes":"Neck pain, Shoulder pain, Back pain, Lower back pain, Took medication for spinal health","headache_notes":"Left side head ache, Right side head ache, Back head, head ache, Took medication for head ache / migraine","stomach_notes":"Indigestion, Took medication for stomach","cycle_notes":"Light bleeding","gut_notes":"Normal poo","body_notes":"","medication_notes":"Neurofen, Heart burn","diet_notes":"1-2 Coffee, Less than 2L water, Gluten","red_flag":true},{"date":"2025-08-22","wellbeing":6,"spinal":7,"heart":6,"headache":7,"stomach":7,"gut":4,"cycle_day":20,"menstrual_pain":0,"num_medications":0,"num_vitamins":0.0,"heart_notes":"Chest pain, Hadn\u2019t eaten for almost 24 hours ","mental_notes":"Neutral","spinal_notes":"Neck pain, Lower back pain","headache_notes":"Whole head, head ache, Slight headache nothing terrible ","stomach_notes":"Stomach ache, Stomach cramps, Nauseous, Worse yesterday after eating breakfast - bacon and egg roll","cycle_notes":"Moody","gut_notes":"No poo","body_notes":"Left leg","medication_notes":"","diet_notes":"1-2 Coffee, Take away, Gluten","red_flag":true},{"date":"2025-09-30","wellbeing":5,"spinal":8,"heart":8,"headache":8,"stomach":2,"gut":4,"cycle_day":3,"menstrual_pain":3,"num_medications":2,"num_vitamins":0.0,"heart_notes":"Heart Burn","mental_notes":"Felt / feeling anxious, Funny about my throat atm and when I feel unwell I tend to feel anxious ","spinal_notes":"","headache_notes":"","stomach_notes":"Stomach ache, Indigestion, Stomach cramps, Nauseous","cycle_notes":"Heavy bleeding, Cramps, Bloating","gut_notes":"No poo","body_notes":"","medication_notes":"CBD, Stomach pills ","diet_notes":"1-2 Coffee, More than 2L water, Sugar, Protein","red_flag":true},{"date":"2025-10-02","wellbeing":8,"spinal":6,"heart":8,"headache":7,"stomach":5,"gut":2,"cycle_day":5,"menstrual_pain":2,"num_medications":2,"num_vitamins":0.0,"heart_notes":"Heart Burn, Took medication for heart health, Zantac","mental_notes":"Neutral","spinal_notes":"Neck pain, Shoulder pain, Back pain, Lower back pain, Nothing crazy but sore from Pilates ","headache_notes":"Left side head ache","stomach_notes":"Stomach ache, Indigestion, Stomach cramps, Nauseous","cycle_notes":"Light bleeding","gut_notes":"Normal poo, Was not normal. ","body_notes":"Left leg, Was in the office ","medication_notes":"Heart burn, Antihistamine ","diet_notes":"1-2 Coffee, More than 2L water, Gluten","red_flag":true},{"date":"2025-10-03","wellbeing":7,"spinal":6,"heart":9,"headache":3,"stomach":3,"gut":5,"cycle_day":6,"menstrual_pain":0,"num_medications":0,"num_vitamins":0.0,"heart_notes":"","mental_notes":"Happy, Neutral","spinal_notes":"Neck pain, Slight headache ","headache_notes":"Left side head ache","stomach_notes":"Stomach ache, Slight tummy upset","cycle_notes":"Light bleeding","gut_notes":"No poo","body_notes":"","medication_notes":"","diet_notes":"1-2 Coffee, More than 2L water, Gluten, More than 2 meals","red_flag":true},{"date":"2025-10-06","wellbeing":6,"spinal":8,"heart":7,"headache":8,"stomach":3,"gut":4,"cycle_day":7,"menstrual_pain":0,"num_medications":2,"num_vitamins":0.0,"heart_notes":"Heart Burn, Took medication for heart health, Heartburn meds ","mental_notes":"Happy, Neutral","spinal_notes":"Took medication for spinal health, CBD","headache_notes":"","stomach_notes":"Stomach ache, Indigestion, Stomach cramps, Nauseous","cycle_notes":"Spotting","gut_notes":"Not normal","body_notes":"Left leg","medication_notes":"CBD, Heart burn","diet_notes":"1-2 Coffee, More than 2L water, More than 2 meals","red_flag":true},{"date":"2025-10-07","wellbeing":6,"spinal":7,"heart":8,"headache":6,"stomach":5,"gut":5,"cycle_day":10,"menstrual_pain":0,"num_medications":1,"num_vitamins":0.0,"heart_notes":"Chest pain, Heart Burn, Weird pressure and fluttering in the evening","mental_notes":"Felt / feeling anxious","spinal_notes":"","headache_notes":"","stomach_notes":"Stomach ache, Indigestion, Stomach cramps","cycle_notes":"No bleeding","gut_notes":"Normal poo, Wasnt normal - was loose","body_notes":"Left leg, Slight pain ","medication_notes":"Heart burn","diet_notes":"1-2 Coffee, More than 2L water, Sugar, Gluten, Dairy, More than 2 meals","red_flag":false},{"date":"2025-10-08","wellbeing":6,"spinal":7,"heart":7,"headache":4,"stomach":1,"gut":5,"cycle_day":12,"menstrual_pain":0,"num_medications":3,"num_vitamins":0.0,"heart_notes":"Heart Burn","mental_notes":"Felt / feeling anxious, Happy, Neutral","spinal_notes":"Neck pain","headache_notes":"","stomach_notes":"Stomach ache, Indigestion, Stomach cramps, Nauseous, Took medication for stomach","cycle_notes":"Bloating","gut_notes":"Normal poo, Not normal","body_notes":"","medication_notes":"Panadol, Heart burn","diet_notes":"1-2 Coffee, More than 2L water, Sugar, Gluten","red_flag":true},{"date":"2025-12-10","wellbeing":8,"spinal":8,"heart":8,"headache":9,"stomach":6,"gut":5,"cycle_day":18,"menstrual_pain":0,"num_medications":2,"num_vitamins":0.0,"heart_notes":"Heart Burn, Took medication for heart health","mental_notes":"Happy, Excited, Neutral","spinal_notes":"Nothing worth reporting on","headache_notes":"Nothing worth reporting on","stomach_notes":"Indigestion","cycle_notes":"Nothing worth reporting on","gut_notes":"Normal poo","body_notes":"Left arm","medication_notes":"CBD, Heart burn","diet_notes":"1-2 Coffee, More than 2L water, Sugar, Gluten, Dairy","red_flag":false}];
-
 // ── SUPABASE CONFIG ───────────────────────────────────────────────────────────
 const SUPABASE_URL = 'https://rpinusuayvdnckgdaksl.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_ZPmdfr5gBwJoJ4q64sKvQg_0sCRNInu';
@@ -2889,11 +2821,6 @@ function userName() {
 }
 
 // Capitalised greeting form, falls back to "there" for unset names.
-function greetingName() {
-  const n = userName();
-  return n || 'there';
-}
-
 // Apply the app name everywhere it appears in the DOM. Called on app load.
 function applyBranding() {
   const setText = (id, text) => {
@@ -2988,27 +2915,6 @@ async function loadData() {
   // still render with the default 'free' tier if this fails)
   loadAiUsage().catch(e => console.error('AI usage load failed:', e));
   initApp();
-}
-
-async function saveData(entry) {
-  try {
-    const saved = await sb.insert(entry);
-    // Attach the DB-generated id to the in-memory entry so same-session edits work
-    if (saved && saved.id) {
-      const idx = DATA.findIndex(d => d.date === entry.date && d.id == null);
-      if (idx !== -1) DATA[idx].id = saved.id;
-    }
-  } catch(e) {
-    console.warn('Supabase save failed.');
-  }
-}
-
-async function updateData(id, entry) {
-  try {
-    await sb.update(id, entry);
-  } catch(e) {
-    console.warn('Supabase update failed.');
-  }
 }
 
 // ── HELPERS ──────────────────────────────────────────────────────────────────
@@ -3199,11 +3105,6 @@ function computeStreak() {
 // ── NUM INPUTS ───────────────────────────────────────────────────────────────
 const numVals = { cycle_day: 1 };
 
-function changeNum(key, delta) {
-  numVals[key] = Math.max(0, (numVals[key] || 1) + delta);
-  document.getElementById('num-' + key).textContent = numVals[key];
-}
-
 // ── MULTI-SELECT ─────────────────────────────────────────────────────────────
 const msSelections = {};
 
@@ -3211,55 +3112,10 @@ const msSelections = {};
 // A score is logged if it was prefilled with a real value OR the user moves it.
 // Unlogged scores save as null (not the default), so upgrading a quick day doesn't
 // silently turn untouched sliders into 5s.
-const SCORE_SLIDERS = ['wellbeing','heart','spinal','headache','stomach','gut','exercise','menstrual','libido'];
 let scoreLogged = {};
 
-function markScoreLogged(key, logged) {
-  scoreLogged[key] = logged;
-  const valEl = document.getElementById('val-' + key);
-  const slEl = document.getElementById('sl-' + key);
-  if (!valEl || !slEl) return;
-  if (logged) {
-    valEl.textContent = slEl.value;
-    valEl.classList.remove('not-logged');
-    slEl.classList.remove('slider-unlogged');
-  } else {
-    valEl.textContent = 'Not logged yet';
-    valEl.classList.add('not-logged');
-    slEl.classList.add('slider-unlogged');
-  }
-}
-
 // Called when the user moves a score slider — marks it logged and updates the value
-function onScoreInput(key, val) {
-  scoreLogged[key] = true;
-  const valEl = document.getElementById('val-' + key);
-  if (valEl) { valEl.textContent = val; valEl.classList.remove('not-logged'); }
-  const slEl = document.getElementById('sl-' + key);
-  if (slEl) slEl.classList.remove('slider-unlogged');
-  refreshCheckinNudge();
-}
-
 // Read a score for saving: its value if logged, otherwise null
-function readScore(key) {
-  if (!scoreLogged[key]) return null;
-  const sl = document.getElementById('sl-' + key);
-  return sl ? parseInt(sl.value) : null;
-}
-
-function toggleMs(el, group) {
-  if (!msSelections[group]) msSelections[group] = [];
-  const val = el.textContent;
-  if (el.classList.contains('selected')) {
-    el.classList.remove('selected');
-    msSelections[group] = msSelections[group].filter(v => v !== val);
-  } else {
-    el.classList.add('selected');
-    msSelections[group].push(val);
-  }
-  refreshCheckinNudge();
-}
-
 // Gather everything tagged on the form right now and show a history nudge if relevant
 function refreshCheckinNudge() {
   const container = document.getElementById('checkin-nudge-container');
@@ -3294,121 +3150,15 @@ function refreshCheckinNudge() {
   }
 }
 
-function getMs(group) {
-  return (msSelections[group] || []).join(', ');
-}
-
 // ── MEDICATION PICKER ────────────────────────────────────────────────────────
 // Curated seed list of common Australian medications & supplements, grouped by
 // active ingredient so brand/generic variants don't show as separate entries.
 // Each entry: display name (what shows + saves). Curated AU medications and supplements:
 // pain, endometriosis/hormonal, gut, mental health, cardiovascular, allergy.
-const MED_SEED = [
-  // Pain / anti-inflammatory
-  'Paracetamol (Panadol)', 'Ibuprofen (Nurofen)', 'Aspirin', 'Naproxen (Naprosyn)',
-  'Diclofenac (Voltaren)', 'Celecoxib (Celebrex)', 'Mefenamic acid (Ponstan)',
-  'Codeine', 'Panadeine Forte', 'Tramadol (Tramal)', 'Endone (oxycodone)',
-  'Targin', 'Meloxicam (Mobic)',
-  // Endometriosis / hormonal / contraceptive
-  'Norethisterone (Primolut)', 'Dienogest (Visanne)', 'Medroxyprogesterone (Provera)',
-  'Levonorgestrel IUD (Mirena)', 'Combined pill (Levlen)', 'Combined pill (Yaz)',
-  'Combined pill (Brenda)', 'Progesterone (Prometrium)', 'Goserelin (Zoladex)',
-  'Zoely', 'Slinda', 'Estradiol (Estrogel)',
-  // Gut / digestive
-  'Esomeprazole (Nexium)', 'Pantoprazole (Somac)', 'Omeprazole (Losec)',
-  'Rabeprazole (Pariet)', 'Ranitidine (Zantac)', 'Famotidine',
-  'Buscopan', 'Iberogast', 'Metamucil', 'Movicol', 'Imodium (loperamide)',
-  'Ondansetron (Zofran)', 'Metoclopramide (Maxolon)', 'Peppermint oil',
-  'Probiotic', 'Antacid (Mylanta)', 'Gaviscon',
-  // Mental health
-  'Sertraline (Zoloft)', 'Escitalopram (Lexapro)', 'Fluoxetine (Prozac)',
-  'Venlafaxine (Efexor)', 'Desvenlafaxine (Pristiq)', 'Duloxetine (Cymbalta)',
-  'Mirtazapine (Avanza)', 'Quetiapine (Seroquel)', 'Diazepam (Valium)',
-  'Temazepam', 'Melatonin (Circadin)', 'Amitriptyline (Endep)',
-  'Pregabalin (Lyrica)', 'Gabapentin',
-  // Cardiovascular / POTS-related
-  'Metoprolol (Betaloc)', 'Propranolol (Inderal)', 'Atenolol (Tenormin)',
-  'Ivabradine (Coralan)', 'Midodrine', 'Fludrocortisone (Florinef)',
-  'Perindopril (Coversyl)', 'Ramipril (Tritace)', 'Amlodipine (Norvasc)',
-  'Atorvastatin (Lipitor)', 'Rosuvastatin (Crestor)',
-  // Allergy / antihistamine
-  'Cetirizine (Zyrtec)', 'Loratadine (Claratyne)', 'Fexofenadine (Telfast)',
-  'Desloratadine (Aerius)', 'Promethazine (Phenergan)',
-  // Supplements / vitamins
-  'Magnesium', 'Vitamin D', 'Iron', 'Vitamin B12', 'Folate', 'Fish oil',
-  'Vitamin C', 'Zinc', 'CBD oil', 'Turmeric / curcumin', 'Multivitamin',
-  'Calcium', 'Coenzyme Q10', 'Electrolytes (hydralyte)',
-  // Other common
-  'Thyroxine (Eutroxsig)', 'Metformin', 'Prednisolone (steroid)',
-  'Salbutamol (Ventolin)', 'Antibiotic (course)'
-];
-
 // Selected meds for the current entry (array of display strings)
 let selectedMeds = [];
 
 // Build the pool of suggestable meds: curated seed + everything the user has logged before
-function getMedPool() {
-  const fromHistory = new Set();
-  DATA.forEach(d => {
-    if (d.medication_notes) {
-      d.medication_notes.split(',').map(s => s.trim()).filter(Boolean).forEach(m => {
-        if (m.toLowerCase() !== 'none') fromHistory.add(m);
-      });
-    }
-  });
-  // History first (most relevant to the user), then seed items not already in history
-  const historyArr = [...fromHistory];
-  const historyLower = new Set(historyArr.map(m => m.toLowerCase()));
-  const seedExtra = MED_SEED.filter(m => !historyLower.has(m.toLowerCase()));
-  return { history: historyArr, seed: seedExtra };
-}
-
-function onMedSearch() {
-  const input = document.getElementById('med-search');
-  const box = document.getElementById('med-suggestions');
-  if (!input || !box) return;
-  const q = input.value.trim().toLowerCase();
-
-  if (!q) { box.classList.remove('open'); box.innerHTML = ''; return; }
-
-  const { history, seed } = getMedPool();
-  const alreadyAdded = new Set(selectedMeds.map(m => m.toLowerCase()));
-
-  const matchHistory = history.filter(m => m.toLowerCase().includes(q) && !alreadyAdded.has(m.toLowerCase()));
-  const matchSeed = seed.filter(m => m.toLowerCase().includes(q) && !alreadyAdded.has(m.toLowerCase()));
-
-  // Build suggestion rows (history tagged "yours", capped to keep the list short)
-  let rows = '';
-  matchHistory.slice(0, 4).forEach(m => {
-    rows += `<div class="med-suggestion" onclick="addMed('${escAttr(m)}')"><span>${escapeHtml(m)}</span><span class="med-tag-label">Yours</span></div>`;
-  });
-  matchSeed.slice(0, 6).forEach(m => {
-    rows += `<div class="med-suggestion" onclick="addMed('${escAttr(m)}')"><span>${escapeHtml(m)}</span></div>`;
-  });
-
-  // Always offer an "add exactly what I typed" option if it isn't an exact match
-  const exact = [...history, ...seed].some(m => m.toLowerCase() === q);
-  if (!exact) {
-    const typed = input.value.trim();
-    rows += `<div class="med-suggestion" onclick="addMed('${escAttr(typed)}')"><span class="med-add-new">+ Add "${escapeHtml(typed)}"</span></div>`;
-  }
-
-  box.innerHTML = rows;
-  box.classList.add('open');
-}
-
-function addMed(name) {
-  if (!name) return;
-  // Avoid duplicates (case-insensitive)
-  if (!selectedMeds.some(m => m.toLowerCase() === name.toLowerCase())) {
-    selectedMeds.push(name);
-  }
-  document.getElementById('med-search').value = '';
-  document.getElementById('med-suggestions').classList.remove('open');
-  renderMedChips();
-  refreshCheckinNudge();
-}
-
 function removeMed(index) {
   selectedMeds.splice(index, 1);
   renderMedChips();
@@ -3424,50 +3174,6 @@ function renderMedChips() {
 }
 
 // Escape a string for safe use inside a single-quoted HTML attribute
-function escAttr(s) {
-  return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-}
-
-function clearForm() {
-  ['wellbeing','heart','spinal','headache','stomach','gut','exercise','libido'].forEach(k => {
-    const sl = document.getElementById('sl-' + k);
-    if (sl) {
-      sl.value = 5;
-      document.getElementById('val-' + k).textContent = 5;
-    }
-  });
-  const slM = document.getElementById('sl-menstrual');
-  if (slM) { slM.value = 0; document.getElementById('val-menstrual').textContent = 0; }
-  numVals.cycle_day = 1;
-  document.getElementById('num-cycle_day').textContent = 1;
-  // Fresh check-in: all scores count as logged (sliders save their value as before)
-  scoreLogged = {};
-  SCORE_SLIDERS.forEach(k => markScoreLogged(k, true));
-  ['mental','heart','spinal','headache','stomach','cycle','gut','sexual','diet'].forEach(g => {
-    msSelections[g] = [];
-    document.querySelectorAll(`#ms-${g} .ms-option`).forEach(el => el.classList.remove('selected'));
-  });
-  document.querySelectorAll('.ms-option').forEach(el => el.classList.remove('selected'));
-  Object.keys(msSelections).forEach(k => msSelections[k] = []);
-  // Reset medication picker
-  selectedMeds = [];
-  renderMedChips();
-  const medSearch = document.getElementById('med-search');
-  const medSugg = document.getElementById('med-suggestions');
-  if (medSearch) medSearch.value = '';
-  if (medSugg) { medSugg.classList.remove('open'); medSugg.innerHTML = ''; }
-  const dietNotes = document.getElementById('diet-notes');
-  const extraNotes = document.getElementById('extra-notes');
-  if (dietNotes) dietNotes.value = '';
-  if (extraNotes) extraNotes.value = '';
-  // Reset date to today
-  const dateInput = document.getElementById('checkin-date');
-  if (dateInput) { dateInput.value = today(); updateDateTrigger('checkin-date'); }
-  const nudgeC = document.getElementById('checkin-nudge-container');
-  if (nudgeC) nudgeC.innerHTML = '';
-  onCheckinDateChange();
-}
-
 // ── SUBMIT ───────────────────────────────────────────────────────────────────
 // Called when the user manually changes the date picker in the check-in form
 function onCheckinDateManualChange() {
@@ -3556,52 +3262,6 @@ function setCheckinMode(mode) {
 
 // Quick check-in: only wellbeing + optional note. Everything else stays NULL —
 // never faked to a middle value, so it can't corrupt patterns or averages.
-async function submitQuickCheckin() {
-  const dateInput = document.getElementById('checkin-date');
-  const entryDate = (dateInput && dateInput.value) ? dateInput.value : today();
-  const wellbeing = parseInt(document.getElementById('sl-quick').value);
-  const note = document.getElementById('quick-note').value.trim();
-
-  const entry = {
-    date: entryDate,
-    wellbeing: wellbeing,
-    heart: null, spinal: null, headache: null, stomach: null, gut: null,
-    exercise: null,
-    libido: null, cycle_day: null, menstrual_pain: null,
-    num_medications: null, num_vitamins: null,
-    mental_notes: '', heart_notes: '', spinal_notes: '', headache_notes: '',
-    stomach_notes: '', cycle_notes: '', gut_notes: '', sexual_notes: '',
-    body_notes: '', medication_notes: '', diet_notes: '',
-    extra_notes: note,
-    exercise_notes: '',
-    red_flag: wellbeing < 4   // only signal we have on a quick day
-  };
-
-  const existingIndex = DATA.findIndex(d => d.date === entryDate);
-  if (existingIndex !== -1 && DATA[existingIndex].id != null) {
-    const existingId = DATA[existingIndex].id;
-    DATA[existingIndex] = { ...DATA[existingIndex], ...entry };
-    await updateData(existingId, entry);
-  } else if (existingIndex !== -1) {
-    DATA[existingIndex] = { ...DATA[existingIndex], ...entry };
-    await saveData(entry);
-  } else {
-    DATA.push(entry);
-    await saveData(entry);
-  }
-
-  // Reset quick panel
-  document.getElementById('sl-quick').value = 5;
-  document.getElementById('val-quick').textContent = '5';
-  document.getElementById('quick-note').value = '';
-
-  document.getElementById('form-inner').style.display = 'none';
-  document.getElementById('quick-panel').style.display = 'none';
-  document.getElementById('main-submit-btn').style.display = 'none';
-  document.getElementById('submitted-state').classList.add('show');
-  renderHome();
-}
-
 // ── NAVIGATION ───────────────────────────────────────────────────────────────
 // ── DYNAMIC CHECK-IN FORM (v0.5.0) ────────────────────────────────────────────
 // The check-in form is built from the user's own metrics (user_metrics) and
@@ -3838,12 +3498,6 @@ function goToTrends() {
   const btn = document.querySelector('.nav-btn[onclick*="trends"]');
   showView('trends', btn);
 }
-function goToCustomise(e) {
-  if (e) e.preventDefault();
-  const btn = document.querySelector('.nav-btn[onclick*="customise"]');
-  showView('customise', btn);
-}
-
 // From the Settings overlay: close Settings styling and switch to Customise tab.
 function goToCustomiseFromSettings() {
   document.body.classList.remove('settings-open');
@@ -4270,89 +3924,6 @@ function addEntryForDate(date) {
 }
 
 // Pre-fill the check-in form with an existing entry's values (if one exists for the date)
-function prefillFormForDate(date) {
-  const existing = DATA.find(d => d.date === date);
-  if (!existing) return;
-
-  ['wellbeing','heart','spinal','headache','stomach','gut','exercise','libido'].forEach(k => {
-    const sl = document.getElementById('sl-' + k);
-    if (!sl) return;
-    if (existing[k] != null) {
-      sl.value = existing[k];
-      markScoreLogged(k, true);
-    } else {
-      // This score wasn't logged that day (e.g. a quick-log day) — show as not logged
-      sl.value = 5;
-      markScoreLogged(k, false);
-    }
-  });
-  const slM = document.getElementById('sl-menstrual');
-  if (slM) {
-    if (existing.menstrual_pain != null) {
-      slM.value = existing.menstrual_pain;
-      markScoreLogged('menstrual', true);
-    } else {
-      slM.value = 0;
-      markScoreLogged('menstrual', false);
-    }
-  }
-  if (existing.cycle_day != null) {
-    numVals.cycle_day = existing.cycle_day;
-    document.getElementById('num-cycle_day').textContent = existing.cycle_day;
-  }
-  // Restore multi-select tags for symptom groups
-  const tagMap = {
-    mental: existing.mental_notes, heart: existing.heart_notes,
-    spinal: existing.spinal_notes, headache: existing.headache_notes,
-    stomach: existing.stomach_notes, cycle: existing.cycle_notes,
-    gut: existing.gut_notes, sexual: existing.sexual_notes
-  };
-  Object.keys(tagMap).forEach(group => {
-    const vals = (tagMap[group] || '').split(',').map(s => s.trim()).filter(Boolean);
-    msSelections[group] = [];
-    document.querySelectorAll(`#ms-${group} .ms-option`).forEach(el => {
-      if (vals.includes(el.textContent)) {
-        el.classList.add('selected');
-        msSelections[group].push(el.textContent);
-      }
-    });
-  });
-
-  // Diet stores tags + free text joined together. Re-match known tag options;
-  // anything left over goes back into the free-text field.
-  function restoreCombined(group, combinedStr, otherInputId) {
-    const parts = (combinedStr || '').split(',').map(s => s.trim()).filter(Boolean);
-    const knownOptions = [...document.querySelectorAll(`#ms-${group} .ms-option`)].map(el => el.textContent);
-    msSelections[group] = [];
-    const leftovers = [];
-    parts.forEach(part => {
-      if (knownOptions.includes(part)) {
-        msSelections[group].push(part);
-      } else {
-        leftovers.push(part);
-      }
-    });
-    document.querySelectorAll(`#ms-${group} .ms-option`).forEach(el => {
-      if (msSelections[group].includes(el.textContent)) el.classList.add('selected');
-    });
-    if (otherInputId) {
-      const inp = document.getElementById(otherInputId);
-      if (inp) inp.value = leftovers.join(', ');
-    }
-  }
-  restoreCombined('diet', existing.diet_notes, 'diet-notes');
-
-  // Restore medications into the picker as chips
-  selectedMeds = (existing.medication_notes || '')
-    .split(',').map(s => s.trim())
-    .filter(m => m && m.toLowerCase() !== 'none');
-  renderMedChips();
-
-  // Restore remaining free-text note
-  const extraNotes = document.getElementById('extra-notes');
-  if (extraNotes) extraNotes.value = existing.extra_notes || '';
-}
-
 // Show days in the last 14 that have no entry, so missed days are visible at a glance
 function renderMissedDays() {
   const el = document.getElementById('missed-days');
@@ -4533,37 +4104,11 @@ function getDateRange() {
 // ── PATTERN ANALYSIS ─────────────────────────────────────────────────────────
 // Retrospective only: reports correlations already present in the data.
 // Never predicts, diagnoses, or implies causation. Strict thresholds kill noise.
-
-const SCORE_FIELDS = [
-  { key: 'wellbeing', label: 'wellbeing' },
-  { key: 'heart', label: 'heart' },
-  { key: 'spinal', label: 'spinal' },
-  { key: 'headache', label: 'head' },
-  { key: 'stomach', label: 'stomach' },
-  { key: 'gut', label: 'gut' },
-  { key: 'exercise', label: 'exercise' }
-];
-
-// Factors the user can "tag" on a given day, pulled from the comma-joined note fields
-const FACTOR_SOURCES = [
-  { field: 'diet_notes', prefix: 'diet' },
-  { field: 'medication_notes', prefix: 'med' },
-  { field: 'mental_notes', prefix: 'mental' },
-  { field: 'heart_notes', prefix: 'symptom' },
-  { field: 'stomach_notes', prefix: 'symptom' },
-  { field: 'gut_notes', prefix: 'symptom' }
-];
-
 const PATTERN_MIN_WITH = 8;      // need >=8 days WITH the factor (was 5)
 const PATTERN_MIN_WITHOUT = 8;   // and >=8 days WITHOUT it (was 5)
 const PATTERN_MIN_DIFF = 1.5;    // average score gap must be >= 1.5 to matter (was 1.0)
 
 const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0;
-
-// Normalise a factor string: trim whitespace
-function normFactor(s) {
-  return s.trim();
-}
 
 // Build a normalised matching key from a factor — lowercase, strip trailing 's',
 // collapse internal whitespace. So "1-2 Coffee", "1-2 coffees", "1-2  COFFEES"
@@ -4575,41 +4120,6 @@ function factorMatchKey(s) {
   // Strip trailing 's' from each word longer than 3 chars
   k = k.split(' ').map(w => (w.length > 3 && w.endsWith('s')) ? w.slice(0, -1) : w).join(' ');
   return k;
-}
-
-// Collect distinct factors that appear across the dataset.
-// Tags with the same normalised key (e.g. "Coffee" and "coffees") are merged.
-function collectFactors(data) {
-  // matchKey -> { label, dates }
-  const merged = {};
-  data.forEach(d => {
-    FACTOR_SOURCES.forEach(src => {
-      const raw = d[src.field];
-      if (!raw) return;
-      raw.split(',').map(normFactor).filter(Boolean).forEach(f => {
-        // skip obvious non-factors / noise
-        const low = f.toLowerCase();
-        if (low === 'none' || low === 'normal' || low === 'neutral' ||
-            low.includes('nothing worth') || low === 'no problem' || f.length < 3) return;
-        const matchKey = src.prefix + '::' + factorMatchKey(f);
-        if (!merged[matchKey]) {
-          merged[matchKey] = { label: f, dates: new Set() };
-        }
-        merged[matchKey].dates.add(d.date);
-      });
-    });
-  });
-  // Reshape to match the existing { key -> Set } contract,
-  // but also surface the chosen label via a side map.
-  const map = {};
-  const labelByKey = {};
-  Object.entries(merged).forEach(([k, v]) => {
-    map[k] = v.dates;
-    labelByKey[k] = v.label;
-  });
-  // Stash labelByKey on the function so computePatterns can read it without changing signature
-  collectFactors._labels = labelByKey;
-  return map;
 }
 
 // ── METRIC-VALUES PATTERN HELPERS (v0.5.0) ────────────────────────────────────
@@ -4793,12 +4303,6 @@ function insightsUnlocked() {
 
 // Friendly message describing how far off unlocking the user is
 // Plain-text version (used where only text fits, e.g. the AI insight card)
-function insightLockMessage() {
-  const recent = recentLoggedDays();
-  const remaining = Math.max(INSIGHT_UNLOCK_THRESHOLD - recent, 0);
-  return `Your personalised insights unlock once you've logged ${INSIGHT_UNLOCK_THRESHOLD} days within the last ${INSIGHT_WINDOW_DAYS}. You're at ${recent} of ${INSIGHT_UNLOCK_THRESHOLD} — ${remaining} to go.`;
-}
-
 // Rich progress component with a bar + adaptive, pressure-free encouragement
 function insightLockProgress() {
   const recent = recentLoggedDays();
@@ -5009,15 +4513,6 @@ function getCheckinNudge(taggedFactors) {
       text: `Nice — in your past entries, ${escapeHtml(top.scoreLabel)} scores have often been higher on days you logged ${escapeHtml(top.factor)}. Just something your history shows.`
     };
   }
-}
-
-function filterDataByRange(data) {
-  const range = getDateRange();
-  if (!range) return data;
-  return data.filter(d => {
-    const dt = new Date(d.date + 'T12:00:00');
-    return dt >= range.from && dt <= range.to;
-  });
 }
 
 function renderTrends() {
@@ -5832,13 +5327,6 @@ function openRecords() {
   // Set default doc date to today
   const dateInput = document.getElementById('upload-date');
   if (dateInput) { dateInput.value = today(); updateDateTrigger('upload-date'); }
-
-  // Gate uploading + AI analysis to Pro
-  const isPro = USER_TIER === 'pro';
-  const pickBtn = document.getElementById('file-pick-btn');
-  const gate = document.getElementById('records-pro-gate');
-  if (pickBtn) pickBtn.style.display = isPro ? 'block' : 'none';
-  if (gate) gate.style.display = isPro ? 'none' : 'block';
 
   loadMedicalFiles();
   window.scrollTo(0, 0);
@@ -6718,15 +6206,6 @@ async function bootstrap() {
   }
   // Otherwise login screen stays visible
 }
-
-// Close medication suggestions when tapping outside the search field
-document.addEventListener('click', (e) => {
-  const wrap = e.target.closest('.med-search-wrap');
-  if (!wrap) {
-    const box = document.getElementById('med-suggestions');
-    if (box) box.classList.remove('open');
-  }
-});
 
 // Apply brand name to login + DOM elements before bootstrap runs (covers
 // users not yet signed in — userName() returns '' so name-dependent bits
