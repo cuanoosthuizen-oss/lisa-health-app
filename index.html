@@ -3868,8 +3868,9 @@ function renderHome() {
     if (patterns.length > 0) {
       const p = patterns[0];
       const dirColor = p.good === true ? 'var(--good)' : p.good === false ? 'var(--accent2)' : 'var(--muted)';
+      const lead = patternLeadIn(p, `<strong style="color:var(--accent);">${escapeHtml(p.factor)}</strong>`);
       patternBody.innerHTML = `
-        On days you logged <strong style="color:var(--accent);">${escapeHtml(p.factor)}</strong>,
+        ${lead},
         your ${escapeHtml(p.scoreLabel)} scores have tended to be
         <strong style="color:${dirColor};">${p.rawDirection}</strong>
         <span style="color:var(--muted);">(based on ${p.n} days)</span>`;
@@ -3960,17 +3961,21 @@ function entryValueLines(date) {
   });
   return out;
 }
+// maxDays omitted/null => use the user's ENTIRE history (the default for AI now).
 function recentEntriesBlock(maxDays) {
-  const dates = [...new Set(VALUES.map(v => v.entry_date))].sort((a, b) => b.localeCompare(a)).slice(0, maxDays);
+  let dates = [...new Set(VALUES.map(v => v.entry_date))].sort((a, b) => b.localeCompare(a));
+  if (maxDays) dates = dates.slice(0, maxDays);
   return dates.map(d => `- ${d}:\n${entryValueLines(d).join('\n')}`).join('\n');
 }
 function entriesUpToBlock(date, maxDays) {
-  const dates = [...new Set(VALUES.map(v => v.entry_date))].filter(d => d <= date).sort((a, b) => b.localeCompare(a)).slice(0, maxDays);
+  let dates = [...new Set(VALUES.map(v => v.entry_date))].filter(d => d <= date).sort((a, b) => b.localeCompare(a));
+  if (maxDays) dates = dates.slice(0, maxDays);
   return dates.map(d => `- ${d}:\n${entryValueLines(d).join('\n')}`).join('\n');
 }
 function metricAveragesBlock(maxDays) {
   const ix = mvIndex();
-  const dates = [...new Set(VALUES.map(v => v.entry_date))].sort((a, b) => b.localeCompare(a)).slice(0, maxDays);
+  let dates = [...new Set(VALUES.map(v => v.entry_date))].sort((a, b) => b.localeCompare(a));
+  if (maxDays) dates = dates.slice(0, maxDays);
   const dateSet = new Set(dates);
   return (METRICS_CACHE || []).filter(m => !m.archived && (m.type === 'scale_10' || (m.type === 'number' && m.numeric_mode !== 'cyclical'))).map(m => {
     const vals = Object.keys(ix[m.id] || {}).filter(d => dateSet.has(d)).map(d => ix[m.id][d].value_number).filter(v => typeof v === 'number');
@@ -4068,7 +4073,10 @@ async function requestAiInsight() {
     metricDefsBlock(),
     ``,
     `Recent entries (most recent first):`,
-    recentEntriesBlock(60),
+    recentEntriesBlock(),  // full history
+    // FUTURE (Pro tier): when file uploads exist, insert extracted blood-test /
+    // scan results here as an additional "Uploaded results" block, clearly
+    // labelled and gated to Pro, so the model can reference them too.
     ``,
     `Write a 2-3 sentence observation about patterns in this data. Be specific and reference dates where useful. Do not diagnose, predict, or give medical advice. Only refer to the metrics listed above — do not invent metrics the user does not track.`
   ].join('\n');
@@ -4407,7 +4415,7 @@ async function generateDayInsight() {
     metricDefsBlock(),
     ``,
     `History up to and including ${selectedDate} (most recent first):`,
-    entriesUpToBlock(selectedDate, 60),
+    entriesUpToBlock(selectedDate),  // full history up to this date
     ``,
     `Focus on the entry from ${selectedDate}: what stands out about that day and how it compares to the rest of their history. Speak to ${userName()} about that day. Do not diagnose or predict. Only reference the metrics listed above.`
   ].join('\n');
@@ -4605,6 +4613,36 @@ function collectMetricFactors() {
   });
   return Object.values(merged);
 }
+
+// Numeric factors: split each numeric metric (scale_10 + number, non-cyclical)
+// into its high days vs low days by median, so it can act as a correlation
+// factor even when the user logs no tags. High = at/above median, low = below.
+function collectNumericFactors() {
+  const ix = mvIndex();
+  const metrics = (METRICS_CACHE || []).filter(m =>
+    !m.archived && m.numeric_mode !== 'cyclical' && (m.type === 'scale_10' || m.type === 'number'));
+  const out = [];
+  metrics.forEach(m => {
+    const vals = Object.entries(ix[m.id] || {})
+      .filter(([, row]) => row.value_number != null)
+      .map(([d, row]) => ({ date: d, val: row.value_number }));
+    if (vals.length < (PATTERN_MIN_WITH + PATTERN_MIN_WITHOUT)) return; // not enough to split
+    const sorted = vals.map(x => x.val).slice().sort((a, b) => a - b);
+    const n = sorted.length;
+    const median = n % 2 ? sorted[(n - 1) / 2] : (sorted[n / 2 - 1] + sorted[n / 2]) / 2;
+    const highDates = new Set(vals.filter(x => x.val >= median).map(x => x.date));
+    const lowDates = new Set(vals.filter(x => x.val < median).map(x => x.date));
+    out.push({ label: m.name, metricName: m.name, metricId: m.id, kind: 'numeric', dates: highDates, lowDates });
+  });
+  return out;
+}
+
+// Lead-in clause for a pattern, phrased for tags vs numeric factors.
+function patternLeadIn(p, factorHtml) {
+  return p.factorKind === 'numeric'
+    ? `On days your ${factorHtml} was higher`
+    : `On days you logged ${factorHtml}`;
+}
 function wordsOf(str) {
   return new Set((str || '').toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length > 3));
 }
@@ -4617,7 +4655,7 @@ function sharesWord(a, b) {
 // ── INSIGHT GATE ─────────────────────────────────────────────────────────────
 // Insight features (patterns card, "what helps", AI insights, doctor's summary)
 // ALL share one gate: enough recent data to be meaningful. Gate: 7+ distinct days
-// logged in the last 30 days to unlock; with hysteresis so it doesn't flicker —
+// logged in the last 14 days to unlock; with hysteresis so it doesn't flicker —
 // once unlocked, it stays unlocked until logged days in the last 30 fall below 5.
 const INSIGHT_UNLOCK_THRESHOLD = 7;
 const INSIGHT_RELOCK_THRESHOLD = 5;
@@ -4674,7 +4712,7 @@ async function loadAiUsage() {
 }
 
 // AI gate now shares the SAME threshold and measure as the general insight gate
-// (INSIGHT_UNLOCK_THRESHOLD distinct days logged in the last 30). Measured off
+// (INSIGHT_UNLOCK_THRESHOLD distinct days logged in the last 14). Measured off
 // actual logged data, not account age — so back-dated/seeded history counts.
 // Paid tiers: no gate.
 function aiInsightsUnlocked() {
@@ -4683,10 +4721,10 @@ function aiInsightsUnlocked() {
 }
 
 function aiInsightLockMessage() {
-  const recent = entriesInLast30Days();
+  const recent = recentLoggedDays();
   const remaining = Math.max(INSIGHT_UNLOCK_THRESHOLD - recent, 0);
   if (remaining <= 0) return '';
-  return `AI insights unlock once you've logged ${INSIGHT_UNLOCK_THRESHOLD} days. You're at ${recent} of ${INSIGHT_UNLOCK_THRESHOLD} — ${remaining} to go.`;
+  return `AI insights unlock once you've logged ${INSIGHT_UNLOCK_THRESHOLD} days within ${INSIGHT_WINDOW_DAYS} days. You're at ${recent} of ${INSIGHT_UNLOCK_THRESHOLD} — ${remaining} to go.`;
 }
 
 function aiUsageLabel() {
@@ -4702,7 +4740,7 @@ function aiAtCap() {
   return AI_USAGE.used >= AI_USAGE.effectiveCap;
 }
 
-function entriesInLast30Days() {
+function recentLoggedDays() {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 30);
   const cutoffStr = cutoff.toLocaleDateString('en-CA');
@@ -4712,7 +4750,7 @@ function entriesInLast30Days() {
 }
 
 function insightsUnlocked() {
-  const recent = entriesInLast30Days();
+  const recent = recentLoggedDays();
   if (insightsUnlockedThisSession) {
     // Stay unlocked unless data drops well below the bar (hysteresis)
     if (recent < INSIGHT_RELOCK_THRESHOLD) insightsUnlockedThisSession = false;
@@ -4725,14 +4763,14 @@ function insightsUnlocked() {
 // Friendly message describing how far off unlocking the user is
 // Plain-text version (used where only text fits, e.g. the AI insight card)
 function insightLockMessage() {
-  const recent = entriesInLast30Days();
+  const recent = recentLoggedDays();
   const remaining = Math.max(INSIGHT_UNLOCK_THRESHOLD - recent, 0);
-  return `Your personalised insights unlock once you've logged ${INSIGHT_UNLOCK_THRESHOLD} days within a month. You're at ${recent} of ${INSIGHT_UNLOCK_THRESHOLD} — ${remaining} to go.`;
+  return `Your personalised insights unlock once you've logged ${INSIGHT_UNLOCK_THRESHOLD} days within the last ${INSIGHT_WINDOW_DAYS}. You're at ${recent} of ${INSIGHT_UNLOCK_THRESHOLD} — ${remaining} to go.`;
 }
 
 // Rich progress component with a bar + adaptive, pressure-free encouragement
 function insightLockProgress() {
-  const recent = entriesInLast30Days();
+  const recent = recentLoggedDays();
   const remaining = Math.max(INSIGHT_UNLOCK_THRESHOLD - recent, 0);
   const pct = Math.min(Math.round((recent / INSIGHT_UNLOCK_THRESHOLD) * 100), 100);
 
@@ -4766,14 +4804,23 @@ function computePatterns() {
 
   const ix = mvIndex();
   const outcomes = outcomeMetrics();
-  const factors = collectMetricFactors();
+  // Factors come from tags AND from numeric metrics split high/low — so users
+  // with no tags still get metric-vs-metric patterns.
+  const factors = [...collectMetricFactors(), ...collectNumericFactors()];
   const results = [];
 
   factors.forEach(F => {
     outcomes.forEach(O => {
+      // Never correlate a metric against itself.
+      if (F.metricId && F.metricId === O.id) return;
+
       const ovals = ix[O.id] || {};
       const withDates = [...F.dates].filter(d => ovals[d] && ovals[d].value_number != null);
-      const withoutDates = Object.keys(ovals).filter(d => ovals[d].value_number != null && !F.dates.has(d));
+      // "without" group: for a numeric factor it's the LOW days (logged + low);
+      // for a tag it's any outcome-logged day the tag wasn't selected on.
+      const withoutDates = F.kind === 'numeric'
+        ? [...F.lowDates].filter(d => ovals[d] && ovals[d].value_number != null)
+        : Object.keys(ovals).filter(d => ovals[d].value_number != null && !F.dates.has(d));
       if (withDates.length < PATTERN_MIN_WITH || withoutDates.length < PATTERN_MIN_WITHOUT) return;
 
       const withVals = withDates.map(d => ovals[d].value_number);
@@ -4793,7 +4840,8 @@ function computePatterns() {
       const sameSystem = sharesWord(F.metricName, O.name) || sharesWord(F.label, O.name);
 
       results.push({
-        factor: F.label, factorMetric: F.metricName, scoreLabel: O.name,
+        factor: F.label, factorMetric: F.metricName, factorKind: F.kind || 'tag',
+        scoreLabel: O.name,
         rawDirection, metricDirection: O.direction, good,
         magnitude: Math.abs(diff),
         rank: Math.abs(diff) - (sameSystem ? 1.5 : 0),
@@ -4895,8 +4943,9 @@ function renderPatterns() {
 
   const rows = patterns.map(p => {
     const effectClass = p.good === true ? 'pattern-effect-up' : p.good === false ? 'pattern-effect-down' : '';
+    const lead = patternLeadIn(p, `<span class="pattern-factor">${escapeHtml(p.factor)}</span>`);
     return `<div class="pattern-item">
-      On days you logged <span class="pattern-factor">${escapeHtml(p.factor)}</span>,
+      ${lead},
       your ${escapeHtml(p.scoreLabel)} scores have tended to be
       <span class="${effectClass}">${p.rawDirection}</span>
       <span style="color:var(--muted)">(based on ${p.n} days)</span>
@@ -5180,10 +5229,12 @@ async function requestDoctorSummary() {
     metricDefsBlock(),
     ``,
     `Averages over the most recent logged days:`,
-    metricAveragesBlock(30),
+    metricAveragesBlock(),  // averages over full history
     ``,
     `Recent entries (most recent first):`,
-    entriesUpToBlock(today(), 15),
+    entriesUpToBlock(today()),  // full history
+    // FUTURE (Pro tier): insert extracted uploaded results (blood tests, scans)
+    // here as a labelled "Uploaded results" block for the clinical summary.
     ``,
     `Write a concise clinical-style summary for the user's health team. Note averages and any trends, and surface notable self-reported observations from the notes (frame these as "user-reported"). Begin by stating this is a self-reported summary, not a clinical assessment. Only reference the metrics listed above; do not invent metrics, diagnoses, or measurements.`
   ].join('\n');
