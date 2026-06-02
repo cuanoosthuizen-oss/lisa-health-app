@@ -1890,6 +1890,10 @@
   .onb-badge { font-size: 11px; color: var(--muted); border: 1px solid var(--border); border-radius: 6px; padding: 3px 7px; background: transparent; cursor: default; white-space: nowrap; }
   button.onb-badge { cursor: pointer; }
 
+  .record-ai { margin-top: 6px; font-size: 13px; }
+  .record-ai.muted { color: var(--muted); }
+  .record-ai-text { margin-top: 6px; white-space: pre-wrap; font-size: 12.5px; line-height: 1.5; color: var(--text); background: rgba(127,127,127,0.06); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+  .link-btn { background: none; border: none; color: var(--accent); font-size: 13px; cursor: pointer; padding: 0; text-decoration: underline; }
 </style>
 <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 <script>
@@ -2318,6 +2322,7 @@
         </div>
         <div id="upload-error" style="display:none; color:var(--accent2); font-size:12px; margin-top:8px;"></div>
       </div>
+      <div id="records-pro-gate" style="display:none; font-size:13px; color:var(--muted); line-height:1.5; margin-top:4px;">Uploading and AI analysis of your records is a <strong>Pro</strong> feature.</div>
     </div>
 
     <div class="card">
@@ -4093,6 +4098,7 @@ async function requestAiInsight() {
     return;
   }
 
+  await ensureMedicalSummaries();
   const promptData = [
     `You are analysing ${userName()}'s self-tracked health journal. These are self-reported observations, not clinical measurements.`,
     ``,
@@ -4101,9 +4107,7 @@ async function requestAiInsight() {
     ``,
     `Recent entries (most recent first):`,
     recentEntriesBlock(),  // full history
-    // FUTURE (Pro tier): when file uploads exist, insert extracted blood-test /
-    // scan results here as an additional "Uploaded results" block, clearly
-    // labelled and gated to Pro, so the model can reference them too.
+    medicalFilesBlock(),   // Pro: AI summaries of uploaded records (empty otherwise)
     ``,
     `Write a 2-3 sentence observation about patterns in this data. Be specific and reference dates where useful. Do not diagnose, predict, or give medical advice. Only refer to the metrics listed above — do not invent metrics the user does not track.`
   ].join('\n');
@@ -5249,6 +5253,7 @@ async function requestDoctorSummary() {
       Generating summary...
     </div>`;
 
+  await ensureMedicalSummaries();
   const promptData = [
     `This is a self-reported health summary for ${userName()}, generated from their own journal entries. It is NOT a clinical assessment.`,
     ``,
@@ -5260,8 +5265,7 @@ async function requestDoctorSummary() {
     ``,
     `Recent entries (most recent first):`,
     entriesUpToBlock(today()),  // full history
-    // FUTURE (Pro tier): insert extracted uploaded results (blood tests, scans)
-    // here as a labelled "Uploaded results" block for the clinical summary.
+    medicalFilesBlock(),   // Pro: AI summaries of uploaded records (empty otherwise)
     ``,
     `Write a concise clinical-style summary for the user's health team. Note averages and any trends, and surface notable self-reported observations from the notes (frame these as "user-reported"). Begin by stating this is a self-reported summary, not a clinical assessment. Only reference the metrics listed above; do not invent metrics, diagnoses, or measurements.`
   ].join('\n');
@@ -5829,6 +5833,13 @@ function openRecords() {
   const dateInput = document.getElementById('upload-date');
   if (dateInput) { dateInput.value = today(); updateDateTrigger('upload-date'); }
 
+  // Gate uploading + AI analysis to Pro
+  const isPro = USER_TIER === 'pro';
+  const pickBtn = document.getElementById('file-pick-btn');
+  const gate = document.getElementById('records-pro-gate');
+  if (pickBtn) pickBtn.style.display = isPro ? 'block' : 'none';
+  if (gate) gate.style.display = isPro ? 'none' : 'block';
+
   loadMedicalFiles();
   window.scrollTo(0, 0);
 }
@@ -5884,6 +5895,86 @@ function showUploadError(msg) {
   const el = document.getElementById('upload-error');
   el.textContent = msg;
   el.style.display = 'block';
+}
+
+// ── Medical file AI (Pro) ─────────────────────────────────────────────────────
+let MED_SUMMARIES_LOADED = false;
+
+// Ensure MEDICAL_FILES (incl. AI summaries) is loaded before building prompts.
+async function ensureMedicalSummaries() {
+  if (USER_TIER !== 'pro') return;
+  if (!await ensureFreshToken()) return;
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/medical_files?user_id=eq.${currentUser.id}&order=doc_date.desc`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${currentSession.access_token}` }
+    });
+    if (r.ok) { MEDICAL_FILES = await r.json(); MED_SUMMARIES_LOADED = true; }
+  } catch {}
+}
+
+// Prompt block: AI summaries of the most recent analysed files (Pro only).
+function medicalFilesBlock() {
+  if (USER_TIER !== 'pro') return '';
+  const done = (MEDICAL_FILES || []).filter(f => f.extract_status === 'done' && f.extracted_text);
+  if (!done.length) return '';
+  const items = done.slice(0, 6).map(f => {
+    const d = f.doc_date ? fmt(f.doc_date) : 'undated';
+    const lbl = f.label || f.file_name || 'Document';
+    let txt = (f.extracted_text || '').trim();
+    if (txt.length > 800) txt = txt.slice(0, 800) + '\u2026';
+    return `\u2022 ${lbl} (${d}):\n${txt}`;
+  }).join('\n\n');
+  return `\nUploaded medical records \u2014 documents the user uploaded, summarised by AI from the originals. Treat as user-provided context (not verified clinical fact) and only mention where relevant:\n${items}\n`;
+}
+
+// Mark a row "processing" locally for instant feedback.
+function setRecordProcessing(id) {
+  const f = (MEDICAL_FILES || []).find(x => x.id === id);
+  if (f) { f.extract_status = 'processing'; renderRecords(); }
+}
+
+// Ask the AI function to analyse a file. The function pulls the file from
+// Storage and stores the summary on the row; we just refresh to show the result.
+async function extractMedicalFile(fileId) {
+  try {
+    setRecordProcessing(fileId);
+    await fetch('/.netlify/functions/ai-insight', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: currentUser.id, type: 'extract_file', fileId })
+    });
+  } catch (e) { /* function marks failed; user can retry */ }
+  await loadMedicalFiles();
+}
+
+// Re-run analysis for an already-stored file.
+async function reanalyseRecord(id) {
+  if (USER_TIER !== 'pro') { alert('File analysis is a Pro feature.'); return; }
+  if (!MEDICAL_FILES.find(x => x.id === id)) return;
+  setRecordProcessing(id);
+  try {
+    await fetch('/.netlify/functions/ai-insight', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: currentUser.id, type: 'extract_file', fileId: id })
+    });
+  } catch (e) {}
+  await loadMedicalFiles();
+}
+
+function recordAiHtml(f) {
+  if (USER_TIER !== 'pro') return '';
+  const st = f.extract_status || 'pending';
+  if (st === 'processing') return `<div class="record-ai muted">Analysing\u2026</div>`;
+  if (st === 'done' && f.extracted_text)
+    return `<div class="record-ai"><button class="link-btn" onclick="toggleRecordSummary(${f.id})">AI summary \u25be</button><div class="record-ai-text" id="rec-sum-${f.id}" style="display:none;">${escapeHtml(f.extracted_text)}</div></div>`;
+  if (st === 'failed') return `<div class="record-ai muted">Couldn\u2019t read this file \u00b7 <button class="link-btn" onclick="reanalyseRecord(${f.id})">Retry</button></div>`;
+  return `<div class="record-ai"><button class="link-btn" onclick="reanalyseRecord(${f.id})">Analyse with AI</button></div>`;
+}
+
+function toggleRecordSummary(id) {
+  const el = document.getElementById('rec-sum-' + id);
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
 async function submitUpload() {
@@ -5955,9 +6046,17 @@ async function submitUpload() {
       throw new Error('Couldn\'t save record details — please try again.');
     }
 
+    let newRow = null;
+    try { const rows = await metaResp.json(); newRow = rows && rows[0] ? rows[0] : null; } catch {}
+
     // Refresh list & reset
     cancelUpload();
     await loadMedicalFiles();
+
+    // Pro: analyse the document with AI in the background
+    if (newRow && USER_TIER === 'pro') {
+      extractMedicalFile(newRow.id);
+    }
   } catch (e) {
     showUploadError(e.message || 'Upload failed.');
     submitBtn.disabled = false;
@@ -6009,6 +6108,7 @@ function renderRecords() {
     const dateStr = f.doc_date ? fmt(f.doc_date) : '—';
     const sizeStr = f.size_bytes ? `${(f.size_bytes/1024).toFixed(0)} KB` : '';
     const notesHtml = f.notes ? `<div class="record-notes">${escapeHtml(f.notes)}</div>` : '';
+    const aiHtml = recordAiHtml(f);
     return `
       <div class="record-item">
         <div class="record-icon">${icon}</div>
@@ -6016,6 +6116,7 @@ function renderRecords() {
           <div class="record-label">${escapeHtml(f.label || f.file_name)}</div>
           <div class="record-meta">${dateStr}${sizeStr ? ' · ' + sizeStr : ''}</div>
           ${notesHtml}
+          ${aiHtml}
         </div>
         <div class="record-actions">
           <button class="record-action-btn" onclick="viewRecord(${f.id})" aria-label="Open">${eyeIcon}</button>
