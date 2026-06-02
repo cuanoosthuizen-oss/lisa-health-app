@@ -1862,6 +1862,13 @@
   }
 
   .submitted-state p { font-size: 14px; color: var(--muted); line-height: 1.6; }
+  /* Dynamic check-in form (v0.5.0) */
+  .checkin-cat-heading { font-family: var(--font-serif); font-size: 18px; margin: 24px 24px 4px; color: var(--text); }
+  .metric-field.not-logged .score-slider { opacity: .4; }
+  .metric-field.not-logged .slider-value { opacity: .35; }
+  .yesno { display: flex; gap: 10px; }
+  .yesno-btn { flex: 1; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: transparent; color: var(--text); font-size: 15px; cursor: pointer; }
+  .yesno-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 </style>
 <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 <script>
@@ -1994,257 +2001,10 @@
         <button type="button" class="mode-btn" id="mode-quick" onclick="setCheckinMode('quick')">Quick check-in</button>
       </div>
 
-      <!-- Quick check-in panel -->
-      <div id="quick-panel" style="display:none;">
-        <div class="form-group">
-          <label class="form-label">How are you overall?<small>just one tap — log the rest another time</small></label>
-          <div class="slider-value" id="val-quick">5</div>
-          <input class="score-slider" type="range" min="1" max="10" value="5" id="sl-quick"
-            oninput="document.getElementById('val-quick').textContent=this.value">
-          <div class="slider-labels"><span>Rough</span><span>Great</span></div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Anything to note? <small>optional</small></label>
-          <textarea class="text-input" rows="2" id="quick-note" placeholder="A few words, if you feel like it..."></textarea>
-        </div>
-        <button class="submit-btn" id="quick-submit-btn" onclick="submitQuickCheckin()">Save quick check-in</button>
-        <div style="height: 40px;"></div>
-      </div>
-
-      <!-- Full check-in fields wrapper -->
-      <div id="full-fields">      <!-- Scores section -->
-      <div class="form-group">
-        <label class="form-label">Overall wellbeing<small>1 = very poor, 10 = great</small></label>
-        <div class="slider-value" id="val-wellbeing">5</div>
-        <input class="score-slider" type="range" min="1" max="10" value="5" id="sl-wellbeing"
-          oninput="onScoreInput('wellbeing', this.value)">
-        <div class="slider-labels"><span>Poor</span><span>Great</span></div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Heart health<small>1 = very bad, 10 = no issues</small></label>
-        <div class="slider-value" id="val-heart">5</div>
-        <input class="score-slider" type="range" min="1" max="10" value="5" id="sl-heart"
-          oninput="onScoreInput('heart', this.value)">
-        <div class="slider-labels"><span>Bad</span><span>Good</span></div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Spinal health<small>1 = severe pain, 10 = no pain</small></label>
-        <div class="slider-value" id="val-spinal">5</div>
-        <input class="score-slider" type="range" min="1" max="10" value="5" id="sl-spinal"
-          oninput="onScoreInput('spinal', this.value)">
-        <div class="slider-labels"><span>Severe</span><span>None</span></div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Head / migraine<small>1 = severe, 10 = none</small></label>
-        <div class="slider-value" id="val-headache">5</div>
-        <input class="score-slider" type="range" min="1" max="10" value="5" id="sl-headache"
-          oninput="onScoreInput('headache', this.value)">
-        <div class="slider-labels"><span>Severe</span><span>None</span></div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Stomach health<small>1 = very bad, 10 = great</small></label>
-        <div class="slider-value" id="val-stomach">5</div>
-        <input class="score-slider" type="range" min="1" max="10" value="5" id="sl-stomach"
-          oninput="onScoreInput('stomach', this.value)">
-        <div class="slider-labels"><span>Bad</span><span>Great</span></div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Gut health<small>1 = very bad, 10 = great</small></label>
-        <div class="slider-value" id="val-gut">5</div>
-        <input class="score-slider" type="range" min="1" max="10" value="5" id="sl-gut"
-          oninput="onScoreInput('gut', this.value)">
-        <div class="slider-labels"><span>Bad</span><span>Great</span></div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Exercise<small>1 = sedentary, 10 = very active</small></label>
-        <div class="slider-value" id="val-exercise">5</div>
-        <input class="score-slider" type="range" min="1" max="10" value="5" id="sl-exercise"
-          oninput="onScoreInput('exercise', this.value)">
-        <div class="slider-labels"><span>Sedentary</span><span>Very active</span></div>
-      </div>
-
-      <!-- Menstrual -->
-      <div class="form-group">
-        <label class="form-label">Cycle day</label>
-        <div class="num-input">
-          <button class="num-btn" onclick="changeNum('cycle_day',-1)">−</button>
-          <div class="num-val" id="num-cycle_day">1</div>
-          <button class="num-btn" onclick="changeNum('cycle_day',1)">+</button>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Menstrual comfort<small>1 = severe pain, 10 = no pain, 0 = N/A</small></label>
-        <div class="slider-value" id="val-menstrual">0</div>
-        <input class="score-slider" type="range" min="0" max="10" value="0" id="sl-menstrual"
-          oninput="onScoreInput('menstrual', this.value)">
-        <div class="slider-labels"><span>Severe pain</span><span>No pain / N/A</span></div>
-      </div>
-
-      <!-- Mental health -->
-      <div class="form-group">
-        <label class="form-label">Mental health</label>
-        <div class="multi-select" id="ms-mental">
-          <div class="ms-option" onclick="toggleMs(this,'mental')">Anxious</div>
-          <div class="ms-option" onclick="toggleMs(this,'mental')">Happy</div>
-          <div class="ms-option" onclick="toggleMs(this,'mental')">Sad</div>
-          <div class="ms-option" onclick="toggleMs(this,'mental')">Neutral</div>
-          <div class="ms-option" onclick="toggleMs(this,'mental')">Worried</div>
-          <div class="ms-option" onclick="toggleMs(this,'mental')">Excited</div>
-          <div class="ms-option" onclick="toggleMs(this,'mental')">Fatigued</div>
-        </div>
-      </div>
-
-      <!-- Heart symptoms -->
-      <div class="form-group">
-        <label class="form-label">Heart symptoms</label>
-        <div class="multi-select" id="ms-heart">
-          <div class="ms-option" onclick="toggleMs(this,'heart')">Racing heart</div>
-          <div class="ms-option" onclick="toggleMs(this,'heart')">Chest pain</div>
-          <div class="ms-option" onclick="toggleMs(this,'heart')">Heart burn</div>
-          <div class="ms-option" onclick="toggleMs(this,'heart')">Palpitations</div>
-          <div class="ms-option" onclick="toggleMs(this,'heart')">Shortness of breath</div>
-          <div class="ms-option" onclick="toggleMs(this,'heart')">None</div>
-        </div>
-      </div>
-
-      <!-- Spinal -->
-      <div class="form-group">
-        <label class="form-label">Spinal / body pain areas</label>
-        <div class="multi-select" id="ms-spinal">
-          <div class="ms-option" onclick="toggleMs(this,'spinal')">Neck</div>
-          <div class="ms-option" onclick="toggleMs(this,'spinal')">Shoulders</div>
-          <div class="ms-option" onclick="toggleMs(this,'spinal')">Upper back</div>
-          <div class="ms-option" onclick="toggleMs(this,'spinal')">Lower back</div>
-          <div class="ms-option" onclick="toggleMs(this,'spinal')">Left leg</div>
-          <div class="ms-option" onclick="toggleMs(this,'spinal')">Right leg</div>
-          <div class="ms-option" onclick="toggleMs(this,'spinal')">Left arm</div>
-          <div class="ms-option" onclick="toggleMs(this,'spinal')">Right arm</div>
-          <div class="ms-option" onclick="toggleMs(this,'spinal')">None</div>
-        </div>
-      </div>
-
-      <!-- Headache -->
-      <div class="form-group">
-        <label class="form-label">Headache location</label>
-        <div class="multi-select" id="ms-headache">
-          <div class="ms-option" onclick="toggleMs(this,'headache')">Left side</div>
-          <div class="ms-option" onclick="toggleMs(this,'headache')">Right side</div>
-          <div class="ms-option" onclick="toggleMs(this,'headache')">Forehead</div>
-          <div class="ms-option" onclick="toggleMs(this,'headache')">Back of head</div>
-          <div class="ms-option" onclick="toggleMs(this,'headache')">Whole head</div>
-          <div class="ms-option" onclick="toggleMs(this,'headache')">None</div>
-        </div>
-      </div>
-
-      <!-- Stomach -->
-      <div class="form-group">
-        <label class="form-label">Stomach symptoms</label>
-        <div class="multi-select" id="ms-stomach">
-          <div class="ms-option" onclick="toggleMs(this,'stomach')">Stomach ache</div>
-          <div class="ms-option" onclick="toggleMs(this,'stomach')">Nauseous</div>
-          <div class="ms-option" onclick="toggleMs(this,'stomach')">Indigestion</div>
-          <div class="ms-option" onclick="toggleMs(this,'stomach')">Cramping</div>
-          <div class="ms-option" onclick="toggleMs(this,'stomach')">Bloating</div>
-          <div class="ms-option" onclick="toggleMs(this,'stomach')">None</div>
-        </div>
-      </div>
-
-      <!-- Cycle -->
-      <div class="form-group">
-        <label class="form-label">Cycle / bleeding</label>
-        <div class="multi-select" id="ms-cycle">
-          <div class="ms-option" onclick="toggleMs(this,'cycle')">No bleeding</div>
-          <div class="ms-option" onclick="toggleMs(this,'cycle')">Spotting</div>
-          <div class="ms-option" onclick="toggleMs(this,'cycle')">Light bleeding</div>
-          <div class="ms-option" onclick="toggleMs(this,'cycle')">Heavy bleeding</div>
-          <div class="ms-option" onclick="toggleMs(this,'cycle')">Cramps</div>
-          <div class="ms-option" onclick="toggleMs(this,'cycle')">Moody</div>
-          <div class="ms-option" onclick="toggleMs(this,'cycle')">Dark blood</div>
-        </div>
-      </div>
-
-      <!-- Gut -->
-      <div class="form-group">
-        <label class="form-label">Gut / bowel</label>
-        <div class="multi-select" id="ms-gut">
-          <div class="ms-option" onclick="toggleMs(this,'gut')">Normal</div>
-          <div class="ms-option" onclick="toggleMs(this,'gut')">No movement</div>
-          <div class="ms-option" onclick="toggleMs(this,'gut')">Loose</div>
-          <div class="ms-option" onclick="toggleMs(this,'gut')">Constipated</div>
-          <div class="ms-option" onclick="toggleMs(this,'gut')">Diarrhoea</div>
-        </div>
-      </div>
-
-      <!-- Intimacy & desire -->
-      <div class="form-group">
-        <label class="form-label">Intimacy &amp; desire<small>1 = very low, 10 = high</small></label>
-        <div class="slider-value" id="val-libido">5</div>
-        <input class="score-slider" type="range" min="1" max="10" value="5" id="sl-libido"
-          oninput="onScoreInput('libido', this.value)">
-        <div class="slider-labels"><span>Low</span><span>High</span></div>
-      </div>
-
-      <!-- Sexual health -->
-      <div class="form-group">
-        <label class="form-label">Sexual health</label>
-        <div class="multi-select" id="ms-sexual">
-          <div class="ms-option" onclick="toggleMs(this,'sexual')">Pain during intimacy</div>
-          <div class="ms-option" onclick="toggleMs(this,'sexual')">Pain after intimacy</div>
-          <div class="ms-option" onclick="toggleMs(this,'sexual')">Discomfort or dryness</div>
-          <div class="ms-option" onclick="toggleMs(this,'sexual')">Bleeding after intimacy</div>
-          <div class="ms-option" onclick="toggleMs(this,'sexual')">Comfortable / no issues</div>
-          <div class="ms-option" onclick="toggleMs(this,'sexual')">Not applicable</div>
-        </div>
-      </div>
-
-      <!-- Medications -->
-      <div class="form-group">
-        <label class="form-label">Medications taken<small>search or type to add — tap a result</small></label>
-        <div class="med-search-wrap">
-          <input class="text-input" id="med-search" autocomplete="off" placeholder="Start typing a medication..."
-            oninput="onMedSearch()" onfocus="onMedSearch()">
-          <div class="med-suggestions" id="med-suggestions"></div>
-        </div>
-        <div class="med-chips" id="med-chips"></div>
-      </div>
-
-      <!-- Diet -->
-      <div class="form-group">
-        <label class="form-label">Diet today</label>
-        <div class="multi-select" id="ms-diet">
-          <div class="ms-option" onclick="toggleMs(this,'diet')">1-2 coffees</div>
-          <div class="ms-option" onclick="toggleMs(this,'diet')">3+ coffees</div>
-          <div class="ms-option" onclick="toggleMs(this,'diet')">Under 2L water</div>
-          <div class="ms-option" onclick="toggleMs(this,'diet')">2L+ water</div>
-          <div class="ms-option" onclick="toggleMs(this,'diet')">Sugar</div>
-          <div class="ms-option" onclick="toggleMs(this,'diet')">Gluten</div>
-          <div class="ms-option" onclick="toggleMs(this,'diet')">Dairy</div>
-          <div class="ms-option" onclick="toggleMs(this,'diet')">Soy</div>
-          <div class="ms-option" onclick="toggleMs(this,'diet')">Alcohol</div>
-          <div class="ms-option" onclick="toggleMs(this,'diet')">Take away</div>
-          <div class="ms-option" onclick="toggleMs(this,'diet')">Protein</div>
-        </div>
-        <div style="margin-top:10px;">
-          <textarea class="text-input" rows="2" placeholder="Anything else worth noting about diet..." id="diet-notes"></textarea>
-        </div>
-      </div>
-
-      <!-- Extra notes -->
-      <div class="form-group">
-        <label class="form-label">Any other notes</label>
-        <textarea class="text-input" rows="3" id="extra-notes" placeholder="Anything else that happened today..."></textarea>
-      </div>
+      <!-- Dynamically rendered metric inputs (built from user_metrics) -->
+      <div id="dynamic-metrics"></div>
 
       <div id="checkin-nudge-container"></div>
-
-      </div><!-- end full-fields -->
 
       <button class="submit-btn" id="main-submit-btn" onclick="submitCheckin()">Save today's check-in</button>
       <div style="height: 40px;"></div>
@@ -2991,6 +2751,23 @@ const sbMetrics = {
   async listValuesForDate(date) {
     const r = await _fetch(`metric_values?user_id=eq.${currentUser.id}&entry_date=eq.${date}`);
     return r ? await r.json() : [];
+  },
+  // Upsert one metric's value for a date (insert or overwrite via the
+  // (user_id, entry_date, metric_id) unique constraint).
+  async upsertValue(date, metricId, fields) {
+    const body = { user_id: currentUser.id, entry_date: date, metric_id: metricId,
+      value_number: null, value_bool: null, value_text: null, value_tags: null,
+      ...fields, updated_at: new Date().toISOString() };
+    const r = await _fetch(`metric_values?on_conflict=user_id,entry_date,metric_id`, {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify(body)
+    });
+    return !!r;
+  },
+  async deleteValue(date, metricId) {
+    const r = await _fetch(`metric_values?user_id=eq.${currentUser.id}&entry_date=eq.${date}&metric_id=eq.${metricId}`, { method: 'DELETE' });
+    return !!r;
   }
 };
 
@@ -3172,6 +2949,9 @@ async function loadData() {
   } catch {
     DATA = [];
   }
+  // Load metric definitions + all metric values (the v0.5.0 read model)
+  try { await refreshMetricsCache(); } catch (e) {}
+  try { await loadValues(); } catch (e) {}
   // Load AI tier + monthly usage in parallel (non-blocking — AI features will
   // still render with the default 'free' tier if this fails)
   loadAiUsage().catch(e => console.error('AI usage load failed:', e));
@@ -3238,7 +3018,7 @@ function renderCalendar() {
   const todayStr = today();
 
   // Set of logged dates + earliest logged date (lower bound for "missed")
-  const loggedDates = new Set(DATA.map(d => d.date));
+  const loggedDates = new Set(VALUES.map(v => v.entry_date));
   const allDates = [...loggedDates].sort();
   const firstLogged = allDates.length ? allDates[0] : todayStr;
 
@@ -3313,31 +3093,66 @@ function scoreColorHex(v) {
   return '#f87171';
 }
 
+// ── METRIC-VALUES READ MODEL (v0.5.0) ─────────────────────────────────────────
+// VALUES holds every metric_values row for the user, loaded once at sign-in.
+// The read surfaces (home, streak, day detail, trends, patterns, AI) read from
+// here + METRICS_CACHE rather than the legacy `entries`/DATA model.
+let VALUES = [];
+async function loadValues() {
+  if (!currentUser) { VALUES = []; return; }
+  try {
+    const r = await _fetch(`metric_values?user_id=eq.${currentUser.id}&order=entry_date.asc&limit=10000`);
+    VALUES = r ? await r.json() : [];
+  } catch (e) { VALUES = []; }
+}
+function primaryMetric() {
+  const active = (METRICS_CACHE || []).filter(m => !m.archived);
+  return active.find(m => m.is_primary) || active[0] || null;
+}
+function valuesByDate(date) {
+  const o = {};
+  VALUES.forEach(v => { if (v.entry_date === date) o[v.metric_id] = v; });
+  return o;
+}
+function metricSeries(metricId) {
+  return VALUES.filter(v => v.metric_id === metricId)
+    .map(v => ({ date: v.entry_date, v }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+// getLatest / getLast7 now track the user's PRIMARY metric (spec 6.8).
 function getLatest() {
-  if (!DATA.length) return null;
-  return [...DATA].sort((a,b) => b.date.localeCompare(a.date))[0];
+  const pm = primaryMetric();
+  if (!pm) return null;
+  const s = metricSeries(pm.id);
+  if (!s.length) return null;
+  const last = s[s.length - 1];
+  return { date: last.date, metric: pm, value: last.v.value_number };
 }
 
 function getLast7() {
-  const sorted = [...DATA].sort((a,b) => a.date.localeCompare(b.date));
-  return sorted.slice(-7);
+  const pm = primaryMetric();
+  if (!pm) return [];
+  return metricSeries(pm.id).slice(-7).map(x => ({ date: x.date, value: x.v.value_number }));
 }
 
 function computeStreak() {
-  // A day only counts toward the streak if it was logged ON that day
-  // (created_at's date === the entry's date). Backfilled past days don't count.
-  const sameDayDates = DATA
-    .filter(d => {
-      if (!d.created_at) return true; // older rows without created_at: count them (legacy)
-      const createdDate = new Date(d.created_at).toLocaleDateString('en-CA'); // YYYY-MM-DD local
-      return createdDate === d.date;
+  const pm = primaryMetric();
+  if (!pm) return 0;
+  // Streak = consecutive days the PRIMARY metric was recorded (spec 2.4/2.5).
+  // A day counts only if logged ON that day (created_at's date === entry_date);
+  // backfilled past days don't count toward a live streak.
+  const sameDayDates = VALUES
+    .filter(v => v.metric_id === pm.id)
+    .filter(v => {
+      if (!v.created_at) return true;
+      return new Date(v.created_at).toLocaleDateString('en-CA') === v.entry_date;
     })
-    .map(d => d.date);
+    .map(v => v.entry_date);
 
   const dates = [...new Set(sameDayDates)].sort((a,b)=>b.localeCompare(a));
   if (!dates.length) return 0;
 
-  // Streak must include today or yesterday to be "current"
   let streak = 0;
   let cur = new Date();
   cur.setHours(12,0,0,0);
@@ -3626,16 +3441,8 @@ function clearForm() {
 function onCheckinDateManualChange() {
   const dateInput = document.getElementById('checkin-date');
   if (!dateInput) return;
-  const chosen = dateInput.value || today();
-
-  // Clear the form, but preserve the chosen date (clearForm resets to today)
-  clearForm();
-  dateInput.value = chosen;
-  updateDateTrigger('checkin-date');
-
-  // Pre-fill if an entry already exists for the chosen date
-  prefillFormForDate(chosen);
-  onCheckinDateChange();
+  CHECKIN_DATE = dateInput.value || today();
+  renderCheckinForm();
   window.scrollTo(0, 0);
 }
 
@@ -3652,7 +3459,7 @@ function onCheckinDateChange() {
     warning.style.display = 'none';
   } else {
     heading.innerHTML = 'Entry for <em>' + fmt(chosen) + '</em>';
-    const existing = DATA.find(d => d.date === chosen);
+    const existing = Object.keys(valuesByDate(chosen)).length > 0;
     if (existing) {
       warning.textContent = 'You already have an entry for this day. Editing will overwrite it.';
     } else {
@@ -3663,67 +3470,37 @@ function onCheckinDateChange() {
 }
 
 async function submitCheckin() {
-  const dateInput = document.getElementById('checkin-date');
-  const entryDate = (dateInput && dateInput.value) ? dateInput.value : today();
+  const date = CHECKIN_DATE || today();
+  const btn = document.getElementById('main-submit-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
 
-  const entry = {
-    date: entryDate,
-    wellbeing: readScore('wellbeing'),
-    heart: readScore('heart'),
-    spinal: readScore('spinal'),
-    headache: readScore('headache'),
-    stomach: readScore('stomach'),
-    gut: readScore('gut'),
-    exercise: readScore('exercise'),
-    libido: readScore('libido'),
-    cycle_day: numVals.cycle_day,
-    menstrual_pain: readScore('menstrual'),
-    num_medications: selectedMeds.length,
-    num_vitamins: 0,
-    mental_notes: getMs('mental'),
-    heart_notes: getMs('heart'),
-    spinal_notes: getMs('spinal'),
-    headache_notes: getMs('headache'),
-    stomach_notes: getMs('stomach'),
-    cycle_notes: getMs('cycle'),
-    gut_notes: getMs('gut'),
-    sexual_notes: getMs('sexual'),
-    body_notes: '',
-    medication_notes: selectedMeds.join(', '),
-    diet_notes: [getMs('diet'), document.getElementById('diet-notes').value].filter(Boolean).join(', '),
-    extra_notes: document.getElementById('extra-notes').value,
-    exercise_notes: '',
-    red_flag: false
-  };
+  // Look up what's already saved for this date so we only DELETE rows that
+  // existed and are now cleared (avoids needless delete calls).
+  let existing = [];
+  try { existing = await sbMetrics.listValuesForDate(date); } catch (e) {}
+  const existingByMetric = {};
+  existing.forEach(v => { existingByMetric[v.metric_id] = v; });
 
-  // Red flag: any LOGGED score below 4, OR menstruating with severe pain (1-3)
-  const scores = [entry.wellbeing, entry.heart, entry.spinal, entry.headache, entry.stomach, entry.gut, entry.exercise];
-  if (scores.some(s => typeof s === 'number' && s < 4) || (entry.menstrual_pain > 0 && entry.menstrual_pain < 4)) entry.red_flag = true;
-
-  // Check if an entry already exists for this date — if so, update it
-  const existingIndex = DATA.findIndex(d => d.date === entryDate);
-  if (existingIndex !== -1 && DATA[existingIndex].id != null) {
-    const existingId = DATA[existingIndex].id;
-    DATA[existingIndex] = { ...DATA[existingIndex], ...entry };
-    await updateData(existingId, entry);
-  } else if (existingIndex !== -1) {
-    // Entry exists in memory but has no DB id yet (added this session) — overwrite in place and insert
-    DATA[existingIndex] = { ...DATA[existingIndex], ...entry };
-    await saveData(entry);
-  } else {
-    DATA.push(entry);
-    await saveData(entry);
+  for (const m of RENDERED_METRICS) {
+    const r = readMetricValue(m);
+    try {
+      if (r.logged) {
+        await sbMetrics.upsertValue(date, m.id, r.row);
+      } else if (existingByMetric[m.id]) {
+        await sbMetrics.deleteValue(date, m.id);
+      }
+    } catch (e) { console.warn('value save failed for metric', m.id, e); }
   }
 
-  clearForm();
-
+  if (btn) { btn.disabled = false; btn.textContent = "Save check-in"; }
   document.getElementById('form-inner').style.display = 'none';
   document.getElementById('main-submit-btn').style.display = 'none';
   document.getElementById('submitted-state').classList.add('show');
-  renderHome();
+  if (typeof renderHome === 'function') { try { renderHome(); } catch (e) {} }
 }
 
 function newEntry() {
+  CHECKIN_DATE = today();
   document.getElementById('form-inner').style.display = 'block';
   document.getElementById('main-submit-btn').style.display = 'block';
   document.getElementById('submitted-state').classList.remove('show');
@@ -3737,9 +3514,8 @@ function setCheckinMode(mode) {
   const isQuick = mode === 'quick';
   document.getElementById('mode-full').classList.toggle('active', !isQuick);
   document.getElementById('mode-quick').classList.toggle('active', isQuick);
-  document.getElementById('full-fields').style.display = isQuick ? 'none' : 'block';
-  document.getElementById('main-submit-btn').style.display = isQuick ? 'none' : 'block';
-  document.getElementById('quick-panel').style.display = isQuick ? 'block' : 'none';
+  document.getElementById('main-submit-btn').style.display = 'block';
+  renderCheckinForm();
 }
 
 // Quick check-in: only wellbeing + optional note. Everything else stays NULL —
@@ -3791,6 +3567,198 @@ async function submitQuickCheckin() {
 }
 
 // ── NAVIGATION ───────────────────────────────────────────────────────────────
+// ── DYNAMIC CHECK-IN FORM (v0.5.0) ────────────────────────────────────────────
+// The check-in form is built from the user's own metrics (user_metrics) and
+// writes to metric_values. Grouped by category; one input per metric, keyed by
+// metric id. Quick mode shows only show_in_quick metrics.
+let CHECKIN_DATE = today();
+let RENDERED_METRICS = [];
+let scaleLogged = {};   // metricId -> bool (scale_10 "logged this day")
+let tagSel = {};        // metricId -> [selected tags]
+
+async function renderCheckinForm() {
+  const host = document.getElementById('dynamic-metrics');
+  if (!host) return;
+  if (!currentUser) { host.innerHTML = ''; RENDERED_METRICS = []; return; }
+  if (!METRICS_CACHE.length) { try { await refreshMetricsCache(); } catch (e) {} }
+
+  const di = document.getElementById('checkin-date');
+  if (di) { di.value = CHECKIN_DATE; updateDateTrigger('checkin-date'); }
+
+  const quick = checkinMode === 'quick';
+  let metrics = METRICS_CACHE.filter(m => !m.archived);
+  if (quick) metrics = metrics.filter(m => m.show_in_quick);
+
+  if (!metrics.length) {
+    host.innerHTML = '<div class="form-group" style="color:var(--muted); line-height:1.5;">' +
+      (quick ? 'No metrics are set for quick check-in yet. Use Full check-in, or mark some in <a href="#" onclick="openMetricsFromCheckin(event)">your metrics</a>.'
+             : 'You have no metrics yet. <a href="#" onclick="openMetricsFromCheckin(event)">Add your first metric</a> to start.') + '</div>';
+    RENDERED_METRICS = [];
+    onCheckinDateChange();
+    return;
+  }
+
+  const cats = [...CATEGORIES_CACHE].sort((a, b) => a.position - b.position);
+  const byCat = new Map();
+  metrics.forEach(m => {
+    const key = m.category_id || '_uncat';
+    if (!byCat.has(key)) byCat.set(key, []);
+    byCat.get(key).push(m);
+  });
+  byCat.forEach(arr => arr.sort((a, b) => a.position - b.position));
+
+  let html = '';
+  const renderCat = (name, arr) => {
+    if (!arr || !arr.length) return;
+    html += '<div class="checkin-cat-heading">' + escapeHtml(name) + '</div>';
+    arr.forEach(m => { html += metricInputHtml(m); });
+  };
+  cats.forEach(c => { if (byCat.has(c.id)) { renderCat(c.name, byCat.get(c.id)); byCat.delete(c.id); } });
+  byCat.forEach(arr => renderCat('Other', arr));
+
+  host.innerHTML = html;
+  RENDERED_METRICS = metrics;
+  scaleLogged = {};
+  tagSel = {};
+  metrics.forEach(m => { if (m.type === 'tag_list') tagSel[m.id] = []; });
+
+  await prefillCheckin(CHECKIN_DATE);
+  onCheckinDateChange();
+}
+
+function metricInputHtml(m) {
+  const id = m.id;
+  const label = escapeHtml(m.name);
+  let sub = '';
+  if (m.type === 'scale_10') {
+    sub = m.direction === 'lower_better' ? '1 = best, 10 = worst'
+        : m.direction === 'higher_better' ? '1 = worst, 10 = best' : '1\u201310';
+  } else if (m.type === 'number' && m.unit) {
+    sub = escapeHtml(m.unit);
+  }
+  const head = '<label class="form-label">' + label + (sub ? '<small>' + sub + '</small>' : '') + '</label>';
+  let body = '';
+  if (m.type === 'scale_10') {
+    const loLabel = m.direction === 'lower_better' ? 'Best' : 'Low';
+    const hiLabel = m.direction === 'lower_better' ? 'Worst' : 'High';
+    body = '<div class="slider-value" id="mvval-' + id + '">5</div>' +
+      '<input class="score-slider" type="range" min="1" max="10" value="5" id="mv-' + id + '" oninput="onMetricSlider(\'' + id + '\')">' +
+      '<div class="slider-labels"><span>' + loLabel + '</span><span>' + hiLabel + '</span></div>';
+  } else if (m.type === 'number') {
+    body = '<input class="text-input" type="number" inputmode="decimal" id="mv-' + id + '" placeholder="Enter a number' + (m.unit ? ' (' + escapeHtml(m.unit) + ')' : '') + '">';
+  } else if (m.type === 'yes_no') {
+    body = '<div class="yesno" id="mv-' + id + '" data-val="">' +
+      '<button type="button" class="yesno-btn" onclick="setYesNo(\'' + id + '\', true)">Yes</button>' +
+      '<button type="button" class="yesno-btn" onclick="setYesNo(\'' + id + '\', false)">No</button></div>';
+  } else if (m.type === 'free_text') {
+    body = '<textarea class="text-input" rows="3" id="mv-' + id + '" placeholder="Anything worth noting..."></textarea>';
+  } else if (m.type === 'tag_list') {
+    const opts = (m.options || []).map(o => '<div class="ms-option" onclick="toggleMetricTag(this,\'' + id + '\')">' + escapeHtml(o) + '</div>').join('');
+    body = '<div class="multi-select" id="mv-' + id + '">' + opts + '</div>';
+  }
+  return '<div class="form-group metric-field" data-mid="' + id + '" data-mtype="' + m.type + '">' + head + body + '</div>';
+}
+
+function onMetricSlider(id) {
+  const sl = document.getElementById('mv-' + id);
+  const out = document.getElementById('mvval-' + id);
+  if (out && sl) out.textContent = sl.value;
+  scaleLogged[id] = true;
+  markFieldLogged(id, true);
+}
+
+function setYesNo(id, val) {
+  const c = document.getElementById('mv-' + id);
+  if (!c) return;
+  c.dataset.val = val ? 'true' : 'false';
+  c.querySelectorAll('.yesno-btn').forEach((b, i) => b.classList.toggle('active', (i === 0) === val));
+}
+
+function toggleMetricTag(el, id) {
+  el.classList.toggle('selected');
+  const t = el.textContent;
+  if (!tagSel[id]) tagSel[id] = [];
+  const i = tagSel[id].indexOf(t);
+  if (i >= 0) tagSel[id].splice(i, 1); else tagSel[id].push(t);
+}
+
+function markFieldLogged(id, logged) {
+  const f = document.querySelector('.metric-field[data-mid="' + id + '"]');
+  if (f) f.classList.toggle('not-logged', !logged);
+}
+
+function readMetricValue(m) {
+  const id = m.id;
+  const base = { value_number: null, value_bool: null, value_text: null, value_tags: null };
+  if (m.type === 'scale_10') {
+    if (!scaleLogged[id]) return { logged: false };
+    const sl = document.getElementById('mv-' + id);
+    return { logged: true, row: { ...base, value_number: parseInt(sl.value, 10) } };
+  }
+  if (m.type === 'number') {
+    const raw = (document.getElementById('mv-' + id).value || '').trim();
+    if (raw === '') return { logged: false };
+    const n = Number(raw);
+    if (Number.isNaN(n)) return { logged: false };
+    return { logged: true, row: { ...base, value_number: n } };
+  }
+  if (m.type === 'yes_no') {
+    const v = document.getElementById('mv-' + id).dataset.val;
+    if (v !== 'true' && v !== 'false') return { logged: false };
+    return { logged: true, row: { ...base, value_bool: v === 'true' } };
+  }
+  if (m.type === 'free_text') {
+    const t = (document.getElementById('mv-' + id).value || '').trim();
+    if (t === '') return { logged: false };
+    return { logged: true, row: { ...base, value_text: t } };
+  }
+  if (m.type === 'tag_list') {
+    const tags = tagSel[id] || [];
+    if (!tags.length) return { logged: false };
+    return { logged: true, row: { ...base, value_tags: tags } };
+  }
+  return { logged: false };
+}
+
+async function prefillCheckin(date) {
+  let vals = [];
+  try { vals = await sbMetrics.listValuesForDate(date); } catch (e) { vals = []; }
+  const byMetric = {};
+  vals.forEach(v => { byMetric[v.metric_id] = v; });
+  const isToday = date === today();
+
+  RENDERED_METRICS.forEach(m => {
+    const v = byMetric[m.id];
+    const el = document.getElementById('mv-' + m.id);
+    if (!el) return;
+    if (m.type === 'scale_10') {
+      const out = document.getElementById('mvval-' + m.id);
+      if (v && v.value_number != null) {
+        el.value = v.value_number; if (out) out.textContent = v.value_number;
+        scaleLogged[m.id] = true; markFieldLogged(m.id, true);
+      } else if (isToday) {
+        el.value = 5; if (out) out.textContent = 5;
+        scaleLogged[m.id] = true; markFieldLogged(m.id, true);
+      } else {
+        el.value = 5; if (out) out.textContent = 5;
+        scaleLogged[m.id] = false; markFieldLogged(m.id, false);
+      }
+    } else if (m.type === 'number') {
+      el.value = (v && v.value_number != null) ? v.value_number : '';
+    } else if (m.type === 'yes_no') {
+      if (v && v.value_bool != null) { setYesNo(m.id, v.value_bool); }
+      else { el.dataset.val = ''; el.querySelectorAll('.yesno-btn').forEach(b => b.classList.remove('active')); }
+    } else if (m.type === 'free_text') {
+      el.value = (v && v.value_text != null) ? v.value_text : '';
+    } else if (m.type === 'tag_list') {
+      const tags = (v && Array.isArray(v.value_tags)) ? v.value_tags : [];
+      tagSel[m.id] = tags.slice();
+      el.querySelectorAll('.ms-option').forEach(o => o.classList.toggle('selected', tags.indexOf(o.textContent) >= 0));
+    }
+  });
+}
+
+
 function showView(name, btn) {
   document.body.classList.remove('settings-open');
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -3801,6 +3769,7 @@ function showView(name, btn) {
   if (name === 'trends') renderTrends();
   if (name === 'share') renderShare();
   if (name === 'customise') renderCustomise();
+  if (name === 'checkin') renderCheckinForm();
 }
 
 // Render Customise view: refresh metric counts, set theme toggle active state
@@ -3873,10 +3842,11 @@ function renderHome() {
   const streak = computeStreak();
   document.getElementById('streak-badge').textContent = streak + ' day streak';
 
-  // Today prompt: tap-to-log if not done, success state if done
-  const todayEntries = DATA.filter(d => d.date === today());
+  // Today prompt: "done" = the primary metric was recorded today (spec 2.5)
+  const pmToday = primaryMetric();
+  const loggedToday = pmToday ? !!valuesByDate(today())[pmToday.id] : false;
   const promptEl = document.getElementById('today-prompt');
-  if (todayEntries.length) {
+  if (loggedToday) {
     promptEl.innerHTML = `<div class="today-done">Check-in complete for today</div>`;
   } else {
     promptEl.innerHTML = `
@@ -3890,14 +3860,14 @@ function renderHome() {
   const patternCard = document.getElementById('top-pattern-card');
   const patternBody = document.getElementById('top-pattern-body');
   if (insightsUnlocked()) {
-    const patterns = computePatterns(DATA);
+    const patterns = computePatterns();
     if (patterns.length > 0) {
       const p = patterns[0];
-      const dirColor = p.direction === 'higher' ? 'var(--good)' : 'var(--accent2)';
+      const dirColor = p.good === true ? 'var(--good)' : p.good === false ? 'var(--accent2)' : 'var(--muted)';
       patternBody.innerHTML = `
         On days you logged <strong style="color:var(--accent);">${escapeHtml(p.factor)}</strong>,
         your ${escapeHtml(p.scoreLabel)} scores have tended to be
-        <strong style="color:${dirColor};">${p.direction}</strong>
+        <strong style="color:${dirColor};">${p.rawDirection}</strong>
         <span style="color:var(--muted);">(based on ${p.n} days)</span>`;
       patternCard.style.display = 'block';
     } else {
@@ -3913,21 +3883,27 @@ function renderHome() {
   if (latest) {
     summaryCard.style.display = 'block';
     const dateStr = fmt(latest.date);
-    const wb = typeof latest.wellbeing === 'number' ? latest.wellbeing : '—';
-    const wbColor = typeof latest.wellbeing === 'number' ? scoreColorHex(latest.wellbeing) : 'var(--muted)';
+    const pm = latest.metric;
+    const val = (typeof latest.value === 'number') ? latest.value : null;
+    const isScale = pm && pm.type === 'scale_10';
+    const valStr = val == null ? '—' : (isScale ? val + '/10' : val + (pm && pm.unit ? ' ' + pm.unit : ''));
+    const valColor = (isScale && val != null) ? scoreColorHex(val) : 'var(--text)';
     summaryRow.innerHTML = `
       <span class="latest-summary-label">Last logged · ${dateStr}</span>
-      <span class="latest-summary-value" style="color:${wbColor};">Wellbeing ${wb}/10</span>`;
+      <span class="latest-summary-value" style="color:${valColor};">${escapeHtml(pm ? pm.name : '')} ${valStr}</span>`;
   } else {
     summaryCard.style.display = 'none';
   }
 
   // Mini chart
   const miniEl = document.getElementById('mini-chart');
-  const max = 10;
+  const pm7 = primaryMetric();
+  const isScale7 = pm7 && pm7.type === 'scale_10';
+  const scaleMax = isScale7 ? 10 : Math.max(10, ...last7.map(d => d.value || 0));
   miniEl.innerHTML = last7.map(d => {
-    const pct = (d.wellbeing / max) * 100;
-    const col = scoreColorHex(d.wellbeing);
+    const val = d.value || 0;
+    const pct = (val / scaleMax) * 100;
+    const col = isScale7 ? scoreColorHex(val) : 'var(--accent)';
     return `<div class="mini-bar" style="height:${pct}%;background:${col};"></div>`;
   }).join('');
 
@@ -3946,6 +3922,60 @@ function renderHome() {
 // generateInsight() renders the card state. The actual API call happens in
 // requestAiInsight() when user taps the button.
 
+// ── AI PROMPT BUILDERS (v0.5.0, spec 4.2/4.3) ─────────────────────────────────
+// Every prompt defines the user's metrics WITH direction, flags the primary, and
+// annotates each value with its direction so the model never has to assume.
+function latestValueDate() {
+  if (!VALUES.length) return null;
+  return VALUES.map(v => v.entry_date).sort((a, b) => b.localeCompare(a))[0];
+}
+function metricDefsBlock() {
+  return (METRICS_CACHE || []).filter(m => !m.archived).map(m => {
+    let t;
+    if (m.type === 'scale_10') t = 'scale 1-10, ' + (m.direction === 'higher_better' ? 'higher is better' : m.direction === 'lower_better' ? 'lower is better' : 'neutral');
+    else if (m.type === 'number') t = 'number' + (m.unit ? ' in ' + m.unit : '') + (m.numeric_mode === 'cyclical' ? ', cyclical (cycle day — not a linear scale, do not correlate)' : ', neutral');
+    else if (m.type === 'yes_no') t = 'yes/no';
+    else if (m.type === 'tag_list') t = 'tags';
+    else if (m.type === 'free_text') t = 'free text';
+    else t = m.type;
+    return `- "${m.name}" (${t})` + (m.is_primary ? ' — PRIMARY metric' : '');
+  }).join('\n');
+}
+function entryValueLines(date) {
+  const vbd = valuesByDate(date);
+  const out = [];
+  (METRICS_CACHE || []).filter(m => !m.archived).forEach(m => {
+    const row = vbd[m.id];
+    if (!row) return;
+    if (m.type === 'scale_10' && row.value_number != null) out.push(`  - ${m.name}: ${row.value_number} (${m.direction})`);
+    else if (m.type === 'number' && row.value_number != null) out.push(`  - ${m.name}: ${row.value_number}${m.unit ? ' ' + m.unit : ''} (${m.numeric_mode === 'cyclical' ? 'cyclical' : 'neutral'})`);
+    else if (m.type === 'yes_no' && row.value_bool != null) out.push(`  - ${m.name}: ${row.value_bool ? 'yes' : 'no'}`);
+    else if (m.type === 'tag_list' && Array.isArray(row.value_tags) && row.value_tags.length) out.push(`  - ${m.name}: ${row.value_tags.join(', ')}`);
+    else if (m.type === 'free_text' && row.value_text) out.push(`  - ${m.name}: "${row.value_text}"`);
+    if (row.notes && m.type !== 'free_text') out.push(`    notes: "${row.notes}"`);
+  });
+  return out;
+}
+function recentEntriesBlock(maxDays) {
+  const dates = [...new Set(VALUES.map(v => v.entry_date))].sort((a, b) => b.localeCompare(a)).slice(0, maxDays);
+  return dates.map(d => `- ${d}:\n${entryValueLines(d).join('\n')}`).join('\n');
+}
+function entriesUpToBlock(date, maxDays) {
+  const dates = [...new Set(VALUES.map(v => v.entry_date))].filter(d => d <= date).sort((a, b) => b.localeCompare(a)).slice(0, maxDays);
+  return dates.map(d => `- ${d}:\n${entryValueLines(d).join('\n')}`).join('\n');
+}
+function metricAveragesBlock(maxDays) {
+  const ix = mvIndex();
+  const dates = [...new Set(VALUES.map(v => v.entry_date))].sort((a, b) => b.localeCompare(a)).slice(0, maxDays);
+  const dateSet = new Set(dates);
+  return (METRICS_CACHE || []).filter(m => !m.archived && (m.type === 'scale_10' || (m.type === 'number' && m.numeric_mode !== 'cyclical'))).map(m => {
+    const vals = Object.keys(ix[m.id] || {}).filter(d => dateSet.has(d)).map(d => ix[m.id][d].value_number).filter(v => typeof v === 'number');
+    if (!vals.length) return `- ${m.name}: no data`;
+    const a = (vals.reduce((s, v) => s + v, 0) / vals.length).toFixed(1);
+    return `- ${m.name}: avg ${a}${m.type === 'scale_10' ? '/10' : (m.unit ? ' ' + m.unit : '')} over ${vals.length} days (${m.direction})`;
+  }).join('\n');
+}
+
 async function generateInsight() {
   const el = document.getElementById('insight-card');
   if (!el) return;
@@ -3958,15 +3988,14 @@ async function generateInsight() {
     return;
   }
 
-  // Latest entry's date is what "today's insight" is anchored to
-  const sortedData = [...DATA].sort((a, b) => b.date.localeCompare(a.date));
-  if (!sortedData.length) {
+  // Latest logged date is what "today's insight" is anchored to
+  const latestDate = latestValueDate();
+  if (!latestDate) {
     el.innerHTML = `
       <div class="insight-label">AI insight</div>
       <div class="insight-text" style="color:var(--muted);">Log a check-in first to generate an insight.</div>`;
     return;
   }
-  const latestDate = sortedData[0].date;
 
   // Check for cached insight for the latest date
   let cachedInsight = null;
@@ -4022,17 +4051,23 @@ async function requestAiInsight() {
       Analysing your data...
     </div>`;
 
-  const sortedData = [...DATA].sort((a, b) => b.date.localeCompare(a.date));
-  const latestDate = sortedData[0]?.date;
+  const latestDate = latestValueDate();
   if (!latestDate) {
     el.innerHTML = `<div class="insight-label">AI insight</div><div class="insight-text" style="color:var(--muted);">No data to analyse yet.</div>`;
     return;
   }
 
-  // Use the full history (per v0.5.0 design — "entire history" not last 30)
-  const summary = sortedData.map(d =>
-    `${d.date}: wellbeing=${d.wellbeing}, heart=${d.heart}, spinal=${d.spinal}, headache=${d.headache}, stomach=${d.stomach}, gut=${d.gut}, libido=${d.libido}, cycle_day=${d.cycle_day}, menstrual_comfort=${d.menstrual_pain}, sexual_health="${d.sexual_notes}", diet="${d.diet_notes}", mental="${d.mental_notes}", red_flag=${d.red_flag}`
-  ).join('\n');
+  const promptData = [
+    `You are analysing ${userName()}'s self-tracked health journal. These are self-reported observations, not clinical measurements.`,
+    ``,
+    `The user tracks the following metrics:`,
+    metricDefsBlock(),
+    ``,
+    `Recent entries (most recent first):`,
+    recentEntriesBlock(60),
+    ``,
+    `Write a 2-3 sentence observation about patterns in this data. Be specific and reference dates where useful. Do not diagnose, predict, or give medical advice. Only refer to the metrics listed above — do not invent metrics the user does not track.`
+  ].join('\n');
 
   try {
     const resp = await fetch('/.netlify/functions/ai-insight', {
@@ -4042,7 +4077,7 @@ async function requestAiInsight() {
         userId: currentUser.id,
         entryDate: latestDate,
         type: 'daily',
-        data: `Here are ${userName()}'s health journal entries (most recent first):\n\n${summary}\n\nLook at the patterns across this data and offer one or two grounded observations.`
+        data: promptData
       })
     });
 
@@ -4092,16 +4127,29 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
+// Day-detail scale colour, direction-aware (low can be the "good" end).
+function dayScaleColor(val, direction) {
+  if (direction === 'lower_better') {
+    if (val <= 3) return '#34d399';
+    if (val <= 6) return '#fb923c';
+    return '#f87171';
+  }
+  return scoreColorHex(val);
+}
+
+// Day detail renders generically from metric_values for the chosen date.
+// scale_10 metrics show as coloured tiles; everything else as labelled lines.
+// Per-metric notes (incl. migrated historical symptom text) show inline.
 function renderSelectedDay() {
   const picker = document.getElementById('day-picker');
   const detail = document.getElementById('day-detail');
   if (!picker || !detail) return;
-
   const date = picker.value;
   if (!date) { detail.innerHTML = ''; return; }
 
-  const entry = DATA.find(d => d.date === date);
-  if (!entry) {
+  const vbd = valuesByDate(date);
+  const idsWithValue = Object.keys(vbd);
+  if (!idsWithValue.length) {
     detail.innerHTML = `
       <div class="day-detail">
         <div class="day-detail-empty">No entry recorded for ${fmt(date)}.</div>
@@ -4110,69 +4158,43 @@ function renderSelectedDay() {
     return;
   }
 
-  // Build scores grid (only tiles for scores that were actually logged)
-  const scores = [
-    { key: 'wellbeing', label: 'Wellbeing', val: entry.wellbeing },
-    { key: 'heart', label: 'Heart', val: entry.heart },
-    { key: 'spinal', label: 'Spinal', val: entry.spinal },
-    { key: 'headache', label: 'Head', val: entry.headache },
-    { key: 'stomach', label: 'Stomach', val: entry.stomach },
-    { key: 'gut', label: 'Gut', val: entry.gut },
-    { key: 'exercise', label: 'Exercise', val: entry.exercise }
-  ];
-  if (entry.libido != null) {
-    scores.push({ key: 'libido', label: 'Desire', val: entry.libido });
-  }
-  const scoresHtml = scores.filter(s => typeof s.val === 'number').map(s => `
-    <div class="day-score-tile">
-      <div class="day-score-num" style="color:${scoreColorHex(s.val)}">${s.val}</div>
-      <div class="day-score-label">${s.label}</div>
-    </div>`).join('');
+  const metricsById = {};
+  (METRICS_CACHE || []).forEach(m => { metricsById[m.id] = m; });
+  const cats = [...(CATEGORIES_CACHE || [])].sort((a, b) => a.position - b.position);
 
-  // Menstrual block
-  let menstrualHtml = '';
-  if (entry.menstrual_pain && entry.menstrual_pain > 0) {
-    menstrualHtml = `
-      <div class="day-detail-section">
-        <div class="day-detail-section-title">Menstrual</div>
-        <div class="day-detail-section-text">
-          Cycle day ${entry.cycle_day || '—'} · Comfort ${entry.menstrual_pain}/10
-          ${entry.cycle_notes ? '· ' + escapeHtml(entry.cycle_notes) : ''}
-        </div>
-      </div>`;
-  } else if (entry.cycle_day) {
-    menstrualHtml = `
-      <div class="day-detail-section">
-        <div class="day-detail-section-title">Menstrual</div>
-        <div class="day-detail-section-text">Cycle day ${entry.cycle_day} · Not menstruating</div>
-      </div>`;
+  function sectionHtml(title, text) {
+    return `<div class="day-detail-section"><div class="day-detail-section-title">${escapeHtml(title)}</div><div class="day-detail-section-text">${escapeHtml(String(text))}</div></div>`;
   }
 
-  // Build text sections (only show ones with content)
-  const sections = [
-    { title: 'Mental health', text: entry.mental_notes },
-    { title: 'Heart notes', text: entry.heart_notes },
-    { title: 'Spinal / body pain', text: entry.spinal_notes },
-    { title: 'Head / migraine notes', text: entry.headache_notes },
-    { title: 'Stomach notes', text: entry.stomach_notes },
-    { title: 'Gut notes', text: entry.gut_notes },
-    { title: 'Exercise notes', text: entry.exercise_notes },
-    { title: 'Sexual health', text: entry.sexual_notes },
-    { title: 'Medication', text: entry.medication_notes },
-    { title: 'Diet', text: entry.diet_notes },
-    { title: 'Other notes', text: entry.extra_notes }
-  ];
-  const sectionsHtml = sections
-    .filter(s => s.text && s.text.trim())
-    .map(s => `
-      <div class="day-detail-section">
-        <div class="day-detail-section-title">${s.title}</div>
-        <div class="day-detail-section-text">${escapeHtml(s.text)}</div>
-      </div>`).join('');
+  let tiles = '';
+  let lines = '';
+  function renderMetric(m) {
+    const row = vbd[m.id];
+    if (!row) return;
+    const noteSuffix = row.notes ? ' · ' + row.notes : '';
+    if (m.type === 'scale_10' && row.value_number != null) {
+      tiles += `<div class="day-score-tile"><div class="day-score-num" style="color:${dayScaleColor(row.value_number, m.direction)}">${row.value_number}</div><div class="day-score-label">${escapeHtml(m.name)}</div></div>`;
+      if (row.notes) lines += sectionHtml(m.name + ' notes', row.notes);
+    } else if (m.type === 'number' && row.value_number != null) {
+      lines += sectionHtml(m.name, row.value_number + (m.unit ? ' ' + m.unit : '') + noteSuffix);
+    } else if (m.type === 'yes_no' && row.value_bool != null) {
+      lines += sectionHtml(m.name, (row.value_bool ? 'Yes' : 'No') + noteSuffix);
+    } else if (m.type === 'tag_list' && Array.isArray(row.value_tags) && row.value_tags.length) {
+      lines += sectionHtml(m.name, row.value_tags.join(', ') + noteSuffix);
+    } else if (m.type === 'free_text' && row.value_text) {
+      lines += sectionHtml(m.name, row.value_text);
+    } else if (row.notes) {
+      lines += sectionHtml(m.name, row.notes);
+    }
+  }
 
-  const redFlagHtml = entry.red_flag
-    ? '<div class="day-redflag">RED FLAG DAY</div>'
-    : '';
+  const seen = {};
+  cats.forEach(c => {
+    (METRICS_CACHE || []).filter(m => m.category_id === c.id)
+      .sort((a, b) => a.position - b.position)
+      .forEach(m => { if (vbd[m.id]) { renderMetric(m); seen[m.id] = 1; } });
+  });
+  idsWithValue.forEach(id => { if (!seen[id] && metricsById[id]) renderMetric(metricsById[id]); });
 
   const aiTakeBtn = aiInsightsUnlocked()
     ? `<button class="day-ai-btn" id="day-ai-btn" onclick="generateDayInsight()">Get AI take on this day</button>`
@@ -4180,10 +4202,8 @@ function renderSelectedDay() {
 
   detail.innerHTML = `
     <div class="day-detail">
-      <div class="day-scores-grid">${scoresHtml}</div>
-      ${menstrualHtml}
-      ${sectionsHtml}
-      ${redFlagHtml}
+      ${tiles ? `<div class="day-scores-grid">${tiles}</div>` : ''}
+      ${lines}
       <button class="day-ai-btn" onclick="addEntryForDate('${date}')">Edit this entry</button>
       ${aiTakeBtn}
       <div id="day-ai-result"></div>
@@ -4192,23 +4212,17 @@ function renderSelectedDay() {
 
 // Jump to check-in form pre-loaded with a specific date (and existing data if present)
 function addEntryForDate(date) {
-  const checkinBtn = document.querySelector('.nav-btn[onclick*="checkin"]');
-  showView('checkin', checkinBtn);
-
-  // Make sure the form is visible (not the submitted state)
+  CHECKIN_DATE = date;
+  checkinMode = 'full';
+  document.getElementById('mode-full').classList.add('active');
+  document.getElementById('mode-quick').classList.remove('active');
   document.getElementById('form-inner').style.display = 'block';
   document.getElementById('submitted-state').classList.remove('show');
-
-  clearForm();
-  setCheckinMode('full');  // editing/adding a past day always uses the full form
-
-  // Set the date (this triggers onCheckinDateChange via the change handler path,
-  // but we call prefill explicitly to be safe)
+  document.getElementById('main-submit-btn').style.display = 'block';
   const dateInput = document.getElementById('checkin-date');
   if (dateInput) { dateInput.value = date; updateDateTrigger('checkin-date'); }
-
-  prefillFormForDate(date);
-  onCheckinDateChange();
+  const checkinBtn = document.querySelector('.nav-btn[onclick*="checkin"]');
+  showView('checkin', checkinBtn);  // renderCheckinForm() runs via showView
   window.scrollTo(0, 0);
 }
 
@@ -4301,7 +4315,7 @@ function renderMissedDays() {
   const el = document.getElementById('missed-days');
   if (!el) return;
 
-  const logged = new Set(DATA.map(d => d.date));
+  const logged = new Set(VALUES.map(v => v.entry_date));
   const missed = [];
   const now = new Date();
   // Check the last 14 days, excluding today (today isn't "missed" yet)
@@ -4371,12 +4385,9 @@ async function generateDayInsight() {
     return;
   }
 
-  // Use full history up to and including selected date
-  const upToDate = DATA
-    .filter(d => d.date <= selectedDate)
-    .sort((a, b) => b.date.localeCompare(a.date));
-
-  if (!upToDate.length) {
+  // Use full history up to and including the selected date
+  const upDates = [...new Set(VALUES.map(v => v.entry_date))].filter(d => d <= selectedDate);
+  if (!upDates.length) {
     resultEl.innerHTML = '<div class="day-ai-result">No data available before this date.</div>';
     return;
   }
@@ -4385,9 +4396,17 @@ async function generateDayInsight() {
   btn.textContent = 'Analysing...';
   resultEl.innerHTML = '';
 
-  const summary = upToDate.map(d =>
-    `${d.date}: wellbeing=${d.wellbeing}, heart=${d.heart}, spinal=${d.spinal}, headache=${d.headache}, stomach=${d.stomach}, gut=${d.gut}, libido=${d.libido}, cycle_day=${d.cycle_day}, menstrual_comfort=${d.menstrual_pain}, sexual_health="${d.sexual_notes}", diet="${d.diet_notes}", mental="${d.mental_notes}", red_flag=${d.red_flag}`
-  ).join('\n');
+  const promptData = [
+    `${userName()} is reviewing their entry from ${selectedDate}. These are self-reported journal entries, not clinical measurements.`,
+    ``,
+    `The user tracks the following metrics:`,
+    metricDefsBlock(),
+    ``,
+    `History up to and including ${selectedDate} (most recent first):`,
+    entriesUpToBlock(selectedDate, 60),
+    ``,
+    `Focus on the entry from ${selectedDate}: what stands out about that day and how it compares to the rest of their history. Speak to ${userName()} about that day. Do not diagnose or predict. Only reference the metrics listed above.`
+  ].join('\n');
 
   try {
     const resp = await fetch('/.netlify/functions/ai-insight', {
@@ -4397,7 +4416,7 @@ async function generateDayInsight() {
         userId: currentUser.id,
         entryDate: selectedDate,
         type: 'daily',
-        data: `${userName()} is reviewing their entry from ${selectedDate}. Here is their full health history (most recent first):\n\n${summary}\n\nFocus on the entry from ${selectedDate}. What stands out about that day, and how does it compare to the rest of their history? Speak to ${userName()} about that specific day.`
+        data: promptData
       })
     });
 
@@ -4550,6 +4569,47 @@ function collectFactors(data) {
   return map;
 }
 
+// ── METRIC-VALUES PATTERN HELPERS (v0.5.0) ────────────────────────────────────
+// Index VALUES as {metricId: {date: row}} for fast lookups.
+function mvIndex() {
+  const ix = {};
+  VALUES.forEach(v => { (ix[v.metric_id] || (ix[v.metric_id] = {}))[v.entry_date] = v; });
+  return ix;
+}
+// Correlation OUTCOMES = active scale_10 metrics. Cyclical metrics are NEVER
+// outcomes or factors — cycle phase is not a linear quantity, so correlating it
+// would produce false signals (safety rule).
+function outcomeMetrics() {
+  return (METRICS_CACHE || []).filter(m => !m.archived && m.type === 'scale_10' && m.numeric_mode !== 'cyclical');
+}
+// FACTORS = individual tags from active tag_list metrics.
+function collectMetricFactors() {
+  const noise = new Set(['none','normal','neutral','no problem','nothing worth reporting on','nothing worth reporting']);
+  const tagMetrics = (METRICS_CACHE || []).filter(m => !m.archived && m.type === 'tag_list' && m.numeric_mode !== 'cyclical');
+  const tagIds = new Set(tagMetrics.map(m => m.id));
+  const nameById = {}; tagMetrics.forEach(m => { nameById[m.id] = m.name; });
+  const merged = {};
+  VALUES.forEach(v => {
+    if (!tagIds.has(v.metric_id) || !Array.isArray(v.value_tags) || !v.value_tags.length) return;
+    v.value_tags.forEach(tag => {
+      const low = (tag || '').toLowerCase().trim();
+      if (!low || noise.has(low) || tag.length < 3) return;
+      const key = v.metric_id + '::' + factorMatchKey(tag);
+      if (!merged[key]) merged[key] = { label: tag, metricId: v.metric_id, metricName: nameById[v.metric_id] || '', dates: new Set() };
+      merged[key].dates.add(v.entry_date);
+    });
+  });
+  return Object.values(merged);
+}
+function wordsOf(str) {
+  return new Set((str || '').toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length > 3));
+}
+function sharesWord(a, b) {
+  const wa = wordsOf(a);
+  for (const w of wordsOf(b)) if (wa.has(w)) return true;
+  return false;
+}
+
 // ── INSIGHT GATE ─────────────────────────────────────────────────────────────
 // Insight features (patterns card, "what helps", AI insights, doctor's summary)
 // ALL share one gate: enough recent data to be meaningful. Gate: 7+ distinct days
@@ -4642,8 +4702,8 @@ function entriesInLast30Days() {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 30);
   const cutoffStr = cutoff.toLocaleDateString('en-CA');
-  // Count distinct days logged in the window
-  const days = new Set(DATA.filter(d => d.date >= cutoffStr).map(d => d.date));
+  // Count distinct days with ANY metric value logged in the window (new model)
+  const days = new Set(VALUES.filter(v => v.entry_date >= cutoffStr).map(v => v.entry_date));
   return days.size;
 }
 
@@ -4696,128 +4756,91 @@ function insightLockProgress() {
 }
 
 // Compute the strongest retrospective correlations
-function computePatterns(data) {
-  if (data.length < 10) return []; // not enough overall history
+function computePatterns() {
+  const loggedDates = new Set(VALUES.map(v => v.entry_date));
+  if (loggedDates.size < 10) return [];
 
-  const factorMap = collectFactors(data);
-  const labels = collectFactors._labels || {};
+  const ix = mvIndex();
+  const outcomes = outcomeMetrics();
+  const factors = collectMetricFactors();
   const results = [];
 
-  Object.entries(factorMap).forEach(([key, datesSet]) => {
-    const [prefix /* , matchKey */] = key.split('::');
-    const factor = labels[key] || key.split('::')[1]; // friendly first-seen label
-    const withDays = data.filter(d => datesSet.has(d.date));
-    const withoutDays = data.filter(d => !datesSet.has(d.date));
-    if (withDays.length < PATTERN_MIN_WITH || withoutDays.length < PATTERN_MIN_WITHOUT) return;
+  factors.forEach(F => {
+    outcomes.forEach(O => {
+      const ovals = ix[O.id] || {};
+      const withDates = [...F.dates].filter(d => ovals[d] && ovals[d].value_number != null);
+      const withoutDates = Object.keys(ovals).filter(d => ovals[d].value_number != null && !F.dates.has(d));
+      if (withDates.length < PATTERN_MIN_WITH || withoutDates.length < PATTERN_MIN_WITHOUT) return;
 
-    // Compare each score field
-    SCORE_FIELDS.forEach(sf => {
-      const withVals = withDays.map(d => d[sf.key]).filter(v => typeof v === 'number');
-      const withoutVals = withoutDays.map(d => d[sf.key]).filter(v => typeof v === 'number');
-      if (withVals.length < PATTERN_MIN_WITH || withoutVals.length < PATTERN_MIN_WITHOUT) return;
-
+      const withVals = withDates.map(d => ovals[d].value_number);
+      const withoutVals = withoutDates.map(d => ovals[d].value_number);
       const diff = avg(withVals) - avg(withoutVals);
-      if (Math.abs(diff) >= PATTERN_MIN_DIFF) {
-        // Down-rank near-tautological links where the symptom is from the same
-        // body system as the score (e.g. "stomach cramps -> low stomach score").
-        // These are obvious; cross-domain patterns (diet->symptom) are the useful ones.
-        const keyLow = key.toLowerCase();
-        const sameSystem = (
-          (keyLow.includes('stomach') && sf.key === 'stomach') ||
-          (keyLow.includes('gut') && sf.key === 'gut') ||
-          (keyLow.includes('heart') && sf.key === 'heart') ||
-          (keyLow.includes('head') && sf.key === 'headache') ||
-          (keyLow.includes('mental') && sf.key === 'wellbeing')
-        );
-        results.push({
-          factor, prefix, scoreLabel: sf.label,
-          direction: diff < 0 ? 'lower' : 'higher',
-          magnitude: Math.abs(diff),
-          rank: Math.abs(diff) - (sameSystem ? 1.5 : 0), // penalise same-system
-          n: withDays.length
-        });
-      }
+      if (Math.abs(diff) < PATTERN_MIN_DIFF) return;
+
+      const rawDirection = diff < 0 ? 'lower' : 'higher';
+      // Direction-aware "is this good news?": higher on a higher_better metric is
+      // good; lower on a lower_better metric is good; neutral metrics are uncoloured.
+      let good = null;
+      if (O.direction === 'higher_better') good = (rawDirection === 'higher');
+      else if (O.direction === 'lower_better') good = (rawDirection === 'lower');
+
+      // Down-rank near-tautological links (factor from the same body system as the
+      // outcome, e.g. "Heart symptoms" -> "Heart"). Cross-domain links are the useful ones.
+      const sameSystem = sharesWord(F.metricName, O.name) || sharesWord(F.label, O.name);
+
+      results.push({
+        factor: F.label, factorMetric: F.metricName, scoreLabel: O.name,
+        rawDirection, metricDirection: O.direction, good,
+        magnitude: Math.abs(diff),
+        rank: Math.abs(diff) - (sameSystem ? 1.5 : 0),
+        n: withDates.length
+      });
     });
   });
 
-  // Strongest first (rank accounts for same-system penalty), cap to keep it focused
-  results.sort((a,b) => b.rank - a.rank);
+  results.sort((a, b) => b.rank - a.rank);
   return results.slice(0, 6);
 }
 
 // "What tends to help you" — factors that appear most on her HIGHEST-scoring days.
 // Retrospective summary (option 2, safe framing): describes what good days looked
 // like, never instructs an action.
-function computeHelpfulFactors(data) {
-  if (data.length < 10) return [];
+function computeHelpfulFactors() {
+  const pm = primaryMetric();
+  if (!pm) return [];
+  const ix = mvIndex();
+  const pvals = ix[pm.id] || {};
+  const dayScores = Object.keys(pvals)
+    .filter(d => pvals[d].value_number != null)
+    .map(d => ({ date: d, score: pvals[d].value_number }));
+  if (dayScores.length < 10) return [];
 
-  // Rank days by overall average of the core scores
-  const scored = data.map(d => {
-    const vals = SCORE_FIELDS.map(sf => d[sf.key]).filter(v => typeof v === 'number');
-    return { d, score: vals.length ? avg(vals) : 0 };
-  }).filter(x => x.score > 0);
+  // Best days by the primary metric, respecting direction.
+  dayScores.sort((a, b) => pm.direction === 'lower_better' ? a.score - b.score : b.score - a.score);
+  const topCount = Math.max(5, Math.floor(dayScores.length / 3));
+  const topDates = new Set(dayScores.slice(0, topCount).map(x => x.date));
+  const restCount = Math.max(dayScores.length - topCount, 1);
 
-  if (scored.length < 10) return [];
-
-  scored.sort((a,b) => b.score - a.score);
-  // Top third = her best days
-  const topCount = Math.max(5, Math.floor(scored.length / 3));
-  const topDays = scored.slice(0, topCount).map(x => x.d);
-  const restDays = scored.slice(topCount).map(x => x.d);
-
-  // Only consider "controllable / lifestyle" factors here — diet + meds.
-  // (Symptoms aren't things she chooses to do, so they don't belong in "what helps".)
-  const goodSources = [
-    { field: 'diet_notes' },
-    { field: 'medication_notes' }
-  ];
-
-  function tallyFactors(days) {
-    const counts = {};   // matchKey -> count
-    const labels = {};   // matchKey -> first-seen friendly label
-    days.forEach(d => {
-      goodSources.forEach(src => {
-        const raw = d[src.field];
-        if (!raw) return;
-        const seen = new Set();
-        raw.split(',').map(s => s.trim()).filter(Boolean).forEach(f => {
-          const low = f.toLowerCase();
-          if (low === 'none' || low === 'normal' || f.length < 3) return;
-          const mk = factorMatchKey(f);
-          if (seen.has(mk)) return;
-          seen.add(mk);
-          if (!labels[mk]) labels[mk] = f;
-          counts[mk] = (counts[mk] || 0) + 1;
-        });
-      });
-    });
-    return { counts, labels };
+  // Prefer lifestyle/diet factors (things the user does), falling back to all tags.
+  const lifeCat = (CATEGORIES_CACHE || []).find(c => /life|diet/i.test(c.name));
+  let factors = collectMetricFactors();
+  if (lifeCat) {
+    const byId = {}; (METRICS_CACHE || []).forEach(m => { byId[m.id] = m; });
+    const lifeFactors = factors.filter(f => byId[f.metricId] && byId[f.metricId].category_id === lifeCat.id);
+    if (lifeFactors.length) factors = lifeFactors;
   }
 
-  const top = tallyFactors(topDays);
-  const rest = tallyFactors(restDays);
-  const topCounts = top.counts;
-  const restCounts = rest.counts;
-  const factorLabels = top.labels; // first-seen labels from the top tier
-
-  // A factor "tends to help" only if it clears strict tests, to avoid implying
-  // that frequently-logged items (coffee, sugar) are beneficial when they're just
-  // common. Must appear on a strong majority of top days, clearly more than on the
-  // rest, AND be genuinely discriminating (not also common on low days).
   const helpful = [];
-  Object.keys(topCounts).forEach(mk => {
-    const topRate = topCounts[mk] / topDays.length;
-    const restRate = (restCounts[mk] || 0) / Math.max(restDays.length, 1);
-    if (
-      topCounts[mk] >= 4 &&     // on at least 4 good days
-      topRate >= 0.5 &&             // on a majority of good days
-      topRate >= restRate * 2       // at least twice as common on good vs other days
-    ) {
-      helpful.push({ factor: factorLabels[mk] || mk, topRate, lift: topRate - restRate, n: topCounts[mk] });
+  factors.forEach(F => {
+    const topHits = [...F.dates].filter(d => topDates.has(d)).length;
+    const restHits = F.dates.size - topHits;
+    const topRate = topHits / Math.max(topCount, 1);
+    const restRate = restHits / restCount;
+    if (topHits >= 4 && topRate >= 0.5 && topRate >= restRate * 2) {
+      helpful.push({ factor: F.label, lift: topRate - restRate, n: topHits });
     }
   });
-
-  helpful.sort((a,b) => b.lift - a.lift);
+  helpful.sort((a, b) => b.lift - a.lift);
   return helpful.slice(0, 5);
 }
 
@@ -4830,7 +4853,7 @@ function renderHelpful() {
     return;
   }
 
-  const helpful = computeHelpfulFactors(DATA);
+  const helpful = computeHelpfulFactors();
 
   if (!helpful.length) {
     el.innerHTML = `<div class="patterns-empty">Once there's a bit more variety in your logs, this will show what your higher-scoring days have tended to have in common.</div>`;
@@ -4859,7 +4882,7 @@ function renderPatterns() {
     return;
   }
 
-  const patterns = computePatterns(DATA);
+  const patterns = computePatterns();
 
   if (!patterns.length) {
     el.innerHTML = `<div class="patterns-empty">Keep logging and patterns will appear here once there's enough variety to spot them reliably. We only show a pattern when it's backed by enough days to be meaningful.</div>`;
@@ -4867,11 +4890,11 @@ function renderPatterns() {
   }
 
   const rows = patterns.map(p => {
-    const effectClass = p.direction === 'lower' ? 'pattern-effect-down' : 'pattern-effect-up';
+    const effectClass = p.good === true ? 'pattern-effect-up' : p.good === false ? 'pattern-effect-down' : '';
     return `<div class="pattern-item">
       On days you logged <span class="pattern-factor">${escapeHtml(p.factor)}</span>,
       your ${escapeHtml(p.scoreLabel)} scores have tended to be
-      <span class="${effectClass}">${p.direction}</span>
+      <span class="${effectClass}">${p.rawDirection}</span>
       <span style="color:var(--muted)">(based on ${p.n} days)</span>
     </div>`;
   }).join('');
@@ -4883,7 +4906,7 @@ function renderPatterns() {
 // Check-in nudge: when the user tags a factor today that historically lines up with
 // lower scores, show a gentle, present-tense note about her own history.
 function getCheckinNudge(taggedFactors) {
-  const patterns = computePatterns(DATA);
+  const patterns = computePatterns();
   const taggedLower = taggedFactors.map(f => f.toLowerCase());
   const matches = patterns.filter(p => taggedLower.some(t => t === p.factor.toLowerCase()));
   if (!matches.length) return null;
@@ -4891,7 +4914,7 @@ function getCheckinNudge(taggedFactors) {
   // matches are already ranked strongest-first. Take the strongest.
   const top = matches[0];
 
-  if (top.direction === 'lower') {
+  if (top.good === false) {
     return {
       tone: 'down',
       text: `In your past entries, ${escapeHtml(top.scoreLabel)} scores have often been lower on days you logged ${escapeHtml(top.factor)}. Just something your history shows — not a prediction.`
@@ -4914,7 +4937,6 @@ function filterDataByRange(data) {
 }
 
 function renderTrends() {
-  // Refresh day picker view (default to today on first visit)
   const picker = document.getElementById('day-picker');
   if (picker) {
     if (!picker.value) picker.value = today();
@@ -4925,46 +4947,27 @@ function renderTrends() {
   renderPatterns();
   renderHelpful();
 
-  const rangeData = filterDataByRange(DATA);
-  const sorted = [...rangeData].sort((a,b) => a.date.localeCompare(b.date));
-
-  if (!sorted.length) {
-    ['chart-wellbeing','chart-scores','chart-cycle','chart-symptoms'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) { const ctx = el.getContext('2d'); ctx.clearRect(0,0,el.width,el.height); }
-    });
-    document.getElementById('triggers-list').innerHTML = '<div style="color:var(--muted);font-size:13px;">No entries in this date range.</div>';
-    return;
-  }
-
-  // Deduplicate by date - average same-day entries
-  const byDate = {};
-  sorted.forEach(d => {
-    if (!byDate[d.date]) byDate[d.date] = [];
-    byDate[d.date].push(d);
-  });
-
-  const dates = Object.keys(byDate).sort();
-  // Average a score across entries for a date, IGNORING null/missing values
-  // (quick-log days only have wellbeing; their null scores must not count as 0)
-  const avg = (arr, key) => {
-    const vals = arr.map(d => d[key]).filter(v => typeof v === 'number');
-    return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
+  const range = getDateRange();
+  const inRange = d => {
+    if (!range) return true;
+    const dt = new Date(d + 'T12:00:00');
+    return dt >= range.from && dt <= range.to;
   };
 
-  const labels = dates.map(d => new Date(d+'T12:00:00').toLocaleDateString('en-AU',{day:'numeric',month:'short'}));
-  const cleanAvg = (d, key) => { const v = avg(byDate[d], key); return v == null ? null : +v.toFixed(1); };
-  const wellbeing = dates.map(d => cleanAvg(d, 'wellbeing'));
-  const heart = dates.map(d => cleanAvg(d, 'heart'));
-  const stomach = dates.map(d => cleanAvg(d, 'stomach'));
-  const spinal = dates.map(d => cleanAvg(d, 'spinal'));
-  const exercise = dates.map(d => cleanAvg(d, 'exercise'));
+  const ix = mvIndex();
+  const pm = primaryMetric();
+  const setTitle = (canvasId, text) => {
+    const c = document.getElementById(canvasId);
+    if (!c) return;
+    const card = c.closest('.card');
+    if (card) { const t = card.querySelector('.card-title'); if (t) t.textContent = text; }
+  };
+  const destroy = id => { if (chartInstances[id]) chartInstances[id].destroy(); };
 
-  // Read theme colours from CSS so charts adapt to light/dark mode
   const cs = getComputedStyle(document.documentElement);
   const tickColor = cs.getPropertyValue('--muted').trim() || '#7a7a8c';
   const gridColor = cs.getPropertyValue('--border').trim() || '#2a2a33';
-
+  const accent = cs.getPropertyValue('--accent').trim() || '#c084fc';
   const chartDefaults = {
     responsive: true,
     maintainAspectRatio: false,
@@ -4975,130 +4978,132 @@ function renderTrends() {
     }
   };
 
-  const destroy = id => { if (chartInstances[id]) { chartInstances[id].destroy(); } };
+  const allDates = [...new Set(VALUES.map(v => v.entry_date))].filter(inRange).sort();
 
+  if (!allDates.length) {
+    ['wellbeing','scores','cycle','symptoms'].forEach(destroy);
+    const tl = document.getElementById('triggers-list');
+    if (tl) tl.innerHTML = '<div style="color:var(--muted);font-size:13px;">No entries in this date range.</div>';
+    return;
+  }
+  const labels = allDates.map(d => new Date(d+'T12:00:00').toLocaleDateString('en-AU', { day:'numeric', month:'short' }));
+  const seriesFor = m => allDates.map(d => (ix[m.id] && ix[m.id][d] && ix[m.id][d].value_number != null) ? ix[m.id][d].value_number : null);
+
+  // 1) Primary metric over time
+  if (pm) setTitle('chart-wellbeing', pm.name + ' over time');
   destroy('wellbeing');
-  chartInstances['wellbeing'] = new Chart(document.getElementById('chart-wellbeing'), {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [{
-        label: 'Wellbeing',
-        data: wellbeing,
-        borderColor: '#c084fc',
-        backgroundColor: 'rgba(192,132,252,0.1)',
-        fill: true,
-        spanGaps: true,
-        tension: 0.4,
-        pointRadius: 4,
-        pointBackgroundColor: '#c084fc'
-      }]
-    },
-    options: chartDefaults
-  });
+  if (pm) {
+    chartInstances['wellbeing'] = new Chart(document.getElementById('chart-wellbeing'), {
+      type: 'line',
+      data: { labels, datasets: [{
+        label: pm.name, data: seriesFor(pm),
+        borderColor: accent, backgroundColor: 'rgba(192,132,252,0.1)',
+        fill: true, spanGaps: true, tension: 0.4, pointRadius: 3, pointBackgroundColor: accent
+      }] },
+      options: chartDefaults
+    });
+  }
 
+  // 2) Other scale_10 metrics overlaid
+  const palette = ['#f472b6','#fb923c','#34d399','#60a5fa','#c084fc','#facc15'];
+  const others = outcomeMetrics().filter(m => !pm || m.id !== pm.id).slice(0, 6);
   destroy('scores');
   chartInstances['scores'] = new Chart(document.getElementById('chart-scores'), {
     type: 'line',
-    data: {
-      labels,
-      datasets: [
-        { label: 'Heart', data: heart, borderColor: '#f472b6', backgroundColor: '#f472b6', tension: 0.4, pointRadius: 3, borderWidth: 2, spanGaps: true, fill: false },
-        { label: 'Stomach', data: stomach, borderColor: '#fb923c', backgroundColor: '#fb923c', tension: 0.4, pointRadius: 3, borderWidth: 2, spanGaps: true, fill: false },
-        { label: 'Spinal', data: spinal, borderColor: '#34d399', backgroundColor: '#34d399', tension: 0.4, pointRadius: 3, borderWidth: 2, spanGaps: true, fill: false },
-        { label: 'Exercise', data: exercise, borderColor: '#60a5fa', backgroundColor: '#60a5fa', tension: 0.4, pointRadius: 3, borderWidth: 2, spanGaps: true, fill: false },
-      ]
-    },
+    data: { labels, datasets: others.map((m, i) => ({
+      label: m.name, data: seriesFor(m),
+      borderColor: palette[i % palette.length], backgroundColor: palette[i % palette.length],
+      tension: 0.4, pointRadius: 2, borderWidth: 2, spanGaps: true, fill: false
+    })) },
     options: { ...chartDefaults, plugins: { legend: { labels: { color: tickColor, font: { size: 11 } } } } }
   });
 
+  // 3) Cycle scatter — display only, shown ONLY if a cyclical metric exists.
+  //    This is a visualisation, NOT a correlation (cycle phase stays out of stats).
+  const cyc = (METRICS_CACHE || []).find(m => !m.archived && m.numeric_mode === 'cyclical');
+  const cycleCanvas = document.getElementById('chart-cycle');
+  const cycleCard = cycleCanvas ? cycleCanvas.closest('.card') : null;
   destroy('cycle');
-  chartInstances['cycle'] = new Chart(document.getElementById('chart-cycle'), {
-    type: 'scatter',
-    data: {
-      datasets: [{
-        label: 'Menstrual comfort by cycle day',
-        data: sorted.filter(d => typeof d.cycle_day === 'number' && typeof d.menstrual_pain === 'number' && d.menstrual_pain > 0).map(d => ({ x: d.cycle_day, y: d.menstrual_pain })),
-        backgroundColor: 'rgba(244,114,182,0.6)',
-        pointRadius: 6
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { title: { display: true, text: 'Cycle day', color: tickColor }, ticks: { color: tickColor, font: { size: 10 } }, grid: { color: gridColor }, min: 0 },
-        y: { title: { display: true, text: 'Comfort (1-10)', color: tickColor }, ticks: { color: tickColor, font: { size: 10 } }, grid: { color: gridColor }, min: 0, max: 10 }
+  if (cyc && cycleCanvas) {
+    if (cycleCard) cycleCard.style.display = '';
+    const yMetric = (METRICS_CACHE || []).find(m => !m.archived && m.type === 'scale_10' && /menstru|comfort/i.test(m.name)) || pm;
+    if (yMetric) setTitle('chart-cycle', yMetric.name + ' by ' + cyc.name);
+    const pts = allDates.map(d => {
+      const cx = (ix[cyc.id] && ix[cyc.id][d]) ? ix[cyc.id][d].value_number : null;
+      const cy = (yMetric && ix[yMetric.id] && ix[yMetric.id][d]) ? ix[yMetric.id][d].value_number : null;
+      return (cx != null && cy != null) ? { x: cx, y: cy } : null;
+    }).filter(Boolean);
+    chartInstances['cycle'] = new Chart(cycleCanvas, {
+      type: 'scatter',
+      data: { datasets: [{ data: pts, backgroundColor: 'rgba(244,114,182,0.6)', pointRadius: 5 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { title: { display: true, text: cyc.name, color: tickColor }, ticks: { color: tickColor, font: { size: 10 } }, grid: { color: gridColor }, min: 0 },
+          y: { ticks: { color: tickColor, font: { size: 10 } }, grid: { color: gridColor }, min: 0, max: 10 }
+        }
       }
-    }
-  });
+    });
+  } else if (cycleCard) {
+    cycleCard.style.display = 'none';
+  }
 
-  // Diet triggers on bad days — merge variants (e.g. "1-2 Coffee" + "1-2 coffees") into one row
-  const badDays = rangeData.filter(d => d.wellbeing <= 5 || d.red_flag);
-  const dietCount = {};   // matchKey -> count
-  const dietLabel = {};   // matchKey -> first-seen friendly label
-  badDays.forEach(d => {
-    if (!d.diet_notes) return;
-    const items = d.diet_notes.split(',').map(x => x.trim()).filter(Boolean);
-    items.forEach(item => {
-      if (item.length < 3) return;
-      const low = item.toLowerCase();
-      if (low === 'none' || low === 'normal') return;
-      const mk = factorMatchKey(item);
-      if (!dietLabel[mk]) dietLabel[mk] = item;
-      dietCount[mk] = (dietCount[mk] || 0) + 1;
+  // 4) Common tags on lower days (direction-aware "worse third" by primary metric)
+  let lowDates = new Set();
+  if (pm) {
+    const pv = ix[pm.id] || {};
+    const ds = allDates.filter(d => pv[d] && pv[d].value_number != null).map(d => ({ d, s: pv[d].value_number }));
+    ds.sort((a, b) => pm.direction === 'lower_better' ? b.s - a.s : a.s - b.s); // worst first
+    const lowCount = Math.max(3, Math.floor(ds.length / 3));
+    lowDates = new Set(ds.slice(0, lowCount).map(x => x.d));
+  }
+  const triggersCard = document.getElementById('triggers-card');
+  if (triggersCard) {
+    const t = triggersCard.querySelector('.card-title');
+    if (t) t.textContent = pm ? ('Common tags on lower ' + pm.name + ' days') : 'Common tags on lower days';
+  }
+  const factors = collectMetricFactors();
+  const triggerRows = factors
+    .map(F => ({ label: F.label, count: [...F.dates].filter(d => lowDates.has(d)).length }))
+    .filter(x => x.count > 0)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 8);
+  const tl = document.getElementById('triggers-list');
+  if (tl) {
+    tl.innerHTML = triggerRows.length ? triggerRows.map(r => `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <div style="font-size:13px;color:var(--text);min-width:110px;">${escapeHtml(r.label)}</div>
+        <div style="flex:1;background:var(--border);border-radius:4px;height:6px;overflow:hidden;">
+          <div style="width:${(r.count / Math.max(lowDates.size, 1) * 100).toFixed(0)}%;height:100%;background:var(--accent2);border-radius:4px;"></div>
+        </div>
+        <div style="font-size:12px;color:var(--muted);">${r.count}x</div>
+      </div>`).join('') : '<div style="color:var(--muted);font-size:13px;">Not enough data in this range.</div>';
+  }
+
+  // 5) Tag frequency across the range
+  setTitle('chart-symptoms', 'Most-logged tags');
+  const tagFreq = {}, tagLabel = {};
+  VALUES.forEach(v => {
+    if (!inRange(v.entry_date) || !Array.isArray(v.value_tags)) return;
+    v.value_tags.forEach(tag => {
+      const low = (tag || '').toLowerCase().trim();
+      if (!low || low === 'none' || low === 'normal' || tag.length < 3) return;
+      const k = factorMatchKey(tag);
+      if (!tagLabel[k]) tagLabel[k] = tag;
+      tagFreq[k] = (tagFreq[k] || 0) + 1;
     });
   });
-
-  const sortedDiet = Object.entries(dietCount)
-    .sort((a,b) => b[1] - a[1])
-    .slice(0, 8)
-    .map(([mk, count]) => [dietLabel[mk] || mk, count]);
-  document.getElementById('triggers-list').innerHTML = sortedDiet.map(([label, count]) => `
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-      <div style="font-size:13px;color:var(--text);min-width:100px;">${escapeHtml(label)}</div>
-      <div style="flex:1;background:var(--surface2);border-radius:4px;height:6px;overflow:hidden;">
-        <div style="width:${(count/Math.max(badDays.length,1)*100).toFixed(0)}%;height:100%;background:var(--warn);border-radius:4px;"></div>
-      </div>
-      <div style="font-size:12px;color:var(--muted);">${count}x</div>
-    </div>
-  `).join('') || '<div style="color:var(--muted);font-size:13px;">Not enough data in this range.</div>';
-
-  // Symptom frequency
-  const symptomKeys = ['heart_notes','mental_notes','spinal_notes','headache_notes','stomach_notes'];
-  const symptomMap = { 'Racing heart':0,'Heart Burn':0,'Anxious':0,'Neck pain':0,'Stomach ache':0,'Indigestion':0,'Nauseous':0,'Back pain':0,'Headache':0,'No poo':0 };
-
-  rangeData.forEach(d => {
-    const all = symptomKeys.map(k => d[k]).join(' ');
-    if (/racing heart/i.test(all)) symptomMap['Racing heart']++;
-    if (/heart burn|heartburn/i.test(all)) symptomMap['Heart Burn']++;
-    if (/anxious/i.test(all)) symptomMap['Anxious']++;
-    if (/neck pain/i.test(all)) symptomMap['Neck pain']++;
-    if (/stomach ache/i.test(all)) symptomMap['Stomach ache']++;
-    if (/indigestion/i.test(all)) symptomMap['Indigestion']++;
-    if (/nauseous/i.test(all)) symptomMap['Nauseous']++;
-    if (/back pain/i.test(all)) symptomMap['Back pain']++;
-    if (/head ache|headache/i.test(all)) symptomMap['Headache']++;
-    if (/no poo/i.test(d.gut_notes)) symptomMap['No poo']++;
-  });
-
+  const topTags = Object.entries(tagFreq).sort((a, b) => b[1] - a[1]).slice(0, 12);
   destroy('symptoms');
   chartInstances['symptoms'] = new Chart(document.getElementById('chart-symptoms'), {
     type: 'bar',
-    data: {
-      labels: Object.keys(symptomMap),
-      datasets: [{
-        data: Object.values(symptomMap),
-        backgroundColor: 'rgba(192,132,252,0.6)',
-        borderColor: '#c084fc',
-        borderWidth: 1,
-        borderRadius: 4
-      }]
-    },
+    data: { labels: topTags.map(([k]) => tagLabel[k]), datasets: [{
+      data: topTags.map(([, c]) => c),
+      backgroundColor: 'rgba(192,132,252,0.6)', borderColor: accent, borderWidth: 1, borderRadius: 4
+    }] },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
+      responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false } },
       scales: {
         x: { ticks: { color: tickColor, font: { size: 9 }, maxRotation: 45 }, grid: { display: false } },
@@ -5110,62 +5115,26 @@ function renderTrends() {
 
 // ── SHARE / DOCTOR VIEW ───────────────────────────────────────────────────────
 async function renderShare() {
-  const recent = [...DATA].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,30);
-  // Average only over entries that actually logged that score (quick-logs have nulls)
-  const avgField = (key) => {
-    const vals = recent.map(d => d[key]).filter(v => typeof v === 'number');
-    return vals.length ? (vals.reduce((s,v)=>s+v,0)/vals.length).toFixed(1) : 'N/A';
-  };
-  const avgWell = avgField('wellbeing');
-  const avgHeart = avgField('heart');
-  const avgStomach = avgField('stomach');
-  const avgExercise = avgField('exercise');
-  const redFlags = recent.filter(d=>d.red_flag).length;
-  const menstrualEntries = recent.filter(d=>d.menstrual_pain > 0);
-  const avgMenstrual = menstrualEntries.length
-    ? (menstrualEntries.reduce((s,d)=>s+d.menstrual_pain,0)/menstrualEntries.length).toFixed(1)
-    : 'N/A';
+  const ix = mvIndex();
+  const dates = [...new Set(VALUES.map(v => v.entry_date))].sort((a, b) => b.localeCompare(a));
+  const recentDates = dates.slice(0, 30);
+  const firstDate = recentDates[recentDates.length - 1];
+  const lastDate = recentDates[0];
+  const dateSet = new Set(recentDates);
 
-  const firstDate = recent[recent.length-1]?.date;
-  const lastDate = recent[0]?.date;
+  const scaleMetrics = (METRICS_CACHE || []).filter(m => !m.archived && m.type === 'scale_10');
+  const avgRows = scaleMetrics.map(m => {
+    const vals = Object.keys(ix[m.id] || {}).filter(d => dateSet.has(d)).map(d => ix[m.id][d].value_number).filter(v => typeof v === 'number');
+    const a = vals.length ? (vals.reduce((s, v) => s + v, 0) / vals.length).toFixed(1) : 'N/A';
+    const color = vals.length ? scoreColorHex(a) : 'var(--muted)';
+    return `<div class="share-row"><span class="share-row-label">Avg ${escapeHtml(m.name)}</span><span class="share-row-val" style="color:${color}">${a}${vals.length ? ' / 10' : ''}</span></div>`;
+  }).join('');
 
   document.getElementById('doctor-summary').innerHTML = `
-    <div class="share-row">
-      <span class="share-row-label">Patient</span>
-      <span class="share-row-val" id="share-patient-name">—</span>
-    </div>
-    <div class="share-row">
-      <span class="share-row-label">Period</span>
-      <span class="share-row-val">${fmt(firstDate)} – ${fmt(lastDate)}</span>
-    </div>
-    <div class="share-row">
-      <span class="share-row-label">Total entries</span>
-      <span class="share-row-val">${recent.length}</span>
-    </div>
-    <div class="share-row">
-      <span class="share-row-label">Avg wellbeing</span>
-      <span class="share-row-val" style="color:${scoreColorHex(avgWell)}">${avgWell} / 10</span>
-    </div>
-    <div class="share-row">
-      <span class="share-row-label">Avg heart health</span>
-      <span class="share-row-val" style="color:${scoreColorHex(avgHeart)}">${avgHeart} / 10</span>
-    </div>
-    <div class="share-row">
-      <span class="share-row-label">Avg stomach health</span>
-      <span class="share-row-val" style="color:${scoreColorHex(avgStomach)}">${avgStomach} / 10</span>
-    </div>
-    <div class="share-row">
-      <span class="share-row-label">Avg exercise</span>
-      <span class="share-row-val" style="color:${scoreColorHex(avgExercise)}">${avgExercise} / 10</span>
-    </div>
-    <div class="share-row">
-      <span class="share-row-label">Avg menstrual comfort</span>
-      <span class="share-row-val">${avgMenstrual} / 10</span>
-    </div>
-    <div class="share-row">
-      <span class="share-row-label">Red flag days</span>
-      <span class="share-row-val" style="color:var(--danger)">${redFlags} of ${recent.length}</span>
-    </div>
+    <div class="share-row"><span class="share-row-label">Patient</span><span class="share-row-val" id="share-patient-name">—</span></div>
+    <div class="share-row"><span class="share-row-label">Period</span><span class="share-row-val">${firstDate ? fmt(firstDate) : '—'} – ${lastDate ? fmt(lastDate) : '—'}</span></div>
+    <div class="share-row"><span class="share-row-label">Days logged</span><span class="share-row-val">${recentDates.length}</span></div>
+    ${avgRows}
   `;
 
   // AI clinical summary — manual trigger only (counts against the AI cap).
@@ -5200,10 +5169,20 @@ async function requestDoctorSummary() {
       Generating summary...
     </div>`;
 
-  const recent = [...DATA].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,30);
-  const summary = recent.slice(0,15).map(d =>
-    `${d.date}: wellbeing=${d.wellbeing}, heart=${d.heart}, spinal=${d.spinal}, headache=${d.headache}, stomach=${d.stomach}, gut=${d.gut}, exercise=${d.exercise}, libido=${d.libido}, cycle_day=${d.cycle_day}, menstrual_comfort=${d.menstrual_pain}, sexual_health="${d.sexual_notes}", diet="${d.diet_notes}", symptoms: heart="${d.heart_notes}", mental="${d.mental_notes}", stomach="${d.stomach_notes}", red_flag=${d.red_flag}`
-  ).join('\n');
+  const promptData = [
+    `This is a self-reported health summary for ${userName()}, generated from their own journal entries. It is NOT a clinical assessment.`,
+    ``,
+    `Metrics tracked:`,
+    metricDefsBlock(),
+    ``,
+    `Averages over the most recent logged days:`,
+    metricAveragesBlock(30),
+    ``,
+    `Recent entries (most recent first):`,
+    entriesUpToBlock(today(), 15),
+    ``,
+    `Write a concise clinical-style summary for the user's health team. Note averages and any trends, and surface notable self-reported observations from the notes (frame these as "user-reported"). Begin by stating this is a self-reported summary, not a clinical assessment. Only reference the metrics listed above; do not invent metrics, diagnoses, or measurements.`
+  ].join('\n');
 
   try {
     const resp = await fetch('/.netlify/functions/ai-insight', {
@@ -5212,7 +5191,7 @@ async function requestDoctorSummary() {
       body: JSON.stringify({
         userId: currentUser.id,
         type: 'clinical',
-        data: `Patient name: ${userName()}. Recent health journal data:\n\n${summary}\n\nProvide a clinical summary for their health team.`
+        data: promptData
       })
     });
     const result = await resp.json();
@@ -5237,10 +5216,21 @@ async function requestDoctorSummary() {
 }
 
 async function copyReport() {
-  const recent = [...DATA].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,30);
-  const text = recent.map(d =>
-    `${d.date} | Wellbeing: ${d.wellbeing} | Heart: ${d.heart} | Spinal: ${d.spinal} | Head: ${d.headache} | Stomach: ${d.stomach} | Gut: ${d.gut} | Menstrual comfort: ${d.menstrual_pain} | Cycle day: ${d.cycle_day} | Diet: ${d.diet_notes} | Notes: ${[d.heart_notes,d.mental_notes,d.stomach_notes,d.gut_notes].filter(Boolean).join('; ')} | Red flag: ${d.red_flag}`
-  ).join('\n');
+  const active = (METRICS_CACHE || []).filter(m => !m.archived);
+  const dates = [...new Set(VALUES.map(v => v.entry_date))].sort((a, b) => b.localeCompare(a)).slice(0, 30);
+  const text = dates.map(date => {
+    const vbd = valuesByDate(date);
+    const parts = active.map(m => {
+      const row = vbd[m.id]; if (!row) return null;
+      if (m.type === 'scale_10' && row.value_number != null) return `${m.name}: ${row.value_number}`;
+      if (m.type === 'number' && row.value_number != null) return `${m.name}: ${row.value_number}${m.unit ? ' ' + m.unit : ''}`;
+      if (m.type === 'yes_no' && row.value_bool != null) return `${m.name}: ${row.value_bool ? 'Yes' : 'No'}`;
+      if (m.type === 'tag_list' && Array.isArray(row.value_tags) && row.value_tags.length) return `${m.name}: ${row.value_tags.join(', ')}`;
+      if (m.type === 'free_text' && row.value_text) return `${m.name}: ${row.value_text}`;
+      return null;
+    }).filter(Boolean);
+    return `${date} | ${parts.join(' | ')}`;
+  }).join('\n');
 
   try {
     await navigator.clipboard.writeText(`${(userName() || 'YOUR').toUpperCase()} HEALTH REPORT\n\n` + text);
