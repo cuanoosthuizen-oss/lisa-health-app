@@ -101,6 +101,11 @@ exports.handler = async function(event) {
   const { userId, entryDate, type = 'daily', data: prompt } = body;
 
   if (!userId) return json(400, { error: 'missing_user_id' });
+
+  // File analysis (Pro) — separate path: no prompt, no monthly insight cap.
+  if (type === 'extract_file') {
+    return await handleFileExtraction(userId, body);
+  }
   if (!prompt) return json(400, { error: 'missing_prompt' });
   if (type === 'daily' && !entryDate) {
     return json(400, { error: 'missing_entry_date_for_daily_insight' });
@@ -332,6 +337,157 @@ Never describe a high score as a problem or a low score as good.`;
   const usage = await getUsageSummary(userId, tier, tierConfig, extraCreditsStandard, extraCreditsAdvanced);
   return json(200, { content, fromCache: false, usage });
 };
+
+// ============================================================================
+// File extraction (Pro): summarise one uploaded document and store the text.
+// Body: { userId, type:'extract_file', fileId }
+// The function pulls the file from Storage itself (service role) so large
+// files never hit Netlify's request-size limit, then writes the summary back.
+// ============================================================================
+async function handleFileExtraction(userId, body) {
+  const { fileId } = body;
+  if (!fileId) return json(400, { error: 'missing_file_id' });
+
+  const markStatus = async (status, extra = {}) => {
+    try {
+      await sb(`medical_files?id=eq.${fileId}&user_id=eq.${userId}`, {
+        method: 'PATCH', headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({ extract_status: status, ...extra })
+      });
+    } catch (e) { console.error('markStatus err:', e.message); }
+  };
+
+  // Pro gate
+  let tier = 'free';
+  try {
+    const tierRows = await sb(`user_tiers?user_id=eq.${userId}&select=tier`);
+    if (tierRows && tierRows[0]) tier = tierRows[0].tier || 'free';
+  } catch (e) { console.error('Tier lookup (extract) failed:', e.message); }
+  if (tier !== 'pro') return json(403, { error: 'not_pro', message: 'File analysis is a Pro feature.' });
+
+  // Look up the file row (scoped to this user)
+  let row;
+  try {
+    const rows = await sb(`medical_files?id=eq.${fileId}&user_id=eq.${userId}&select=storage_path,mime_type,file_name,size_bytes`);
+    row = rows && rows[0];
+  } catch (e) { console.error('file lookup failed:', e.message); }
+  if (!row) return json(404, { error: 'file_not_found' });
+
+  const mimeType = row.mime_type || '';
+  const isImage = mimeType.startsWith('image/');
+  const isPdf = mimeType === 'application/pdf';
+  if (!isImage && !isPdf) { await markStatus('failed'); return json(400, { error: 'unsupported_type' }); }
+
+  // Global circuit breaker
+  const today = todayDateUtc();
+  try {
+    const spendRows = await sb(`ai_spend_daily?spend_date=eq.${today}&select=spend_usd`);
+    const todaySpend = spendRows && spendRows[0] ? Number(spendRows[0].spend_usd) : 0;
+    if (todaySpend >= DAILY_SPEND_CAP_USD) {
+      return json(503, { error: 'circuit_breaker', message: 'AI temporarily unavailable. Try again tomorrow.' });
+    }
+  } catch (e) {
+    console.error('Circuit breaker (extract) failed:', e.message);
+    return json(503, { error: 'circuit_breaker_check_failed' });
+  }
+
+  // Download the file from Storage (service role) and base64-encode server-side
+  let base64;
+  try {
+    const fr = await fetch(`${process.env.SUPABASE_URL}/storage/v1/object/medical-files/${row.storage_path}`, {
+      headers: {
+        apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`
+      }
+    });
+    if (!fr.ok) throw new Error('storage ' + fr.status);
+    const buf = Buffer.from(await fr.arrayBuffer());
+    base64 = buf.toString('base64');
+  } catch (e) {
+    console.error('file download failed:', e.message);
+    await markStatus('failed');
+    return json(502, { error: 'file_download_failed' });
+  }
+
+  const model = TIER_CONFIG.pro.model;
+  const fileBlock = isPdf
+    ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }
+    : { type: 'image', source: { type: 'base64', media_type: mimeType, data: base64 } };
+
+  const extractSystem = `You are extracting a health-related document (such as a blood test, pathology report, scan report, or letter from a clinician) into a faithful plain-text summary. This summary is stored alongside the user's own health journal and may later be shown to their doctor.
+
+Rules:
+- Transcribe the key clinical content factually: test/marker names, the user's values with units, the reference range for each where shown, and the collection or report date if present.
+- Clearly note any result the document itself marks as outside its reference range (high/low/abnormal). Do not invent flags the document does not show.
+- Do not diagnose, infer causes, or give treatment advice. State only what the document contains.
+- If the document is unreadable or is not a health record, reply with one short sentence saying so and nothing else.
+- Plain text only, no markdown tables. Use short labelled lines. Keep under ~400 words.`;
+
+  const userText = `Extract and summarise this document${row.file_name ? ` (filename: ${row.file_name})` : ''}.`;
+
+  let apiResponse;
+  try {
+    const resp = await fetch(ANTHROPIC_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 1024,
+        system: extractSystem,
+        messages: [{ role: 'user', content: [ fileBlock, { type: 'text', text: userText } ] }]
+      })
+    });
+    if (!resp.ok) {
+      const txt = await resp.text();
+      console.error('Anthropic extract error:', resp.status, txt);
+      await markStatus('failed');
+      return json(502, { error: 'anthropic_error', detail: txt });
+    }
+    apiResponse = await resp.json();
+  } catch (e) {
+    console.error('Anthropic extract call failed:', e.message);
+    await markStatus('failed');
+    return json(502, { error: 'anthropic_call_failed' });
+  }
+
+  const textBlock = apiResponse.content && apiResponse.content.find(b => b.type === 'text');
+  const content = textBlock ? textBlock.text : null;
+  if (!content) { await markStatus('failed'); return json(502, { error: 'no_content_in_response' }); }
+
+  await markStatus('done', { extracted_text: content, extracted_at: new Date().toISOString() });
+
+  // Record spend (best-effort) on the shared daily ledger
+  const inputTokens = apiResponse.usage?.input_tokens || 0;
+  const outputTokens = apiResponse.usage?.output_tokens || 0;
+  const pricing = MODEL_PRICING[model];
+  const callCostUsd = pricing ? (inputTokens * pricing.input / 1_000_000) + (outputTokens * pricing.output / 1_000_000) : 0;
+  try {
+    const spendRows = await sb(`ai_spend_daily?spend_date=eq.${today}&select=spend_usd,call_count`);
+    if (spendRows && spendRows[0]) {
+      const newSpend = Number(spendRows[0].spend_usd) + callCostUsd;
+      await sb(`ai_spend_daily?spend_date=eq.${today}`, {
+        method: 'PATCH', headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({
+          spend_usd: newSpend,
+          call_count: spendRows[0].call_count + 1,
+          tripped_at: newSpend >= DAILY_SPEND_CAP_USD ? new Date().toISOString() : null,
+          updated_at: new Date().toISOString()
+        })
+      });
+    } else {
+      await sb('ai_spend_daily', {
+        method: 'POST', headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({ spend_date: today, spend_usd: callCostUsd, call_count: 1 })
+      });
+    }
+  } catch (e) { console.error('Spend tracking (extract) failed (non-fatal):', e.message); }
+
+  return json(200, { content });
+}
 
 async function getUsageSummary(userId, tier, tierConfig, extraStd, extraAdv) {
   const yearMonth = currentYearMonth();
