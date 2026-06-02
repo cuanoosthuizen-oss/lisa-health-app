@@ -3492,6 +3492,10 @@ async function submitCheckin() {
     } catch (e) { console.warn('value save failed for metric', m.id, e); }
   }
 
+  // Refresh the in-memory values so home/streak/trends/insight-gate reflect this
+  // save immediately (without needing a full page reload).
+  try { await loadValues(); } catch (e) {}
+
   if (btn) { btn.disabled = false; btn.textContent = "Save check-in"; }
   document.getElementById('form-inner').style.display = 'none';
   document.getElementById('main-submit-btn').style.display = 'none';
