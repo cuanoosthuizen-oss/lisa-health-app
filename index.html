@@ -11,46 +11,60 @@
 <style>
   :root {
     --radius: 16px;
+    --btn: #a96a44;
+    --btn-on: #ffffff;
     --font-serif: 'DM Serif Display', Georgia, serif;
     --font-sans: 'DM Sans', system-ui, sans-serif;
   }
 
-  /* Dark theme (default) */
+  /* Dark theme (default) — warm charcoal base, Copper brand */
   :root,
   [data-theme="dark"] {
-    --bg: #0d0d0f;
-    --surface: #16161a;
-    --surface2: #1e1e24;
-    --border: #2a2a33;
-    --text: #f0eff4;
-    --muted: #7a7a8c;
-    --accent: #c084fc;
-    --accent2: #f472b6;
-    --accent3: #34d399;
-    --warn: #fb923c;
-    --danger: #f87171;
-    --good: #34d399;
-    --input-bg: #1e1e24;
-    --shadow: rgba(0, 0, 0, 0.4);
-    --nav-bg: rgba(13, 13, 15, 0.95);
+    --bg: #15110e;
+    --surface: #201a16;
+    --surface2: #29221d;
+    --border: #342b25;
+    --text: #f0eae4;
+    --muted: #a2978d;
+    --accent: #ce9266;
+    --brand: #ce9266;
+    --brand-ink: #d9a079;
+    --brand-soft: #2a1c12;
+    --brand-on: #1a1109;
+    --ai: #ad97b6;
+    --ai-soft: #262029;
+    --accent2: #ad97b6;
+    --accent3: #6fb58c;
+    --warn: #e0a36a;
+    --danger: #e07a6a;
+    --good: #6fb58c;
+    --input-bg: #29221d;
+    --shadow: rgba(0, 0, 0, 0.5);
+    --nav-bg: rgba(21, 17, 14, 0.95);
   }
 
-  /* Light theme — clean, cool, neutral */
+  /* Light theme — warm off-white base, Copper brand */
   [data-theme="light"] {
-    --bg: #fafbfc;
+    --bg: #f7f4f0;
     --surface: #ffffff;
-    --surface2: #f3f4f6;
-    --border: #e5e7eb;
-    --text: #1a1a2e;
-    --muted: #4b5563;
-    --accent: #9333ea;
-    --accent2: #db2777;
-    --accent3: #059669;
-    --warn: #ea580c;
-    --danger: #dc2626;
-    --good: #059669;
-    --input-bg: #f9fafb;
-    --shadow: rgba(15, 23, 42, 0.08);
+    --surface2: #f1ece6;
+    --border: #e7e0d8;
+    --text: #221c18;
+    --muted: #6f655d;
+    --accent: #a96a44;
+    --brand: #a96a44;
+    --brand-ink: #8a5436;
+    --brand-soft: #f3e8dd;
+    --brand-on: #ffffff;
+    --ai: #7e6a8a;
+    --ai-soft: #efeaf2;
+    --accent2: #7e6a8a;
+    --accent3: #3e8e68;
+    --warn: #b5742e;
+    --danger: #c2492f;
+    --good: #3e8e68;
+    --input-bg: #fbf8f4;
+    --shadow: rgba(60, 40, 28, 0.10);
     --nav-bg: rgba(255, 255, 255, 0.95);
   }
 
@@ -102,8 +116,8 @@
   }
 
   .streak-badge {
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    color: #fff;
+    background: var(--brand-soft);
+    color: var(--brand-ink);
     font-size: 11px;
     font-weight: 600;
     padding: 4px 10px;
@@ -320,7 +334,7 @@
 
   /* selected: strong accent fill */
   .cal-day.selected {
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    background: var(--btn);
     color: #0d0d0f;
     font-weight: 600;
   }
@@ -465,7 +479,7 @@
     align-items: center;
   }
   .metric-row-primary {
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    background: var(--btn);
     color: white;
     font-size: 10px;
     text-transform: uppercase;
@@ -537,7 +551,7 @@
 
   /* AI generate button (home + day detail) */
   .ai-generate-btn {
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    background: var(--btn);
     color: white;
     border: none;
     border-radius: 999px;
@@ -790,7 +804,7 @@
     transition: background 0.2s, color 0.2s;
   }
   .mode-btn.active {
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    background: var(--btn);
     color: #0d0d0f;
   }
 
@@ -836,6 +850,19 @@
 
   .nav-btn.active { color: var(--accent); }
   .nav-btn svg { width: 19px; height: 19px; }
+
+  /* Centre add button → check-in */
+  .nav-fab {
+    flex: 0 0 auto;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: var(--btn);
+    align-self: center;
+    margin: -20px 8px 0;
+    box-shadow: 0 8px 18px -6px rgba(169, 106, 68, 0.55);
+  }
+  .nav-fab svg { width: 24px !important; height: 24px !important; stroke: var(--btn-on); }
 
   /* Views */
   .view { display: none; }
@@ -994,7 +1021,7 @@
     border-radius: 50%;
     background: var(--accent);
     cursor: pointer;
-    box-shadow: 0 0 0 4px rgba(192,132,252,0.2);
+    box-shadow: 0 0 0 4px rgba(206,146,102,0.25);
   }
 
   .slider-labels {
@@ -1100,7 +1127,7 @@
   }
 
   .range-btn.active {
-    background: rgba(192,132,252,0.15);
+    background: rgba(206,146,102,0.15);
     border-color: var(--accent);
     color: var(--accent);
   }
@@ -1112,7 +1139,7 @@
     padding: 16px;
     border-radius: var(--radius);
     border: none;
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    background: var(--btn);
     color: #fff;
     font-family: var(--font-sans);
     font-size: 15px;
@@ -1137,8 +1164,8 @@
 
   /* AI Insights */
   .insight-card {
-    background: linear-gradient(135deg, rgba(192,132,252,0.08), rgba(244,114,182,0.05));
-    border: 1px solid rgba(192,132,252,0.25);
+    background: var(--ai-soft);
+    border: 1px solid var(--ai);
     border-radius: var(--radius);
     padding: 20px;
     margin: 0 16px 12px;
@@ -1417,7 +1444,7 @@
     padding: 15px;
     border-radius: 12px;
     border: none;
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    background: var(--btn);
     color: #fff;
     font-family: var(--font-sans);
     font-size: 15px;
@@ -1453,13 +1480,13 @@
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    background: var(--brand-soft);
     border: none;
     cursor: pointer;
     font-family: var(--font-serif);
     font-size: 18px;
     font-style: italic;
-    color: #0d0d0f;
+    color: var(--brand-ink);
     -webkit-tap-highlight-color: transparent;
     display: flex;
     align-items: center;
@@ -1720,7 +1747,7 @@
   }
 
   .pw-form button.primary {
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    background: var(--btn);
     color: #fff;
   }
 
@@ -2416,13 +2443,12 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
       Home
     </button>
-    <button class="nav-btn" onclick="showView('checkin',this)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-      Check-in
-    </button>
     <button class="nav-btn" onclick="showView('trends',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
       Trends
+    </button>
+    <button class="nav-btn nav-fab" onclick="showView('checkin',this)" aria-label="New check-in">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     </button>
     <button class="nav-btn" onclick="showView('customise',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="4" y1="6" x2="11" y2="6"/><line x1="15" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="7" y2="12"/><line x1="11" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="13" y2="18"/><line x1="17" y1="18" x2="20" y2="18"/><circle cx="13" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="15" cy="18" r="2"/></svg>
@@ -4546,7 +4572,7 @@ function renderTrends() {
   const cs = getComputedStyle(document.documentElement);
   const tickColor = cs.getPropertyValue('--muted').trim() || '#7a7a8c';
   const gridColor = cs.getPropertyValue('--border').trim() || '#2a2a33';
-  const accent = cs.getPropertyValue('--accent').trim() || '#c084fc';
+  const accent = cs.getPropertyValue('--accent').trim() || '#ce9266';
   const chartDefaults = {
     responsive: true,
     maintainAspectRatio: false,
@@ -4576,7 +4602,7 @@ function renderTrends() {
       type: 'line',
       data: { labels, datasets: [{
         label: pm.name, data: seriesFor(pm),
-        borderColor: accent, backgroundColor: 'rgba(192,132,252,0.1)',
+        borderColor: accent, backgroundColor: 'rgba(206,146,102,0.12)',
         fill: true, spanGaps: true, tension: 0.4, pointRadius: 3, pointBackgroundColor: accent
       }] },
       options: chartDefaults
@@ -4584,7 +4610,7 @@ function renderTrends() {
   }
 
   // 2) Other scale_10 metrics overlaid
-  const palette = ['#f472b6','#fb923c','#34d399','#60a5fa','#c084fc','#facc15'];
+  const palette = ['#c98a5e','#6f9b94','#bc90ce','#c2a35e','#8aa0b5','#cf8b72'];
   const others = outcomeMetrics().filter(m => !pm || m.id !== pm.id).slice(0, 6);
   destroy('scores');
   chartInstances['scores'] = new Chart(document.getElementById('chart-scores'), {
@@ -4614,7 +4640,7 @@ function renderTrends() {
     }).filter(Boolean);
     chartInstances['cycle'] = new Chart(cycleCanvas, {
       type: 'scatter',
-      data: { datasets: [{ data: pts, backgroundColor: 'rgba(244,114,182,0.6)', pointRadius: 5 }] },
+      data: { datasets: [{ data: pts, backgroundColor: 'rgba(206,146,102,0.6)', pointRadius: 5 }] },
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false } },
@@ -4679,7 +4705,7 @@ function renderTrends() {
     type: 'bar',
     data: { labels: topTags.map(([k]) => tagLabel[k]), datasets: [{
       data: topTags.map(([, c]) => c),
-      backgroundColor: 'rgba(192,132,252,0.6)', borderColor: accent, borderWidth: 1, borderRadius: 4
+      backgroundColor: 'rgba(206,146,102,0.6)', borderColor: accent, borderWidth: 1, borderRadius: 4
     }] },
     options: {
       responsive: true, maintainAspectRatio: false,
