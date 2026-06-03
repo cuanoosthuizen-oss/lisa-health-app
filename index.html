@@ -34,10 +34,10 @@
     --ai: #ad97b6;
     --ai-soft: #262029;
     --accent2: #ad97b6;
-    --accent3: #6fb58c;
-    --warn: #e0a36a;
-    --danger: #e07a6a;
-    --good: #6fb58c;
+    --accent3: #8faa7c;
+    --warn: #c9a96a;
+    --danger: #c46a4f;
+    --good: #8faa7c;
     --input-bg: #29221d;
     --shadow: rgba(0, 0, 0, 0.5);
     --nav-bg: rgba(21, 17, 14, 0.95);
@@ -59,10 +59,10 @@
     --ai: #7e6a8a;
     --ai-soft: #efeaf2;
     --accent2: #7e6a8a;
-    --accent3: #3e8e68;
-    --warn: #b5742e;
-    --danger: #c2492f;
-    --good: #3e8e68;
+    --accent3: #5f7d52;
+    --warn: #a07d3c;
+    --danger: #a8452f;
+    --good: #5f7d52;
     --input-bg: #fbf8f4;
     --shadow: rgba(60, 40, 28, 0.10);
     --nav-bg: rgba(255, 255, 255, 0.95);
@@ -316,7 +316,7 @@
   .cal-day.future { color: var(--border); cursor: default; }
 
   /* logged day: subtle green dot under the number */
-  .cal-day.logged { background: rgba(52, 211, 153, 0.14); color: var(--text); }
+  .cal-day.logged { background: rgba(95, 125, 82, 0.14); color: var(--text); }
   .cal-day.logged::after {
     content: '';
     position: absolute;
@@ -327,7 +327,7 @@
   }
 
   /* missed day: subtle red tint */
-  .cal-day.missed { background: rgba(248, 113, 113, 0.12); color: #f8a5a5; }
+  .cal-day.missed { background: rgba(168, 69, 47, 0.12); color: #c98a7a; }
 
   /* today: accent ring */
   .cal-day.today { border-color: var(--accent); }
@@ -358,7 +358,7 @@
   .cal-legend span { display: flex; align-items: center; gap: 4px; }
   .cal-legend .dot { width: 8px; height: 8px; border-radius: 50%; }
   .cal-legend .dot.logged { background: var(--good); }
-  .cal-legend .dot.missed { background: #f8a5a5; }
+  .cal-legend .dot.missed { background: var(--danger); }
 
   .cal-close {
     background: var(--surface2);
@@ -588,7 +588,7 @@
   .pattern-item:first-child { padding-top: 0; }
 
   .pattern-factor { color: var(--accent); font-weight: 500; }
-  .pattern-effect-down { color: #f8a5a5; }
+  .pattern-effect-down { color: #c98a7a; }
   .pattern-effect-up { color: var(--good); }
 
   .patterns-empty {
@@ -853,13 +853,13 @@
   /* Centre add button → check-in */
   .nav-fab {
     flex: 0 0 auto;
-    width: 50px;
-    height: 50px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     background: var(--btn);
     align-self: center;
-    margin: -14px 10px 0;
-    box-shadow: 0 0 0 5px var(--bg), 0 5px 12px -4px rgba(169, 106, 68, 0.45);
+    margin: -16px 10px 0;
+    box-shadow: 0 5px 14px -4px rgba(169, 106, 68, 0.5);
   }
   .nav-fab svg { width: 22px !important; height: 22px !important; stroke: var(--btn-on); stroke-width: 2.5; }
 
@@ -961,7 +961,7 @@
   }
 
   .tag.warn {
-    background: rgba(251, 146, 60, 0.1);
+    background: rgba(160, 125, 60, 0.1);
     border-color: var(--warn);
     color: var(--warn);
   }
@@ -1229,8 +1229,8 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    background: rgba(248, 113, 113, 0.1);
-    border: 1px solid rgba(248, 113, 113, 0.3);
+    background: rgba(168, 69, 47, 0.1);
+    border: 1px solid rgba(168, 69, 47, 0.3);
     border-radius: 8px;
     padding: 6px 12px;
     font-size: 12px;
@@ -1240,8 +1240,8 @@
 
   /* Today's entry check */
   .today-done {
-    background: rgba(52, 211, 153, 0.08);
-    border: 1px solid rgba(52, 211, 153, 0.25);
+    background: rgba(95, 125, 82, 0.08);
+    border: 1px solid rgba(95, 125, 82, 0.25);
     border-radius: var(--radius);
     padding: 16px 20px;
     margin: 16px 16px 0;
@@ -1291,7 +1291,7 @@
     cursor: pointer;
   }
 
-  .history-item.red { border-color: rgba(248,113,113,0.3); }
+  .history-item.red { border-color: rgba(168, 69, 47,0.3); }
 
   .history-score {
     font-family: var(--font-serif);
@@ -1806,7 +1806,7 @@
   .submitted-icon {
     width: 72px;
     height: 72px;
-    background: rgba(52, 211, 153, 0.1);
+    background: rgba(95, 125, 82, 0.1);
     border: 2px solid var(--good);
     border-radius: 50%;
     display: flex;
@@ -2855,7 +2855,7 @@ function applyBranding() {
   // Page title
   document.title = `${APP_NAME} — Health Journal`;
   // Login + header
-  setText('login-logo', APP_NAME);
+  { const _ll = document.getElementById('login-logo'); if (_ll) _ll.innerHTML = APP_NAME.length > 2 ? APP_NAME.slice(0, -2) + '<span>' + APP_NAME.slice(-2) + '</span>' : APP_NAME; }
   setText('login-sub', APP_TAGLINE);
   { const _ht = document.getElementById('header-title'); if (_ht) _ht.innerHTML = APP_NAME.length > 2 ? APP_NAME.slice(0, -2) + '<span>' + APP_NAME.slice(-2) + '</span>' : APP_NAME; }
   // Settings footer
@@ -3050,10 +3050,9 @@ function updateDateTrigger(inputId) {
 }
 
 
+function tokenColor(name) { const c = getComputedStyle(document.documentElement).getPropertyValue(name); return (c && c.trim()) || '#a96a44'; }
 function scoreColorHex(v) {
-  if (v >= 7) return '#34d399';
-  if (v >= 5) return '#fb923c';
-  return '#f87171';
+  return tokenColor(v >= 7 ? '--good' : v >= 5 ? '--warn' : '--danger');
 }
 
 // ── METRIC-VALUES READ MODEL (v0.5.0) ─────────────────────────────────────────
@@ -3852,9 +3851,7 @@ function escapeHtml(str) {
 // Day-detail scale colour, direction-aware (low can be the "good" end).
 function dayScaleColor(val, direction) {
   if (direction === 'lower_better') {
-    if (val <= 3) return '#34d399';
-    if (val <= 6) return '#fb923c';
-    return '#f87171';
+    return tokenColor(val <= 3 ? '--good' : val <= 6 ? '--warn' : '--danger');
   }
   return scoreColorHex(val);
 }
@@ -4575,7 +4572,7 @@ function renderTrends() {
   const chartDefaults = {
     responsive: true,
     maintainAspectRatio: false,
-    plugins: { legend: { labels: { color: tickColor, font: { size: 11 } } } },
+    plugins: { legend: { labels: { color: tickColor, font: { size: 11 }, boxWidth: 14, boxHeight: 14, generateLabels: function(ch){ return ch.data.datasets.map(function(ds,i){ return { text: ds.label, fillStyle: ds.borderColor, strokeStyle: ds.borderColor, lineWidth: 0, hidden: !ch.isDatasetVisible(i), datasetIndex: i }; }); } } } },
     scales: {
       x: { ticks: { color: tickColor, font: { size: 10 }, maxTicksLimit: 6 }, grid: { color: gridColor } },
       y: { ticks: { color: tickColor, font: { size: 10 } }, grid: { color: gridColor }, min: 0, max: 10 }
@@ -4619,7 +4616,7 @@ function renderTrends() {
       borderColor: palette[i % palette.length], backgroundColor: palette[i % palette.length],
       tension: 0.4, pointRadius: 2, borderWidth: 2, spanGaps: true, fill: false
     })) },
-    options: { ...chartDefaults, plugins: { legend: { labels: { color: tickColor, font: { size: 11 } } } } }
+    options: { ...chartDefaults }
   });
 
   // 3) Cycle scatter — display only, shown ONLY if a cyclical metric exists.
