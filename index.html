@@ -816,8 +816,7 @@
     transform: translateX(-50%);
     width: 100%;
     max-width: 480px;
-    background: var(--nav-bg);
-    backdrop-filter: blur(20px);
+    background: var(--bg);
     border-top: 1px solid var(--border);
     display: flex;
     padding: 4px 8px calc(2px + env(safe-area-inset-bottom, 0px));
@@ -854,15 +853,15 @@
   /* Centre add button → check-in */
   .nav-fab {
     flex: 0 0 auto;
-    width: 52px;
-    height: 52px;
+    width: 50px;
+    height: 50px;
     border-radius: 50%;
     background: var(--btn);
     align-self: center;
-    margin: -20px 8px 0;
-    box-shadow: 0 8px 18px -6px rgba(169, 106, 68, 0.55);
+    margin: -14px 10px 0;
+    box-shadow: 0 0 0 5px var(--bg), 0 5px 12px -4px rgba(169, 106, 68, 0.45);
   }
-  .nav-fab svg { width: 24px !important; height: 24px !important; stroke: var(--btn-on); }
+  .nav-fab svg { width: 22px !important; height: 22px !important; stroke: var(--btn-on); stroke-width: 2.5; }
 
   /* Views */
   .view { display: none; }
@@ -2858,7 +2857,7 @@ function applyBranding() {
   // Login + header
   setText('login-logo', APP_NAME);
   setText('login-sub', APP_TAGLINE);
-  setText('header-title', APP_NAME);
+  { const _ht = document.getElementById('header-title'); if (_ht) _ht.innerHTML = APP_NAME.length > 2 ? APP_NAME.slice(0, -2) + '<span>' + APP_NAME.slice(-2) + '</span>' : APP_NAME; }
   // Settings footer
   setText('settings-about-foot', `Made with care${userName() ? ' for ' + userName() : ''}`);
   // Done-screen greeting
