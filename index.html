@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0d0d0f">
+<meta name="theme-color" content="#15110e">
 <title>Stilte — Health Journal</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -130,7 +130,7 @@
     flex: 1;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    padding-bottom: calc(160px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
   }
 
   .main::-webkit-scrollbar { display: none; }
@@ -335,10 +335,10 @@
   /* selected: strong accent fill */
   .cal-day.selected {
     background: var(--btn);
-    color: #0d0d0f;
+    color: var(--btn-on);
     font-weight: 600;
   }
-  .cal-day.selected::after { background: #0d0d0f; }
+  .cal-day.selected::after { background: var(--btn-on); }
 
   .cal-footer {
     display: flex;
@@ -620,7 +620,7 @@
   }
   .unlock-progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    background: var(--brand);
     border-radius: 6px;
     transition: width 0.4s ease;
   }
@@ -759,8 +759,8 @@
 
   .day-redflag {
     display: inline-block;
-    background: rgba(244, 114, 182, 0.12);
-    color: var(--accent2);
+    background: rgba(196, 106, 79, 0.14);
+    color: var(--danger);
     padding: 3px 10px;
     border-radius: 8px;
     font-size: 11px;
@@ -805,7 +805,7 @@
   }
   .mode-btn.active {
     background: var(--btn);
-    color: #0d0d0f;
+    color: var(--btn-on);
   }
 
   /* Bottom nav */
@@ -819,7 +819,7 @@
     background: var(--bg);
     border-top: 1px solid var(--border);
     display: flex;
-    padding: 4px 8px calc(2px + env(safe-area-inset-bottom, 0px));
+    padding: 2px 8px calc(2px + env(safe-area-inset-bottom, 0px));
     z-index: 100;
   }
 
@@ -848,20 +848,20 @@
   }
 
   .nav-btn.active { color: var(--accent); }
-  .nav-btn svg { width: 19px; height: 19px; }
+  .nav-btn svg { width: 18px; height: 18px; }
 
   /* Centre add button → check-in */
   .nav-fab {
     flex: 0 0 auto;
-    width: 48px;
-    height: 48px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     background: var(--btn);
     align-self: center;
-    margin: -16px 10px 0;
+    margin: -12px 10px 0;
     box-shadow: 0 5px 14px -4px rgba(169, 106, 68, 0.5);
   }
-  .nav-fab svg { width: 22px !important; height: 22px !important; stroke: var(--btn-on); stroke-width: 2.5; }
+  .nav-fab svg { width: 20px !important; height: 20px !important; stroke: var(--btn-on); stroke-width: 2.5; }
 
   /* Views */
   .view { display: none; }
@@ -955,7 +955,7 @@
   }
 
   .tag.active {
-    background: rgba(192, 132, 252, 0.15);
+    background: rgba(206, 146, 102, 0.15);
     border-color: var(--accent);
     color: var(--accent);
   }
@@ -1056,7 +1056,7 @@
   }
 
   .ms-option.selected {
-    background: rgba(192, 132, 252, 0.15);
+    background: rgba(206, 146, 102, 0.15);
     border-color: var(--accent);
     color: var(--accent);
   }
@@ -1177,14 +1177,14 @@
     position: absolute;
     top: 0; left: 0; right: 0;
     height: 2px;
-    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    background: var(--ai);
   }
 
   .insight-label {
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 1.5px;
-    color: var(--accent);
+    color: var(--ai);
     font-weight: 600;
     margin-bottom: 10px;
   }
@@ -1244,11 +1244,29 @@
     border: 1px solid rgba(95, 125, 82, 0.25);
     border-radius: var(--radius);
     padding: 16px 20px;
-    margin: 16px 16px 0;
+    margin: 16px 16px 12px;
     text-align: center;
     font-size: 14px;
     color: var(--good);
   }
+
+  .checkin-cta {
+    display: block;
+    width: calc(100% - 32px);
+    margin: 16px 16px 12px;
+    padding: 16px;
+    border: none;
+    border-radius: var(--radius);
+    background: var(--btn);
+    color: var(--btn-on);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .checkin-cta:active { opacity: 0.85; }
 
   /* Today prompt — tappable card prompting check-in */
   .today-prompt-tap {
@@ -1372,7 +1390,7 @@
     left: 50%;
     transform: translateX(-50%) translateY(-80px);
     background: var(--good);
-    color: #0d0d0f;
+    color: var(--btn-on);
     padding: 12px 24px;
     border-radius: 30px;
     font-size: 14px;
@@ -1829,7 +1847,7 @@
   .metric-field.not-logged .slider-value { opacity: .35; }
   .yesno { display: flex; gap: 10px; }
   .yesno-btn { flex: 1; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: transparent; color: var(--text); font-size: 15px; cursor: pointer; }
-  .yesno-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .yesno-btn.active { background: var(--btn); color: var(--btn-on); border-color: var(--btn); }
   /* Onboarding wizard (new users) */
   #onboarding-overlay { position: fixed; inset: 0; z-index: 9999; background: var(--bg); overflow-y: auto; display: none; justify-content: center; padding: 40px 20px 64px; }
   .onb-card { width: 100%; max-width: 460px; }
@@ -1853,7 +1871,7 @@
 
   .record-ai { margin-top: 6px; font-size: 13px; }
   .record-ai.muted { color: var(--muted); }
-  .record-ai-text { margin-top: 6px; white-space: pre-wrap; font-size: 12.5px; line-height: 1.5; color: var(--text); background: rgba(127,127,127,0.06); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+  .record-ai-text { margin-top: 6px; white-space: pre-wrap; font-size: 12.5px; line-height: 1.5; color: var(--text); background: var(--ai-soft); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
   .link-btn { background: none; border: none; color: var(--accent); font-size: 13px; cursor: pointer; padding: 0; text-decoration: underline; }
 </style>
 <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
@@ -1937,7 +1955,10 @@
   <!-- HOME VIEW -->
   <div class="view active main" id="view-home">
 
-    <!-- AI insight hero (promoted to top) -->
+    <!-- Today's check-in (primary action; flips to "complete" when logged) -->
+    <div id="today-prompt"></div>
+
+    <!-- AI insight -->
     <div class="insight-card" id="insight-card">
       <div class="insight-label">AI insight</div>
       <div class="insight-loading">
@@ -1945,9 +1966,6 @@
         Analysing your recent data...
       </div>
     </div>
-
-    <!-- Today prompt (tappable; deep-links to check-in if today not logged) -->
-    <div id="today-prompt"></div>
 
     <!-- Top pattern observation (only shown when a strong pattern exists) -->
     <div class="card" id="top-pattern-card" style="display:none;">
@@ -2890,7 +2908,7 @@ function applyTheme(mode) {
   root.setAttribute('data-theme', effective);
   // Update theme-color meta for mobile chrome
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute('content', effective === 'light' ? '#fafbfc' : '#0d0d0f');
+  if (meta) meta.setAttribute('content', effective === 'light' ? '#f7f4f0' : '#15110e');
 }
 function setThemeMode(mode) {
   localStorage.setItem('theme_mode', mode);
@@ -3353,6 +3371,8 @@ function metricInputHtml(m) {
   if (m.type === 'scale_10') {
     sub = m.direction === 'lower_better' ? '1 = best, 10 = worst'
         : m.direction === 'higher_better' ? '1 = worst, 10 = best' : '1\u201310';
+  } else if (m.type === 'number' && m.numeric_mode === 'cyclical') {
+    sub = 'auto-advances each day \u2014 reset to 1 on your period';
   } else if (m.type === 'number' && m.unit) {
     sub = escapeHtml(m.unit);
   }
@@ -3440,6 +3460,18 @@ function readMetricValue(m) {
   return { logged: false };
 }
 
+// Cyclical metrics (e.g. cycle day) auto-advance: default = last logged value + days elapsed.
+// Returns null when there's no prior entry to advance from (so the field stays blank first time).
+function cyclicalAutofill(metricId, date) {
+  const prior = VALUES
+    .filter(v => v.metric_id === metricId && v.value_number != null && v.entry_date < date)
+    .sort((a, b) => b.entry_date.localeCompare(a.entry_date))[0];
+  if (!prior) return null;
+  const days = Math.round((new Date(date + 'T00:00:00') - new Date(prior.entry_date + 'T00:00:00')) / 86400000);
+  if (!(days > 0)) return null;
+  return prior.value_number + days;
+}
+
 async function prefillCheckin(date) {
   let vals = [];
   try { vals = await sbMetrics.listValuesForDate(date); } catch (e) { vals = []; }
@@ -3464,7 +3496,14 @@ async function prefillCheckin(date) {
         scaleLogged[m.id] = false; markFieldLogged(m.id, false);
       }
     } else if (m.type === 'number') {
-      el.value = (v && v.value_number != null) ? v.value_number : '';
+      if (v && v.value_number != null) {
+        el.value = v.value_number;
+      } else if (m.numeric_mode === 'cyclical') {
+        const auto = cyclicalAutofill(m.id, date);
+        el.value = (auto != null) ? auto : '';
+      } else {
+        el.value = '';
+      }
     } else if (m.type === 'yes_no') {
       if (v && v.value_bool != null) { setYesNo(m.id, v.value_bool); }
       else { el.dataset.val = ''; el.querySelectorAll('.yesno-btn').forEach(b => b.classList.remove('active')); }
@@ -3563,11 +3602,7 @@ function renderHome() {
   if (loggedToday) {
     promptEl.innerHTML = `<div class="today-done">Check-in complete for today</div>`;
   } else {
-    promptEl.innerHTML = `
-      <div class="today-prompt-tap" onclick="goToCheckin()">
-        <span class="today-prompt-tap-text">Log today's check-in</span>
-        <span class="today-prompt-tap-arrow">→</span>
-      </div>`;
+    promptEl.innerHTML = `<button class="checkin-cta" onclick="goToCheckin()">Check in now</button>`;
   }
 
   // Top pattern card (single strongest pattern from engine, if available)
@@ -4566,13 +4601,13 @@ function renderTrends() {
   const destroy = id => { if (chartInstances[id]) chartInstances[id].destroy(); };
 
   const cs = getComputedStyle(document.documentElement);
-  const tickColor = cs.getPropertyValue('--muted').trim() || '#7a7a8c';
-  const gridColor = cs.getPropertyValue('--border').trim() || '#2a2a33';
+  const tickColor = cs.getPropertyValue('--muted').trim() || '#a2978d';
+  const gridColor = cs.getPropertyValue('--border').trim() || '#342b25';
   const accent = cs.getPropertyValue('--accent').trim() || '#ce9266';
   const chartDefaults = {
     responsive: true,
     maintainAspectRatio: false,
-    plugins: { legend: { labels: { color: tickColor, font: { size: 11 }, boxWidth: 14, boxHeight: 14, generateLabels: function(ch){ return ch.data.datasets.map(function(ds,i){ return { text: ds.label, fillStyle: ds.borderColor, strokeStyle: ds.borderColor, lineWidth: 0, hidden: !ch.isDatasetVisible(i), datasetIndex: i }; }); } } } },
+    plugins: { legend: { labels: { color: tickColor, font: { size: 11 }, boxWidth: 14, boxHeight: 14, generateLabels: function(ch){ return ch.data.datasets.map(function(ds,i){ return { text: ds.label, fontColor: tickColor, fillStyle: ds.borderColor, strokeStyle: ds.borderColor, lineWidth: 0, hidden: !ch.isDatasetVisible(i), datasetIndex: i }; }); } } } },
     scales: {
       x: { ticks: { color: tickColor, font: { size: 10 }, maxTicksLimit: 6 }, grid: { color: gridColor } },
       y: { ticks: { color: tickColor, font: { size: 10 } }, grid: { color: gridColor }, min: 0, max: 10 }
@@ -4606,7 +4641,7 @@ function renderTrends() {
   }
 
   // 2) Other scale_10 metrics overlaid
-  const palette = ['#c98a5e','#6f9b94','#bc90ce','#c2a35e','#8aa0b5','#cf8b72'];
+  const palette = ['#c98a5e','#8a9a6b','#bc90ce','#c2a35e','#a3765a','#cf8b72'];
   const others = outcomeMetrics().filter(m => !pm || m.id !== pm.id).slice(0, 6);
   destroy('scores');
   chartInstances['scores'] = new Chart(document.getElementById('chart-scores'), {
