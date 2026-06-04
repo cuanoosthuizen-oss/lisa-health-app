@@ -906,6 +906,10 @@
     -webkit-tap-highlight-color: transparent;
   }
   .add-sheet-btn svg { width: 22px; height: 22px; stroke: var(--brand); flex: 0 0 auto; }
+  .med-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 15px; color: var(--text); }
+  .med-row:last-child { border-bottom: none; }
+  .med-row span { word-break: break-word; }
+  .med-remove { background: none; border: none; color: var(--danger); font-size: 13px; cursor: pointer; padding: 4px 2px; flex: 0 0 auto; }
   .add-sheet-cancel {
     width: 100%;
     padding: 14px;
@@ -2533,6 +2537,35 @@
   </nav>
 
   <!-- Add menu — opens from the centre + -->
+  <div class="view main" id="view-meds" style="display:none;">
+    <div style="display:flex; align-items:center; gap:14px; padding: 4px 16px 8px;">
+      <button class="settings-back" onclick="closeMeds()" aria-label="Back">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+      </button>
+      <div style="font-family: var(--font-serif); font-size: 22px; line-height: 1.1;">Medica<em style="color: var(--accent); font-style: italic;">tions</em></div>
+    </div>
+
+    <div class="card">
+      <div style="font-size:13px; color:var(--muted); margin-bottom:14px; line-height:1.5;">
+        Add the medications and supplements you take. Each day you can tick the ones you've taken during your check-in, building a record of what you took and when.
+      </div>
+      <label class="form-label">Medication or supplement</label>
+      <input class="text-input" id="med-name" list="med-suggestions" placeholder="Start typing to search" autocomplete="off" autocapitalize="words">
+      <datalist id="med-suggestions"></datalist>
+      <label class="form-label" style="margin-top:14px;">Dose <small>optional</small></label>
+      <input class="text-input" id="med-dose" placeholder="e.g. 500mg, 1 tablet" autocomplete="off">
+      <button class="submit-btn" id="med-add-btn" style="margin-top:16px;" onclick="addMedication()">Add medication</button>
+      <div id="med-add-error" style="display:none; color:var(--danger); font-size:13px; margin-top:8px;"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Your medications</div>
+      <div id="med-current-list"></div>
+    </div>
+  </div>
+
   <div class="add-menu-overlay" id="add-menu" onclick="closeAddMenu()">
     <div class="add-sheet" onclick="event.stopPropagation()">
       <div class="add-sheet-handle"></div>
@@ -2543,6 +2576,10 @@
       <button class="add-sheet-btn" onclick="closeAddMenu(); openRecords();">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V4"/><polyline points="7 9 12 4 17 9"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
         <span>Upload a test, scan or letter</span>
+      </button>
+      <button class="add-sheet-btn" onclick="closeAddMenu(); openMeds();">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10.5 20.5 4 14a4.95 4.95 0 0 1 7-7l6.5 6.5a4.95 4.95 0 0 1-7 7Z"/><path d="m8.5 8.5 7 7"/></svg>
+        <span>Manage medications</span>
       </button>
       <button class="add-sheet-cancel" onclick="closeAddMenu()">Cancel</button>
     </div>
@@ -3630,6 +3667,156 @@ function goToCheckin() {
 }
 function openAddMenu() { document.getElementById('add-menu').classList.add('open'); }
 function closeAddMenu() { document.getElementById('add-menu').classList.remove('open'); }
+
+// ── MEDICATIONS ──────────────────────────────────────────────────────────────
+// The medication list is modelled as a single tag_list metric ("Medications").
+// Its options are the managed list; ticking them in the daily check-in records
+// what was taken (and feeds trends, the doctor summary and pattern insights).
+const MED_METRIC_NAME = 'Medications';
+const MED_CAT_NAME = 'Medications';
+// Common medications and supplements (Australian names) for the add lookup only.
+// Suggestions for convenience — not dosing or medical guidance.
+const MED_SEED = [
+  'Paracetamol', 'Ibuprofen', 'Aspirin', 'Naproxen', 'Codeine', 'Tramadol',
+  'Amoxicillin', 'Cephalexin', 'Doxycycline', 'Metformin', 'Insulin',
+  'Atorvastatin', 'Rosuvastatin', 'Ezetimibe', 'Perindopril', 'Ramipril',
+  'Irbesartan', 'Candesartan', 'Telmisartan', 'Amlodipine', 'Metoprolol',
+  'Atenolol', 'Bisoprolol', 'Frusemide', 'Hydrochlorothiazide', 'Spironolactone',
+  'Salbutamol (Ventolin)', 'Fluticasone', 'Budesonide', 'Seretide', 'Symbicort',
+  'Montelukast', 'Prednisolone', 'Prednisone', 'Levothyroxine (thyroxine)',
+  'Esomeprazole (Nexium)', 'Pantoprazole', 'Omeprazole', 'Rabeprazole',
+  'Sertraline', 'Escitalopram', 'Citalopram', 'Fluoxetine', 'Venlafaxine',
+  'Desvenlafaxine', 'Duloxetine', 'Mirtazapine', 'Amitriptyline', 'Quetiapine',
+  'Pregabalin (Lyrica)', 'Gabapentin', 'Diazepam', 'Temazepam', 'Zolpidem',
+  'Methotrexate', 'Hydroxychloroquine (Plaquenil)', 'Sulfasalazine', 'Leflunomide',
+  'Adalimumab (Humira)', 'Warfarin', 'Apixaban (Eliquis)', 'Rivaroxaban (Xarelto)',
+  'Clopidogrel', 'Allopurinol', 'Colchicine', 'Cetirizine', 'Loratadine',
+  'Fexofenadine', 'Vitamin D', 'Vitamin B12', 'Vitamin C', 'Vitamin B complex',
+  'Iron', 'Magnesium', 'Calcium', 'Zinc', 'Folic acid', 'Fish oil (omega-3)',
+  'Probiotic', 'Melatonin', 'Coenzyme Q10', 'Turmeric (curcumin)', 'Multivitamin'
+];
+
+function buildMedSuggestions() {
+  const dl = document.getElementById('med-suggestions');
+  if (!dl) return;
+  dl.innerHTML = MED_SEED.map(n => '<option value="' + escapeHtml(n) + '"></option>').join('');
+}
+
+function findMedsMetric() {
+  return (METRICS_CACHE || []).find(m => m.type === 'tag_list' && !m.archived && m.name === MED_METRIC_NAME) || null;
+}
+
+// Create the Medications category + metric on first use; return the metric.
+async function ensureMedsMetric() {
+  let m = findMedsMetric();
+  if (m) return m;
+  let cat = (CATEGORIES_CACHE || []).find(c => c.name === MED_CAT_NAME);
+  if (!cat) {
+    const pos = (CATEGORIES_CACHE || []).length;
+    try { cat = await sbMetrics.createCategory({ name: MED_CAT_NAME, position: pos }); } catch (e) {}
+  }
+  try {
+    await sbMetrics.createMetric({
+      name: MED_METRIC_NAME, type: 'tag_list', direction: null, unit: null,
+      numeric_mode: 'linear', category_id: cat ? cat.id : null, position: 0,
+      is_primary: false, show_in_quick: true, archived: false, options: []
+    });
+  } catch (e) {}
+  try { await refreshMetricsCache(); } catch (e) {}
+  return findMedsMetric();
+}
+
+async function openMeds() {
+  document.body.classList.remove('settings-open');
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-meds').style.display = 'block';
+  document.getElementById('view-meds').classList.add('active');
+  document.body.classList.add('settings-open');
+  buildMedSuggestions();
+  const ne = document.getElementById('med-name'); if (ne) ne.value = '';
+  const de = document.getElementById('med-dose'); if (de) de.value = '';
+  const er = document.getElementById('med-add-error'); if (er) er.style.display = 'none';
+  if (!METRICS_CACHE || !METRICS_CACHE.length) { try { await refreshMetricsCache(); } catch (e) {} }
+  renderMedsList();
+}
+
+function closeMeds() {
+  document.getElementById('view-meds').style.display = 'none';
+  document.getElementById('view-meds').classList.remove('active');
+  document.body.classList.remove('settings-open');
+  const btn = document.querySelector('.nav-btn[onclick*="home"]');
+  showView('home', btn);
+}
+
+function renderMedsList() {
+  const host = document.getElementById('med-current-list');
+  if (!host) return;
+  const m = findMedsMetric();
+  const opts = (m && Array.isArray(m.options)) ? m.options : [];
+  if (!opts.length) {
+    host.innerHTML = '<div style="color:var(--muted); font-size:14px; padding:6px 0; line-height:1.5;">No medications added yet. Add your first one above.</div>';
+    return;
+  }
+  host.innerHTML = opts.map(o =>
+    '<div class="med-row" data-med="' + escapeHtml(o) + '"><span>' + escapeHtml(o) + '</span>' +
+    '<button class="med-remove" onclick="removeMedication(this)">Remove</button></div>'
+  ).join('');
+}
+
+async function addMedication() {
+  const ne = document.getElementById('med-name');
+  const de = document.getElementById('med-dose');
+  const er = document.getElementById('med-add-error');
+  const name = (ne.value || '').trim();
+  if (!name) { er.textContent = 'Enter a medication name.'; er.style.display = 'block'; return; }
+  const dose = (de.value || '').trim();
+  const label = dose ? (name + ' ' + dose) : name;
+  const btn = document.getElementById('med-add-btn');
+  const old = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Adding...';
+  try {
+    const m = await ensureMedsMetric();
+    if (!m) throw new Error('no metric');
+    const opts = Array.isArray(m.options) ? m.options.slice() : [];
+    if (opts.some(o => o.toLowerCase() === label.toLowerCase())) {
+      er.textContent = 'That medication is already on your list.'; er.style.display = 'block';
+    } else {
+      opts.push(label);
+      const ok = await sbMetrics.updateMetric(m.id, { options: opts });
+      if (!ok) throw new Error('update failed');
+      await refreshMetricsCache();
+      ne.value = ''; de.value = ''; er.style.display = 'none';
+      renderMedsList();
+      showToast('Added');
+    }
+  } catch (e) {
+    console.error(e);
+    er.textContent = 'Something went wrong. Try again.'; er.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = old;
+  }
+}
+
+async function removeMedication(btnEl) {
+  const row = btnEl.closest('.med-row');
+  if (!row) return;
+  const label = row.dataset.med;
+  const m = findMedsMetric();
+  if (!m) return;
+  const opts = (Array.isArray(m.options) ? m.options : []).filter(o => o !== label);
+  btnEl.disabled = true;
+  try {
+    const ok = await sbMetrics.updateMetric(m.id, { options: opts });
+    if (!ok) throw new Error('update failed');
+    await refreshMetricsCache();
+    renderMedsList();
+    showToast('Removed');
+  } catch (e) {
+    console.error(e);
+    btnEl.disabled = false;
+    showToast('Could not remove');
+  }
+}
 function goToTrends() {
   const btn = document.querySelector('.nav-btn[onclick*="trends"]');
   showView('trends', btn);
