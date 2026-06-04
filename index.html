@@ -819,7 +819,7 @@
     background: var(--bg);
     border-top: 1px solid var(--border);
     display: flex;
-    padding: 2px 8px calc(2px + env(safe-area-inset-bottom, 0px));
+    padding: 0 8px calc(2px + env(safe-area-inset-bottom, 0px));
     z-index: 100;
   }
 
@@ -829,11 +829,12 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
+    justify-content: center;
+    gap: 3px;
     background: none;
     border: none;
     cursor: pointer;
-    padding: 4px 2px;
+    padding: 5px 2px 4px;
     color: var(--muted);
     font-family: var(--font-sans);
     font-size: 9px;
@@ -853,15 +854,69 @@
   /* Centre add button → check-in */
   .nav-fab {
     flex: 0 0 auto;
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     background: var(--btn);
     align-self: center;
-    margin: -12px 10px 0;
-    box-shadow: 0 5px 14px -4px rgba(169, 106, 68, 0.5);
+    justify-content: center;
+    padding: 0;
+    gap: 0;
+    margin: 0 8px;
+    box-shadow: 0 2px 8px -2px rgba(169, 106, 68, 0.45);
   }
-  .nav-fab svg { width: 20px !important; height: 20px !important; stroke: var(--btn-on); stroke-width: 2.5; }
+  .nav-fab svg { width: 22px !important; height: 22px !important; stroke: var(--btn-on); stroke-width: 2.5; }
+
+  /* + add menu (action sheet) */
+  .add-menu-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 200;
+  }
+  .add-menu-overlay.open { display: flex; }
+  .add-sheet {
+    width: 100%;
+    max-width: 480px;
+    background: var(--surface);
+    border-radius: 22px 22px 0 0;
+    padding: 6px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -10px 34px rgba(0, 0, 0, 0.28);
+  }
+  .add-sheet-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--border); margin: 8px auto 16px; }
+  .add-sheet-btn {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    padding: 16px;
+    margin-bottom: 8px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .add-sheet-btn svg { width: 22px; height: 22px; stroke: var(--brand); flex: 0 0 auto; }
+  .add-sheet-cancel {
+    width: 100%;
+    padding: 14px;
+    margin-top: 4px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    cursor: pointer;
+  }
 
   /* Views */
   .view { display: none; }
@@ -2464,7 +2519,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
       Trends
     </button>
-    <button class="nav-btn nav-fab" onclick="showView('checkin',this)" aria-label="New check-in">
+    <button class="nav-btn nav-fab" onclick="openAddMenu()" aria-label="Add">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     </button>
     <button class="nav-btn" onclick="showView('customise',this)">
@@ -2476,6 +2531,22 @@
       Share
     </button>
   </nav>
+
+  <!-- Add menu — opens from the centre + -->
+  <div class="add-menu-overlay" id="add-menu" onclick="closeAddMenu()">
+    <div class="add-sheet" onclick="event.stopPropagation()">
+      <div class="add-sheet-handle"></div>
+      <button class="add-sheet-btn" onclick="closeAddMenu(); goToCheckin();">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>
+        <span>Check in</span>
+      </button>
+      <button class="add-sheet-btn" onclick="closeAddMenu(); openRecords();">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V4"/><polyline points="7 9 12 4 17 9"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+        <span>Upload a test, scan or letter</span>
+      </button>
+      <button class="add-sheet-cancel" onclick="closeAddMenu()">Cancel</button>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -3557,6 +3628,8 @@ function goToCheckin() {
   const btn = document.querySelector('.nav-btn[onclick*="checkin"]');
   showView('checkin', btn);
 }
+function openAddMenu() { document.getElementById('add-menu').classList.add('open'); }
+function closeAddMenu() { document.getElementById('add-menu').classList.remove('open'); }
 function goToTrends() {
   const btn = document.querySelector('.nav-btn[onclick*="trends"]');
   showView('trends', btn);
