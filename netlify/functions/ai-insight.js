@@ -38,13 +38,16 @@ const MODEL_PRICING = {
 
 // Tier configuration — single source of truth.
 const TIER_CONFIG = {
-  free:  { monthlyCap: 5,  model: 'claude-haiku-4-5'  },
+  free:  { monthlyCap: 0,  model: 'claude-haiku-4-5'  },
   plus:  { monthlyCap: 31, model: 'claude-haiku-4-5'  },
   pro:   { monthlyCap: 31, model: 'claude-sonnet-4-6' }
 };
 
 // Global daily spend cap (USD). Circuit breaker threshold.
 const DAILY_SPEND_CAP_USD = 5.00;
+
+// New users get a 14-day Pro trial from signup, then fall back to free.
+const TRIAL_DAYS_MS = 14 * 24 * 60 * 60 * 1000;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -86,6 +89,43 @@ function todayDateUtc() {
   return new Date().toISOString().slice(0, 10);
 }
 
+// Resolve a user's effective tier. Paid tiers win; otherwise new users are on
+// the Pro trial for their first 14 days (keyed off the auth signup date), then
+// fall back to free. Fails closed (free) if anything can't be read.
+async function resolveTier(userId) {
+  let subTier = 'free', extraStd = 0, extraAdv = 0;
+  try {
+    const rows = await sb(`user_tiers?user_id=eq.${userId}&select=tier,extra_credits_standard,extra_credits_advanced`);
+    if (rows && rows[0]) {
+      subTier = rows[0].tier || 'free';
+      extraStd = rows[0].extra_credits_standard || 0;
+      extraAdv = rows[0].extra_credits_advanced || 0;
+    }
+  } catch (e) { console.error('Tier lookup failed:', e.message); }
+
+  let inTrial = false;
+  if (subTier !== 'plus' && subTier !== 'pro') {
+    try {
+      const r = await fetch(`${process.env.SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
+        headers: {
+          apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`
+        }
+      });
+      if (r.ok) {
+        const u = await r.json();
+        const created = u && u.created_at ? Date.parse(u.created_at) : NaN;
+        if (!isNaN(created)) inTrial = (Date.now() - created) < TRIAL_DAYS_MS;
+      }
+    } catch (e) { console.error('Trial (created_at) lookup failed:', e.message); }
+  }
+
+  const effectiveTier = (subTier === 'plus' || subTier === 'pro')
+    ? subTier
+    : (inTrial ? 'pro' : 'free');
+  return { subTier, effectiveTier, inTrial, extraStd, extraAdv };
+}
+
 exports.handler = async function(event) {
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers: corsHeaders, body: '' };
@@ -111,21 +151,26 @@ exports.handler = async function(event) {
     return json(400, { error: 'missing_entry_date_for_daily_insight' });
   }
 
-  // STEP 1: User tier lookup (defaults to free)
-  let tier = 'free';
-  let extraCreditsStandard = 0;
-  let extraCreditsAdvanced = 0;
-  try {
-    const tierRows = await sb(`user_tiers?user_id=eq.${userId}&select=tier,extra_credits_standard,extra_credits_advanced`);
-    if (tierRows && tierRows[0]) {
-      tier = tierRows[0].tier || 'free';
-      extraCreditsStandard = tierRows[0].extra_credits_standard || 0;
-      extraCreditsAdvanced = tierRows[0].extra_credits_advanced || 0;
-    }
-  } catch (e) {
-    console.error('Tier lookup failed:', e.message);
-  }
+  // STEP 1: Resolve effective tier (paid → trial → free) and allowance.
+  const tierInfo = await resolveTier(userId);
+  const tier = tierInfo.effectiveTier;
+  const extraCreditsStandard = tierInfo.extraStd;
+  const extraCreditsAdvanced = tierInfo.extraAdv;
   const tierConfig = TIER_CONFIG[tier] || TIER_CONFIG.free;
+
+  const isAdvanced = tierConfig.model === 'claude-sonnet-4-6';
+  const extraCredits = isAdvanced ? extraCreditsAdvanced : extraCreditsStandard;
+  const effectiveCap = tierConfig.monthlyCap + extraCredits;
+
+  // No paid plan, no active trial, no credits → no AI. Refuse server-side so
+  // the gate holds even if the endpoint is called directly.
+  if (effectiveCap <= 0) {
+    return json(403, {
+      error: 'upgrade_required',
+      message: 'AI features need a paid plan, an active trial, or insight credits.',
+      usage: { used: 0, cap: 0, tier }
+    });
+  }
 
   // STEP 2: Cache lookup (daily only)
   if (type === 'daily' && entryDate) {
@@ -167,10 +212,6 @@ exports.handler = async function(event) {
     console.error('Usage lookup failed:', e.message);
     return json(500, { error: 'usage_check_failed' });
   }
-
-  const isAdvanced = tierConfig.model === 'claude-sonnet-4-6';
-  const extraCredits = isAdvanced ? extraCreditsAdvanced : extraCreditsStandard;
-  const effectiveCap = tierConfig.monthlyCap + extraCredits;
 
   if (used >= effectiveCap) {
     return json(429, {
@@ -347,13 +388,9 @@ async function handleFileExtraction(userId, body) {
     } catch (e) { console.error('markStatus err:', e.message); }
   };
 
-  // Pro gate
-  let tier = 'free';
-  try {
-    const tierRows = await sb(`user_tiers?user_id=eq.${userId}&select=tier`);
-    if (tierRows && tierRows[0]) tier = tierRows[0].tier || 'free';
-  } catch (e) { console.error('Tier lookup (extract) failed:', e.message); }
-  if (tier !== 'pro') return json(403, { error: 'not_pro', message: 'File analysis is a Pro feature.' });
+  // Pro gate (the 14-day trial counts as Pro)
+  const tierInfo = await resolveTier(userId);
+  if (tierInfo.effectiveTier !== 'pro') return json(403, { error: 'not_pro', message: 'File analysis is a Pro feature.' });
 
   // Look up the file row (scoped to this user)
   let row;
