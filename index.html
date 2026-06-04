@@ -1121,6 +1121,20 @@
     color: var(--accent);
   }
 
+  .ms-option.ms-add { border-style: dashed; color: var(--accent); background: transparent; }
+
+  .tag-add-row { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .tag-add-row .text-input { font-size: 14px; }
+  .tag-add-actions { display: flex; gap: 8px; }
+  .tag-add-actions button {
+    flex: 1; border-radius: 10px; padding: 8px 12px; font-size: 13px;
+    cursor: pointer; -webkit-tap-highlight-color: transparent; border: 1px solid var(--border);
+  }
+  .tag-add-confirm { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .tag-add-confirm:disabled { opacity: 0.6; }
+  .tag-add-cancel { background: var(--surface2); color: var(--muted); }
+  .tag-add-error { color: var(--accent2); font-size: 12px; }
+
   /* Text input */
   .text-input {
     width: 100%;
@@ -3519,7 +3533,18 @@ function metricInputHtml(m) {
     body = '<textarea class="text-input" rows="3" id="mv-' + id + '" placeholder="Anything worth noting..."></textarea>';
   } else if (m.type === 'tag_list') {
     const opts = (m.options || []).map(o => '<div class="ms-option" onclick="toggleMetricTag(this,\'' + id + '\')">' + escapeHtml(o) + '</div>').join('');
-    body = '<div class="multi-select" id="mv-' + id + '">' + opts + '</div>';
+    const isMeds = (m.name === MED_METRIC_NAME);
+    const addChip = '<div class="ms-option ms-add" onclick="openInlineTag(\'' + id + '\')">' + (isMeds ? '+ Add medication' : '+ Add') + '</div>';
+    let editor = '<div class="tag-add-row" id="tagadd-' + id + '" style="display:none;">' +
+      '<input class="text-input" id="tagadd-name-' + id + '" placeholder="' + (isMeds ? 'Medication name' : 'New option') + '" autocomplete="off" autocapitalize="words"' + (isMeds ? ' list="med-suggestions"' : '') + '>';
+    if (isMeds) editor += '<input class="text-input" id="tagadd-dose-' + id + '" placeholder="Dose (optional) \u2014 e.g. 500mg" autocomplete="off">';
+    editor += '<div class="tag-add-actions">' +
+      '<button type="button" class="tag-add-cancel" onclick="cancelInlineTag(\'' + id + '\')">Cancel</button>' +
+      '<button type="button" class="tag-add-confirm" onclick="confirmInlineTag(\'' + id + '\')">Add</button>' +
+      '</div>' +
+      '<div class="tag-add-error" id="tagadd-error-' + id + '" style="display:none;"></div>' +
+      '</div>';
+    body = '<div class="multi-select" id="mv-' + id + '">' + opts + addChip + '</div>' + editor;
   }
   return '<div class="form-group metric-field" data-mid="' + id + '" data-mtype="' + m.type + '">' + head + body + '</div>';
 }
@@ -3545,6 +3570,83 @@ function toggleMetricTag(el, id) {
   if (!tagSel[id]) tagSel[id] = [];
   const i = tagSel[id].indexOf(t);
   if (i >= 0) tagSel[id].splice(i, 1); else tagSel[id].push(t);
+}
+
+// Inline option-adding from the check-in screen, for any tag_list metric.
+// Writes to the metric's options (same path as Manage medications), auto-selects
+// the new option, and leaves the rest of the in-progress check-in untouched.
+function openInlineTag(id) {
+  const row = document.getElementById('tagadd-' + id);
+  if (!row) return;
+  if (typeof buildMedSuggestions === 'function') { try { buildMedSuggestions(); } catch (e) {} }
+  row.style.display = 'block';
+  const chip = document.querySelector('#mv-' + id + ' .ms-add');
+  if (chip) chip.style.display = 'none';
+  const n = document.getElementById('tagadd-name-' + id);
+  if (n) n.focus();
+}
+
+function cancelInlineTag(id) {
+  const row = document.getElementById('tagadd-' + id);
+  if (row) row.style.display = 'none';
+  const n = document.getElementById('tagadd-name-' + id); if (n) n.value = '';
+  const d = document.getElementById('tagadd-dose-' + id); if (d) d.value = '';
+  const er = document.getElementById('tagadd-error-' + id); if (er) er.style.display = 'none';
+  const cb = document.querySelector('#tagadd-' + id + ' .tag-add-confirm');
+  if (cb) { cb.disabled = false; cb.textContent = 'Add'; }
+  const chip = document.querySelector('#mv-' + id + ' .ms-add');
+  if (chip) chip.style.display = '';
+}
+
+async function confirmInlineTag(id) {
+  const m = (METRICS_CACHE || []).find(x => x.id === id);
+  if (!m) return;
+  const isMeds = (m.name === MED_METRIC_NAME);
+  const n = document.getElementById('tagadd-name-' + id);
+  const d = document.getElementById('tagadd-dose-' + id);
+  const er = document.getElementById('tagadd-error-' + id);
+  const showErr = (msg) => { if (er) { er.textContent = msg; er.style.display = 'block'; } };
+  const name = ((n && n.value) || '').trim();
+  if (!name) { showErr(isMeds ? 'Enter a medication name.' : 'Enter a name.'); return; }
+  const dose = ((d && d.value) || '').trim();
+  const label = (isMeds && dose) ? (name + ' ' + dose) : name;
+  const opts = Array.isArray(m.options) ? m.options.slice() : [];
+
+  // Already on the list: just select the existing chip rather than duplicating.
+  if (opts.some(o => o.toLowerCase() === label.toLowerCase())) {
+    const existing = Array.from(document.querySelectorAll('#mv-' + id + ' .ms-option'))
+      .find(el => !el.classList.contains('ms-add') && el.textContent.toLowerCase() === label.toLowerCase());
+    if (existing && !existing.classList.contains('selected')) toggleMetricTag(existing, id);
+    cancelInlineTag(id);
+    return;
+  }
+
+  const cb = document.querySelector('#tagadd-' + id + ' .tag-add-confirm');
+  if (cb) { cb.disabled = true; cb.textContent = 'Adding\u2026'; }
+  try {
+    opts.push(label);
+    const ok = await sbMetrics.updateMetric(m.id, { options: opts });
+    if (!ok) throw new Error('update failed');
+    m.options = opts;
+    await refreshMetricsCache();
+    const container = document.getElementById('mv-' + id);
+    const chip = container ? container.querySelector('.ms-add') : null;
+    if (container && chip) {
+      const div = document.createElement('div');
+      div.className = 'ms-option selected';
+      div.textContent = label;
+      div.setAttribute('onclick', "toggleMetricTag(this,'" + id + "')");
+      container.insertBefore(div, chip);
+    }
+    if (!tagSel[id]) tagSel[id] = [];
+    if (tagSel[id].indexOf(label) < 0) tagSel[id].push(label);
+    cancelInlineTag(id);
+    showToast(isMeds ? 'Medication added' : 'Added');
+  } catch (e) {
+    console.error(e);
+    showErr('Something went wrong. Try again.');
+    if (cb) { cb.disabled = false; cb.textContent = 'Add'; }
+  }
 }
 
 function markFieldLogged(id, logged) {
