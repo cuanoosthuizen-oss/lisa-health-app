@@ -2020,6 +2020,13 @@
     <!-- Today's check-in (primary action; flips to "complete" when logged) -->
     <div id="today-prompt"></div>
 
+    <!-- Today's medications (quick tick; shown only when meds are set up) -->
+    <div class="card" id="home-meds-card" style="display:none;">
+      <div class="card-title">Today's medications</div>
+      <div id="home-meds-status" style="font-size:12px; color:var(--muted); margin:-4px 0 10px;"></div>
+      <div class="multi-select" id="home-meds-chips"></div>
+    </div>
+
     <!-- AI insight -->
     <div class="insight-card" id="insight-card">
       <div class="insight-label">AI insight</div>
@@ -3875,6 +3882,9 @@ function renderHome() {
     promptEl.innerHTML = `<button class="checkin-cta" onclick="goToCheckin()">Check in now</button>`;
   }
 
+  // Today's medications quick-tick (shown only when meds are set up)
+  renderHomeMeds();
+
   // Top pattern card (single strongest pattern from engine, if available)
   const patternCard = document.getElementById('top-pattern-card');
   const patternBody = document.getElementById('top-pattern-body');
@@ -3929,6 +3939,51 @@ function renderHome() {
 
   // AI insight (now the top element)
   generateInsight();
+}
+
+// Home "today's medications" quick-tick. Shown only when a Medications metric
+// with options exists; ticking saves straight to today's entry.
+function renderHomeMeds() {
+  const card = document.getElementById('home-meds-card');
+  if (!card) return;
+  const m = findMedsMetric();
+  const opts = (m && Array.isArray(m.options)) ? m.options : [];
+  if (!m || !opts.length) { card.style.display = 'none'; return; }
+  const row = valuesByDate(today())[m.id];
+  const taken = (row && Array.isArray(row.value_tags)) ? row.value_tags : [];
+  card.style.display = 'block';
+  const statusEl = document.getElementById('home-meds-status');
+  if (statusEl) {
+    statusEl.textContent = (taken.length === opts.length)
+      ? 'All logged for today'
+      : `${taken.length} of ${opts.length} logged today`;
+  }
+  const chips = document.getElementById('home-meds-chips');
+  if (chips) {
+    chips.innerHTML = opts.map(o =>
+      '<div class="ms-option' + (taken.indexOf(o) >= 0 ? ' selected' : '') + '" data-med="' + escapeHtml(o) + '" onclick="toggleHomeMed(this)">' + escapeHtml(o) + '</div>'
+    ).join('');
+  }
+}
+
+async function toggleHomeMed(el) {
+  const m = findMedsMetric();
+  if (!m || !el) return;
+  const opt = el.dataset.med;
+  const row = valuesByDate(today())[m.id];
+  let taken = (row && Array.isArray(row.value_tags)) ? row.value_tags.slice() : [];
+  const i = taken.indexOf(opt);
+  if (i >= 0) taken.splice(i, 1); else taken.push(opt);
+  el.classList.toggle('selected'); // optimistic
+  try {
+    await sbMetrics.upsertValue(today(), m.id, { value_number: null, value_bool: null, value_text: null, value_tags: taken });
+    await loadValues();
+    renderHomeMeds();
+  } catch (e) {
+    console.error('Home med toggle failed:', e);
+    el.classList.toggle('selected'); // revert
+    showToast('Could not save — try again');
+  }
 }
 
 // ── AI INSIGHT ───────────────────────────────────────────────────────────────
