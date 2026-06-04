@@ -819,7 +819,7 @@
     background: var(--bg);
     border-top: 1px solid var(--border);
     display: flex;
-    padding: 0 8px calc(2px + env(safe-area-inset-bottom, 0px));
+    padding: 0 8px calc(env(safe-area-inset-bottom, 0px) * 0.5);
     z-index: 100;
   }
 
@@ -834,7 +834,7 @@
     background: none;
     border: none;
     cursor: pointer;
-    padding: 5px 2px 4px;
+    padding: 6px 2px 2px;
     color: var(--muted);
     font-family: var(--font-sans);
     font-size: 9px;
