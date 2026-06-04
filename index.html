@@ -1426,6 +1426,8 @@
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
   }
+  .copy-btn.primary { background: var(--btn); border-color: var(--btn); color: var(--btn-on); }
+  .share-subhead { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); font-weight: 700; padding: 16px 0 2px; }
 
   /* Onboarding/empty states */
   .empty {
@@ -2172,6 +2174,11 @@
     <div class="share-section">
       <h2>Doctor's summary</h2>
       <p id="share-doctor-desc">A clear, clinical summary of your recent health data to share with your health team.</p>
+      <div style="display:flex; gap:6px; margin-top:10px;">
+        <button class="range-btn active" onclick="setShareRange('all',this)">All time</button>
+        <button class="range-btn" onclick="setShareRange('90',this)">90 days</button>
+        <button class="range-btn" onclick="setShareRange('30',this)">30 days</button>
+      </div>
     </div>
 
     <div class="share-card" id="doctor-summary"></div>
@@ -2180,6 +2187,8 @@
       <div class="insight-label">AI clinical summary</div>
     </div>
 
+    <button class="copy-btn primary" onclick="exportSummaryPDF()">Save as PDF</button>
+    <button class="copy-btn" onclick="exportSummaryCSV()">Export CSV</button>
     <button class="copy-btn" onclick="copyReport()">Copy report to clipboard</button>
   </div>
 
@@ -4522,8 +4531,32 @@ let insightsUnlockedThisSession = false;
 
 // ── v0.5.0 Session 2.5: AI tier + usage tracking ─────────────────────────────
 // Cached on session start. Refreshed after each AI call.
-let USER_TIER = 'free';
-let AI_USAGE = { used: 0, cap: 5, tier: 'free', effectiveCap: 5, extraCreditsStandard: 0, extraCreditsAdvanced: 0 };
+let USER_TIER = 'free';  // subscribed tier (free until they pay)
+let AI_USAGE = { used: 0, cap: 0, tier: 'free', effectiveCap: 0, extraCreditsStandard: 0, extraCreditsAdvanced: 0 };
+const TRIAL_DAYS = 14;
+
+// New users get a 14-day Pro trial, keyed off their signup date — no stored
+// flag needed. Once it lapses they fall back to their subscribed tier (free).
+function trialEndsAt() {
+  if (!currentUser || !currentUser.created_at) return null;
+  const start = Date.parse(currentUser.created_at);
+  return isNaN(start) ? null : start + TRIAL_DAYS * 86400000;
+}
+function trialActive() {
+  if (USER_TIER === 'plus' || USER_TIER === 'pro') return false;
+  const end = trialEndsAt();
+  return end != null && Date.now() < end;
+}
+function trialDaysLeft() {
+  const end = trialEndsAt();
+  return end == null ? 0 : Math.max(0, Math.ceil((end - Date.now()) / 86400000));
+}
+// The tier that actually governs AI access: a paid tier, else Pro during the
+// trial, else free.
+function effectiveTier() {
+  if (USER_TIER === 'plus' || USER_TIER === 'pro') return USER_TIER;
+  return trialActive() ? 'pro' : 'free';
+}
 
 async function loadAiUsage() {
   if (!currentUser) return;
@@ -4555,12 +4588,13 @@ async function loadAiUsage() {
       const rows = await usageResp.json();
       if (rows && rows[0]) used = rows[0].insight_count || 0;
     }
-    const tierCaps = { free: 5, plus: 31, pro: 31 };
-    const cap = tierCaps[tier] || 5;
-    const isAdvanced = tier === 'pro';
+    const effTier = effectiveTier();
+    const tierCaps = { free: 0, plus: 31, pro: 31 };
+    const cap = tierCaps[effTier] || 0;
+    const isAdvanced = effTier === 'pro';
     const extra = isAdvanced ? extraAdv : extraStd;
     AI_USAGE = {
-      used, cap, tier,
+      used, cap, tier: effTier,
       effectiveCap: cap + extra,
       extraCreditsStandard: extraStd,
       extraCreditsAdvanced: extraAdv
@@ -4573,20 +4607,24 @@ async function loadAiUsage() {
 // AI gate now shares the SAME threshold and measure as the general insight gate
 // (INSIGHT_UNLOCK_THRESHOLD distinct days logged in the last 14). Measured off
 // actual logged data, not account age — so back-dated/seeded history counts.
-// Paid tiers: no gate.
+// AI insights are available during the Pro trial, on paid plans, or with credits.
 function aiInsightsUnlocked() {
-  if (USER_TIER === 'plus' || USER_TIER === 'pro') return true;
-  return insightsUnlocked();
+  return effectiveTier() !== 'free' || AI_USAGE.effectiveCap > 0;
 }
 
 function aiInsightLockMessage() {
-  const recent = recentLoggedDays();
-  const remaining = Math.max(INSIGHT_UNLOCK_THRESHOLD - recent, 0);
-  if (remaining <= 0) return '';
-  return `AI insights unlock once you've logged ${INSIGHT_UNLOCK_THRESHOLD} days within ${INSIGHT_WINDOW_DAYS} days. You're at ${recent} of ${INSIGHT_UNLOCK_THRESHOLD} — ${remaining} to go.`;
+  const end = trialEndsAt();
+  if (end != null && Date.now() >= end && USER_TIER !== 'plus' && USER_TIER !== 'pro') {
+    return 'Your 14-day Pro trial has ended. Subscribe to Plus or Pro, or add insight credits, to use AI features again.';
+  }
+  return 'AI features are part of the Plus and Pro plans, or available with insight credits.';
 }
 
 function aiUsageLabel() {
+  if (trialActive()) {
+    const dl = trialDaysLeft();
+    return `Pro trial · ${dl} day${dl === 1 ? '' : 's'} left`;
+  }
   if (USER_TIER === 'pro' || USER_TIER === 'plus') {
     // Paid tiers: show count only, no cap pressure
     return `${AI_USAGE.used} insight${AI_USAGE.used === 1 ? '' : 's'} this month`;
@@ -5012,27 +5050,19 @@ function renderTrends() {
 
 // ── SHARE / DOCTOR VIEW ───────────────────────────────────────────────────────
 async function renderShare() {
-  const ix = mvIndex();
-  const dates = [...new Set(VALUES.map(v => v.entry_date))].sort((a, b) => b.localeCompare(a));
-  const recentDates = dates.slice(0, 30);
-  const firstDate = recentDates[recentDates.length - 1];
-  const lastDate = recentDates[0];
-  const dateSet = new Set(recentDates);
-
-  const scaleMetrics = (METRICS_CACHE || []).filter(m => !m.archived && m.type === 'scale_10');
-  const avgRows = scaleMetrics.map(m => {
-    const vals = Object.keys(ix[m.id] || {}).filter(d => dateSet.has(d)).map(d => ix[m.id][d].value_number).filter(v => typeof v === 'number');
-    const a = vals.length ? (vals.reduce((s, v) => s + v, 0) / vals.length).toFixed(1) : 'N/A';
-    const color = vals.length ? scoreColorHex(a) : 'var(--muted)';
-    return `<div class="share-row"><span class="share-row-label">Avg ${escapeHtml(m.name)}</span><span class="share-row-val" style="color:${color}">${a}${vals.length ? ' / 10' : ''}</span></div>`;
-  }).join('');
-
-  document.getElementById('doctor-summary').innerHTML = `
-    <div class="share-row"><span class="share-row-label">Patient</span><span class="share-row-val" id="share-patient-name">—</span></div>
-    <div class="share-row"><span class="share-row-label">Period</span><span class="share-row-val">${firstDate ? fmt(firstDate) : '—'} – ${lastDate ? fmt(lastDate) : '—'}</span></div>
-    <div class="share-row"><span class="share-row-label">Days logged</span><span class="share-row-val">${recentDates.length}</span></div>
-    ${avgRows}
-  `;
+  const s = buildShareSummary();
+  LAST_SHARE_SUMMARY = s;
+  const rowH = (l, v, color) => '<div class="share-row"><span class="share-row-label">' + escapeHtml(l) + '</span><span class="share-row-val"' + (color ? ' style="color:' + color + '"' : '') + '>' + escapeHtml(v) + '</span></div>';
+  const subH = (t) => '<div class="share-subhead">' + escapeHtml(t) + '</div>';
+  let html = '';
+  html += rowH('Patient', s.patient);
+  html += rowH('Period', (s.firstDate ? fmt(s.firstDate) : '—') + ' – ' + (s.lastDate ? fmt(s.lastDate) : '—'));
+  html += rowH('Days logged', String(s.daysLogged));
+  if (s.scales.length) { html += subH('Symptom & wellbeing averages'); s.scales.forEach(x => html += rowH('Avg ' + x.name, x.avg != null ? x.avg + ' / 10' : 'No data', x.avg != null ? scoreColorHex(x.avg) : null)); }
+  if (s.numbers.length) { html += subH('Measurements (average)'); s.numbers.forEach(x => html += rowH(x.name, x.avg != null ? (x.avg + (x.unit ? ' ' + x.unit : '')) : 'No data')); }
+  if (s.yesno.length) { html += subH('Yes / no'); s.yesno.forEach(x => html += rowH(x.name, x.logged ? (x.yes + ' of ' + x.logged + ' days') : 'No data')); }
+  if (s.meds.length) { html += subH('Medication adherence'); s.meds.forEach(x => html += rowH(x.name, x.taken + ' of ' + x.days + ' days')); }
+  document.getElementById('doctor-summary').innerHTML = html;
 
   // AI clinical summary — manual trigger only (counts against the AI cap).
   // Do NOT auto-fetch on view load; show a Generate button, gated + cap-aware,
@@ -5107,6 +5137,7 @@ async function requestDoctorSummary() {
       throw new Error(result.error || 'unknown_error');
     }
     if (result.usage) AI_USAGE = result.usage;
+    LAST_AI_CLINICAL_SUMMARY = result.content || '';
     insightEl.innerHTML = `<div class="insight-label">AI clinical summary</div><div class="insight-text">${result.content}</div><div class="insight-meta">${aiUsageLabel()}</div>`;
   } catch (e) {
     console.error('Clinical summary failed:', e);
@@ -5137,6 +5168,151 @@ async function copyReport() {
   } catch {
     showToast('Unable to copy — try selecting the text manually');
   }
+}
+
+// ── DOCTOR SUMMARY: one-pager data + PDF/CSV export ──────────────────────────
+let LAST_SHARE_SUMMARY = null;
+let LAST_AI_CLINICAL_SUMMARY = ''; // most recent AI clinical summary text, for PDF export
+let SHARE_RANGE = 'all'; // 'all' | '90' | '30' (most recent logged days)
+
+function setShareRange(range, btn) {
+  SHARE_RANGE = range;
+  document.querySelectorAll('#view-share .range-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderShare();
+}
+
+// Compute the figures behind the doctor summary: averages, yes/no counts and
+// medication adherence over the most recent logged days.
+function buildShareSummary() {
+  const ix = mvIndex();
+  const dates = [...new Set(VALUES.map(v => v.entry_date))].sort((a, b) => b.localeCompare(a));
+  const recent = SHARE_RANGE === 'all' ? dates : dates.slice(0, Number(SHARE_RANGE));
+  const active = (METRICS_CACHE || []).filter(m => !m.archived);
+  const mean = (arr) => arr.reduce((s, v) => s + v, 0) / arr.length;
+  const numsFor = (m) => recent
+    .map(d => (ix[m.id] && ix[m.id][d]) ? ix[m.id][d].value_number : null)
+    .filter(v => typeof v === 'number');
+
+  const scales = active.filter(m => m.type === 'scale_10').map(m => {
+    const vals = numsFor(m);
+    return { name: m.name, avg: vals.length ? Number(mean(vals).toFixed(1)) : null };
+  });
+  const numbers = active.filter(m => m.type === 'number' && m.numeric_mode !== 'cyclical').map(m => {
+    const vals = numsFor(m);
+    return { name: m.name, unit: m.unit || '', avg: vals.length ? Math.round(mean(vals) * 10) / 10 : null };
+  });
+  const yesno = active.filter(m => m.type === 'yes_no').map(m => {
+    let logged = 0, yes = 0;
+    recent.forEach(d => { const r = ix[m.id] && ix[m.id][d]; if (r && r.value_bool != null) { logged++; if (r.value_bool) yes++; } });
+    return { name: m.name, yes, logged };
+  });
+  const medM = findMedsMetric();
+  let meds = [];
+  if (medM && Array.isArray(medM.options) && medM.options.length) {
+    meds = medM.options.map(opt => {
+      let taken = 0;
+      recent.forEach(d => { const r = ix[medM.id] && ix[medM.id][d]; if (r && Array.isArray(r.value_tags) && r.value_tags.indexOf(opt) >= 0) taken++; });
+      return { name: opt, taken, days: recent.length };
+    });
+  }
+  return {
+    patient: userName() || '—',
+    firstDate: recent[recent.length - 1] || null,
+    lastDate: recent[0] || null,
+    daysLogged: recent.length,
+    scales, numbers, yesno, meds
+  };
+}
+
+// Standalone printable one-pager (its own document, so app styling/dark mode
+// don't bleed into the print).
+function buildOnePagerHTML(s) {
+  const row = (l, v) => '<tr><td class="l">' + escapeHtml(l) + '</td><td class="v">' + escapeHtml(v) + '</td></tr>';
+  const sec = (t) => '<tr><td class="sec" colspan="2">' + escapeHtml(t) + '</td></tr>';
+  let b = '';
+  b += row('Patient', s.patient);
+  b += row('Period', (s.firstDate ? fmt(s.firstDate) : '—') + ' – ' + (s.lastDate ? fmt(s.lastDate) : '—'));
+  b += row('Days logged', String(s.daysLogged));
+  if (s.scales.length) { b += sec('Symptom & wellbeing averages'); s.scales.forEach(x => b += row(x.name, x.avg != null ? x.avg + ' / 10' : 'No data')); }
+  if (s.numbers.length) { b += sec('Measurements (average)'); s.numbers.forEach(x => b += row(x.name, x.avg != null ? (x.avg + (x.unit ? ' ' + x.unit : '')) : 'No data')); }
+  if (s.yesno.length) { b += sec('Yes / no'); s.yesno.forEach(x => b += row(x.name, x.logged ? (x.yes + ' of ' + x.logged + ' days') : 'No data')); }
+  if (s.meds.length) { b += sec('Medication adherence'); s.meds.forEach(x => b += row(x.name, x.taken + ' of ' + x.days + ' days')); }
+  return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<title>Health summary</title><style>' +
+    '*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#1a1a1a;margin:0;padding:28px;}' +
+    'h1{font-size:21px;margin:0 0 2px;}.sub{color:#666;font-size:12px;margin:0 0 16px;}' +
+    '.disc{font-size:11px;color:#6a6a6a;background:#faf7f4;border:1px solid #ece3da;padding:9px 11px;border-radius:6px;margin:0 0 16px;line-height:1.45;}' +
+    'table{width:100%;border-collapse:collapse;font-size:13px;}td{padding:7px 2px;border-bottom:1px solid #ededed;vertical-align:top;}' +
+    'td.l{color:#555;width:62%;}td.v{text-align:right;font-weight:600;}' +
+    'td.sec{padding:15px 2px 3px;font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:#a96a44;font-weight:700;border-bottom:none;}' +
+    '.sec2{margin:20px 0 6px;font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:#a96a44;font-weight:700;}' +
+    '.ai{font-size:12.5px;line-height:1.55;color:#2a2a2a;white-space:pre-wrap;}' +
+    '.foot{margin-top:20px;font-size:10px;color:#aaa;}@media print{body{padding:0;}}' +
+    '</style></head><body>' +
+    '<h1>' + escapeHtml(s.patient) + ' — health summary</h1>' +
+    '<div class="sub">Generated ' + escapeHtml(fmt(today())) + ' · Stilte · ' + (s.firstDate ? fmt(s.firstDate) + ' – ' + fmt(s.lastDate) : 'no data') + ' · ' + s.daysLogged + ' logged days</div>' +
+    '<div class="disc">This is a self-reported summary generated from the user\u2019s own journal entries. It is not a clinical assessment.</div>' +
+    '<table>' + b + '</table>' +
+    ((LAST_AI_CLINICAL_SUMMARY || '').trim() ? '<div class="sec2">AI clinical summary</div><div class="ai">' + escapeHtml(LAST_AI_CLINICAL_SUMMARY.trim()) + '</div>' : '') +
+    '<div class="foot">Generated by Stilte</div></body></html>';
+}
+
+// Print via a hidden iframe — more reliable than window.print() inside an
+// installed PWA, and isolates the print layout from the app's styles.
+function exportSummaryPDF() {
+  const s = LAST_SHARE_SUMMARY || buildShareSummary();
+  const html = buildOnePagerHTML(s);
+  const iframe = document.createElement('iframe');
+  iframe.setAttribute('aria-hidden', 'true');
+  iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+  document.body.appendChild(iframe);
+  const doc = iframe.contentWindow.document;
+  doc.open(); doc.write(html); doc.close();
+  let printed = false;
+  const go = () => {
+    if (printed) return; printed = true;
+    try { iframe.contentWindow.focus(); iframe.contentWindow.print(); }
+    catch (e) { console.error(e); showToast('Could not open the print dialog'); }
+    setTimeout(() => iframe.remove(), 2000);
+  };
+  setTimeout(go, 350);
+}
+
+function downloadBlob(content, filename, mime) {
+  try {
+    const blob = new Blob([content], { type: mime + ';charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500);
+    showToast('Exported');
+  } catch (e) { console.error(e); showToast('Export failed'); }
+}
+
+function exportSummaryCSV() {
+  const active = (METRICS_CACHE || []).filter(m => !m.archived);
+  const allDates = [...new Set(VALUES.map(v => v.entry_date))].sort((a, b) => a.localeCompare(b));
+  const dates = SHARE_RANGE === 'all' ? allDates : allDates.slice(-Number(SHARE_RANGE));
+  const esc = (x) => { const str = (x == null ? '' : String(x)); return /[",\n\r]/.test(str) ? '"' + str.replace(/"/g, '""') + '"' : str; };
+  const header = ['Date', ...active.map(m => m.name)].map(esc).join(',');
+  const lines = dates.map(d => {
+    const vbd = valuesByDate(d);
+    const cells = active.map(m => {
+      const r = vbd[m.id];
+      if (!r) return '';
+      if (m.type === 'scale_10' || m.type === 'number') return r.value_number != null ? r.value_number : '';
+      if (m.type === 'yes_no') return r.value_bool == null ? '' : (r.value_bool ? 'Yes' : 'No');
+      if (m.type === 'tag_list') return Array.isArray(r.value_tags) ? r.value_tags.join('; ') : '';
+      if (m.type === 'free_text') return r.value_text || '';
+      return '';
+    });
+    return [d, ...cells].map(esc).join(',');
+  });
+  const csv = [header, ...lines].join('\r\n');
+  const base = (userName() || 'health').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'health';
+  downloadBlob(csv, base + '-summary.csv', 'text/csv');
 }
 
 // ── SETTINGS NAVIGATION ──────────────────────────────────────────────────────
@@ -5708,7 +5884,7 @@ let MED_SUMMARIES_LOADED = false;
 
 // Ensure MEDICAL_FILES (incl. AI summaries) is loaded before building prompts.
 async function ensureMedicalSummaries() {
-  if (USER_TIER !== 'pro') return;
+  if (effectiveTier() !== 'pro') return;
   if (!await ensureFreshToken()) return;
   try {
     const r = await fetch(`${SUPABASE_URL}/rest/v1/medical_files?user_id=eq.${currentUser.id}&order=doc_date.desc`, {
@@ -5720,7 +5896,7 @@ async function ensureMedicalSummaries() {
 
 // Prompt block: AI summaries of the most recent analysed files (Pro only).
 function medicalFilesBlock() {
-  if (USER_TIER !== 'pro') return '';
+  if (effectiveTier() !== 'pro') return '';
   const done = (MEDICAL_FILES || []).filter(f => f.extract_status === 'done' && f.extracted_text);
   if (!done.length) return '';
   const items = done.slice(0, 6).map(f => {
@@ -5755,7 +5931,7 @@ async function extractMedicalFile(fileId) {
 
 // Re-run analysis for an already-stored file.
 async function reanalyseRecord(id) {
-  if (USER_TIER !== 'pro') { alert('File analysis is a Pro feature.'); return; }
+  if (effectiveTier() !== 'pro') { alert('File analysis is a Pro feature.'); return; }
   if (!MEDICAL_FILES.find(x => x.id === id)) return;
   setRecordProcessing(id);
   try {
@@ -5769,7 +5945,7 @@ async function reanalyseRecord(id) {
 }
 
 function recordAiHtml(f) {
-  if (USER_TIER !== 'pro') return '';
+  if (effectiveTier() !== 'pro') return '';
   const st = f.extract_status || 'pending';
   if (st === 'processing') return `<div class="record-ai muted">Analysing\u2026</div>`;
   if (st === 'done' && f.extracted_text)
@@ -5860,7 +6036,7 @@ async function submitUpload() {
     await loadMedicalFiles();
 
     // Pro: analyse the document with AI in the background
-    if (newRow && USER_TIER === 'pro') {
+    if (newRow && effectiveTier() === 'pro') {
       extractMedicalFile(newRow.id);
     }
   } catch (e) {
