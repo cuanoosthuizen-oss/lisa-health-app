@@ -49,6 +49,10 @@ const DAILY_SPEND_CAP_USD = 5.00;
 // New users get a 14-day Pro trial from signup, then fall back to free.
 const TRIAL_DAYS_MS = 14 * 24 * 60 * 60 * 1000;
 
+// Founder account allowed to run the cross-user feedback digest. Verified from the
+// caller's access token server-side — never trusted from the request body.
+const ADMIN_USER_ID = process.env.ADMIN_USER_ID || '9bcc86eb-4475-4dea-b296-110ee4eac331';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -126,6 +130,154 @@ async function resolveTier(userId) {
   return { subTier, effectiveTier, inTrial, extraStd, extraAdv };
 }
 
+// Verify the caller from their Supabase access token (not from the request body).
+// Returns the authenticated user id, or null if the token is missing/invalid.
+async function verifyCaller(event) {
+  const h = event.headers || {};
+  const authHeader = h.authorization || h.Authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  if (!token) return null;
+  try {
+    const r = await fetch(`${process.env.SUPABASE_URL}/auth/v1/user`, {
+      headers: {
+        apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${token}`
+      }
+    });
+    if (!r.ok) return null;
+    const u = await r.json();
+    return (u && u.id) ? u.id : null;
+  } catch (e) {
+    console.error('verifyCaller failed:', e.message);
+    return null;
+  }
+}
+
+// Founder-only: summarise all submitted feedback into themes + a prioritised shortlist.
+// Verifies the caller's token against the admin id; does not touch any user's AI cap.
+async function handleFeedbackDigest(event) {
+  const callerId = await verifyCaller(event);
+  if (!callerId || callerId !== ADMIN_USER_ID) {
+    return json(403, { error: 'forbidden' });
+  }
+
+  let rows = [];
+  try {
+    rows = await sb('feedback?select=kind,message,status,created_at,user_id&order=created_at.desc&limit=1000') || [];
+  } catch (e) {
+    console.error('Feedback read failed:', e.message);
+    return json(502, { error: 'feedback_read_failed' });
+  }
+
+  if (!rows.length) {
+    return json(200, { summary: 'No feedback has been submitted yet.', total: 0, distinctUsers: 0 });
+  }
+
+  const distinctUsers = new Set(rows.map(r => r.user_id)).size;
+
+  // Anonymise: the model sees a short opaque tag per user, never the real id.
+  const tag = {};
+  let n = 0;
+  const lines = rows.map(r => {
+    if (!(r.user_id in tag)) { n += 1; tag[r.user_id] = 'U' + n; }
+    const date = (r.created_at || '').slice(0, 10);
+    const msg = (r.message || '').replace(/\s+/g, ' ').trim().slice(0, 600);
+    return `[${tag[r.user_id]} | ${r.kind} | ${date}] ${msg}`;
+  }).join('\n');
+
+  const systemPrompt = `You are helping the founder of a small Australian health-tracking app triage user feedback. You will be given a list of feedback items, one per line, tagged with an anonymous user id, a type, and a date.
+
+Produce a concise, practical briefing for the founder:
+1. The main themes, each with how many distinct users raised it (use the Uxx tags to count).
+2. Bugs and problems, kept separate from feature requests, kept separate from praise.
+3. A short prioritised shortlist of what to act on next, with one line of reasoning each. Weight by how many users raised it and how easy it sounds to address.
+
+Be specific and quote short fragments where useful. Do not invent feedback that isn't there. Keep it tight — this is a working triage note, not an essay. Use Australian spelling.`;
+
+  let apiResponse;
+  try {
+    const resp = await fetch(ANTHROPIC_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1500,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: `Here is the feedback (${rows.length} items from ${distinctUsers} people):\n\n${lines}` }]
+      })
+    });
+    if (!resp.ok) {
+      const txt = await resp.text();
+      console.error('Anthropic digest error:', resp.status, txt);
+      return json(502, { error: 'anthropic_error' });
+    }
+    apiResponse = await resp.json();
+  } catch (e) {
+    console.error('Anthropic digest call failed:', e.message);
+    return json(502, { error: 'anthropic_call_failed' });
+  }
+
+  const summary = apiResponse.content && apiResponse.content[0] && apiResponse.content[0].text;
+  if (!summary) return json(502, { error: 'no_content_in_response' });
+
+  return json(200, { summary, total: rows.length, distinctUsers });
+}
+
+// Founder-only: aggregate stats via the locked-down admin_stats() RPC (service role).
+async function handleAdminOverview(event) {
+  const callerId = await verifyCaller(event);
+  if (!callerId || callerId !== ADMIN_USER_ID) {
+    return json(403, { error: 'forbidden' });
+  }
+  try {
+    const r = await sb('rpc/admin_stats', { method: 'POST', body: JSON.stringify({}) });
+    const stats = Array.isArray(r) ? r[0] : r;
+    return json(200, { stats: stats || {} });
+  } catch (e) {
+    console.error('admin_overview failed:', e.message);
+    return json(502, { error: 'stats_failed' });
+  }
+}
+
+// Founder-only: most recent errors plus bug-type feedback.
+async function handleAdminErrors(event) {
+  const callerId = await verifyCaller(event);
+  if (!callerId || callerId !== ADMIN_USER_ID) {
+    return json(403, { error: 'forbidden' });
+  }
+  try {
+    const errors = await sb('app_errors?select=id,source,context,message,app_version,created_at,resolved&order=created_at.desc&limit=50') || [];
+    const bugs = await sb('feedback?kind=eq.bug&select=id,message,status,created_at&order=created_at.desc&limit=50') || [];
+    return json(200, { errors, bugs });
+  } catch (e) {
+    console.error('admin_errors failed:', e.message);
+    return json(502, { error: 'errors_failed' });
+  }
+}
+
+// Best-effort server-side error logging into app_errors.
+async function logServerError(context, err, userId) {
+  try {
+    await sb('app_errors', {
+      method: 'POST',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        user_id: userId || null,
+        source: 'server',
+        context: String(context).slice(0, 200),
+        message: (err && err.message ? err.message : String(err)).slice(0, 1000),
+        stack: (err && err.stack ? err.stack : '').slice(0, 4000)
+      })
+    });
+  } catch (e) {
+    console.error('logServerError failed:', e.message);
+  }
+}
+
 exports.handler = async function(event) {
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers: corsHeaders, body: '' };
@@ -139,6 +291,17 @@ exports.handler = async function(event) {
   }
 
   const { userId, entryDate, type = 'daily', data: prompt } = body;
+
+  // Founder-only feedback digest. Identity comes from the verified token, not the body.
+  if (type === 'feedback_digest') {
+    return await handleFeedbackDigest(event);
+  }
+  if (type === 'admin_overview') {
+    return await handleAdminOverview(event);
+  }
+  if (type === 'admin_errors') {
+    return await handleAdminErrors(event);
+  }
 
   if (!userId) return json(400, { error: 'missing_user_id' });
 
@@ -258,6 +421,7 @@ The user defines their own metrics. Each metric's name, type, and direction are 
     apiResponse = await resp.json();
   } catch (e) {
     console.error('Anthropic call failed:', e.message);
+    await logServerError('insight_' + type, e, userId);
     return json(502, { error: 'anthropic_call_failed' });
   }
 
