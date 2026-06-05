@@ -7,4 +7,9 @@
   [headers.values]
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "GET, POST, OPTIONS"
-    Access-Control-Allow-Headers = "Content-Type"
+    Access-Control-Allow-Headers = "Content-Type, Authorization"
+
+# Daily founder digest email. Cron is in UTC: 22:00 UTC ≈ 8am AEST / 9am AEDT.
+# The function is inert until RESEND_API_KEY and ADMIN_EMAIL are set.
+[functions."admin-digest"]
+  schedule = "0 22 * * *"
