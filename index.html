@@ -934,6 +934,23 @@
   body.settings-open #view-metrics { padding-top: calc(8px + env(safe-area-inset-top, 0px)); }
   body.settings-open #view-categories { padding-top: calc(8px + env(safe-area-inset-top, 0px)); }
   body.settings-open #view-meds { padding-top: calc(8px + env(safe-area-inset-top, 0px)); }
+  body.settings-open #view-feedback { padding-top: calc(8px + env(safe-area-inset-top, 0px)); }
+  body.settings-open #view-admin { padding-top: calc(8px + env(safe-area-inset-top, 0px)); }
+
+  .admin-row { display:flex; justify-content:space-between; gap:12px; padding:6px 0; border-bottom:1px solid var(--border); }
+  .admin-row:last-child { border-bottom:none; }
+  .admin-row span { color:var(--muted); }
+  .admin-row strong { font-variant-numeric: tabular-nums; }
+  .admin-err { padding:8px 0; border-bottom:1px solid var(--border); line-height:1.45; }
+  .admin-err:last-child { border-bottom:none; }
+  .admin-err .meta { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em; }
+  #admin-return {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: calc(82px + env(safe-area-inset-bottom, 0px)); z-index: 60;
+    background: var(--accent); color: #fff; border: none; cursor: pointer;
+    padding: 9px 16px; border-radius: 999px; font-size: 13px; font-weight: 600;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+  }
 
   /* Cards */
   .card {
@@ -2327,6 +2344,14 @@
       </div>
     </div>
 
+    <div class="settings-section-title">Help &amp; feedback</div>
+    <div class="settings-card">
+      <div class="settings-row clickable" onclick="openFeedback()">
+        <div class="settings-row-label">Send feedback or a suggestion</div>
+        <div class="settings-chev">›</div>
+      </div>
+    </div>
+
     <div class="settings-section-title">Data &amp; privacy</div>
     <div class="settings-card">
       <div class="settings-row disabled">
@@ -2567,7 +2592,93 @@
     </button>
   </nav>
 
+  <nav class="nav admin-nav" id="admin-nav" style="display:none;">
+    <button class="nav-btn active" id="anav-overview" onclick="showAdminTab('overview',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+      Overview
+    </button>
+    <button class="nav-btn" id="anav-feedback" onclick="showAdminTab('feedback',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>
+      Feedback
+    </button>
+    <button class="nav-btn" id="anav-issues" onclick="showAdminTab('issues',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      Issues
+    </button>
+    <button class="nav-btn" onclick="enterPatientMode()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="9" y1="18" x2="15" y2="18"/></svg>
+      Patient app
+    </button>
+  </nav>
+
+  <button id="admin-return" style="display:none;" onclick="enterAdminConsole('overview')">↩ Back to admin console</button>
+
   <!-- Add menu — opens from the centre + -->
+  <div class="view main" id="view-aoverview" style="display:none;">
+    <div class="card">
+      <div class="card-title">Overview</div>
+      <div id="admin-overview-out" style="font-size:14px;">Loading…</div>
+      <button class="submit-btn" style="margin-top:14px;" onclick="loadAdminOverview()">Refresh</button>
+    </div>
+    <div class="card">
+      <div class="card-title">Quick actions</div>
+      <button class="submit-btn" style="margin-bottom:10px;" onclick="openFeedbackAdmin()">Send feedback or report a bug</button>
+      <button class="copy-btn" onclick="enterPatientMode()">Open patient app</button>
+    </div>
+  </div>
+
+  <div class="view main" id="view-afeedback" style="display:none;">
+    <div class="card">
+      <div class="card-title">Feedback summary</div>
+      <div style="font-size:13px; color:var(--muted); margin-bottom:12px; line-height:1.5;">
+        Reads all submitted feedback — including anything you send yourself — and produces a themed, prioritised summary.
+      </div>
+      <button class="submit-btn" id="fb-digest-btn" onclick="runFeedbackDigest()">Generate summary</button>
+      <div id="fb-digest-out" style="margin-top:14px; white-space:pre-wrap; font-size:14px; line-height:1.6;"></div>
+    </div>
+  </div>
+
+  <div class="view main" id="view-aissues" style="display:none;">
+    <div class="card">
+      <div class="card-title">Errors &amp; bug reports</div>
+      <div id="admin-errors-out" style="font-size:14px;">Loading…</div>
+      <button class="submit-btn" style="margin-top:14px;" onclick="loadAdminErrors()">Refresh</button>
+    </div>
+  </div>
+
+  <div class="view main" id="view-feedback" style="display:none;">
+    <div style="display:flex; align-items:center; gap:14px; padding: 4px 16px 8px;">
+      <button class="settings-back" onclick="closeFeedback()" aria-label="Back">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+      </button>
+      <div style="font-family: var(--font-serif); font-size: 22px; line-height: 1.1;">Feed<em style="color: var(--accent); font-style: italic;">back</em></div>
+    </div>
+
+    <div class="card">
+      <div style="font-size:13px; color:var(--muted); margin-bottom:14px; line-height:1.5;">
+        Tell us what's working, what's not, or what you'd like to see. Every message is read.
+      </div>
+      <label class="form-label">Type</label>
+      <div class="multi-select" id="fb-kind" style="margin-bottom:4px;">
+        <div class="ms-option selected" data-kind="suggestion" onclick="selectFbKind(this)">Suggestion</div>
+        <div class="ms-option" data-kind="bug" onclick="selectFbKind(this)">Something's broken</div>
+        <div class="ms-option" data-kind="praise" onclick="selectFbKind(this)">Praise</div>
+        <div class="ms-option" data-kind="other" onclick="selectFbKind(this)">Other</div>
+      </div>
+      <label class="form-label" style="margin-top:14px;">Your message</label>
+      <textarea class="text-input" id="fb-message" rows="5" placeholder="Type your feedback or suggestion..."></textarea>
+      <button class="submit-btn" id="fb-send-btn" style="margin-top:16px;" onclick="submitFeedback()">Send feedback</button>
+      <div id="fb-error" style="display:none; color:var(--danger); font-size:13px; margin-top:8px;"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Your past feedback</div>
+      <div id="fb-mine"></div>
+    </div>
+  </div>
+
   <div class="view main" id="view-meds" style="display:none;">
     <div style="display:flex; align-items:center; gap:14px; padding: 4px 16px 8px;">
       <button class="settings-back" onclick="closeMeds()" aria-label="Back">
@@ -2612,6 +2723,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10.5 20.5 4 14a4.95 4.95 0 0 1 7-7l6.5 6.5a4.95 4.95 0 0 1-7 7Z"/><path d="m8.5 8.5 7 7"/></svg>
         <span>Manage medications</span>
       </button>
+      <button class="add-sheet-btn" onclick="closeAddMenu(); openFeedback();">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>
+        <span>Send feedback or report a problem</span>
+      </button>
       <button class="add-sheet-cancel" onclick="closeAddMenu()">Cancel</button>
     </div>
   </div>
@@ -2649,6 +2764,10 @@ const SUPABASE_KEY = 'sb_publishable_ZPmdfr5gBwJoJ4q64sKvQg_0sCRNInu';
 // Single source of truth for the app name. Change here to rename everywhere.
 const APP_NAME = 'Stilte';
 const APP_TAGLINE = 'Your daily health companion';
+const APP_VERSION = 'web-2026.06';
+// Founder account — gates the admin-only feedback digest. The server verifies this
+// independently from the caller's token; this client constant only controls UI visibility.
+const ADMIN_USER_ID = '9bcc86eb-4475-4dea-b296-110ee4eac331';
 
 let currentUser = null;
 let currentSession = null;
@@ -2990,6 +3109,12 @@ function showApp() {
   applyBranding();
   showSigninView();
   loadData();
+  if (isAdmin()) {
+    enterAdminConsole('overview');
+  } else {
+    const ret = document.getElementById('admin-return');
+    if (ret) ret.style.display = 'none';
+  }
 }
 
 // ── BRAND, USER NAME, AND THEME ──────────────────────────────────────────────
@@ -3866,6 +3991,300 @@ function closeMeds() {
   const btn = document.querySelector('.nav-btn[onclick*="home"]');
   showView('home', btn);
 }
+
+// ── FEEDBACK ─────────────────────────────────────────────────────────────────
+// Users submit feedback straight to the `feedback` table (RLS: insert/select own).
+// The founder-only digest runs server-side, where the caller's token is verified
+// against the admin id before any cross-user data is read.
+let FB_KIND = 'suggestion';
+let FEEDBACK_RETURN = 'patient';
+
+function selectFbKind(el) {
+  document.querySelectorAll('#fb-kind .ms-option').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  FB_KIND = el.dataset.kind || 'suggestion';
+}
+
+async function openFeedback() { FEEDBACK_RETURN = 'patient'; await openFeedbackView(); }
+async function openFeedbackAdmin() { FEEDBACK_RETURN = 'admin'; await openFeedbackView(); }
+
+async function openFeedbackView() {
+  document.body.classList.remove('settings-open');
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  const v = document.getElementById('view-feedback');
+  v.style.display = 'block'; v.classList.add('active');
+  document.body.classList.add('settings-open');
+  FB_KIND = 'suggestion';
+  document.querySelectorAll('#fb-kind .ms-option').forEach(o => o.classList.toggle('selected', o.dataset.kind === 'suggestion'));
+  const msg = document.getElementById('fb-message'); if (msg) msg.value = '';
+  const er = document.getElementById('fb-error'); if (er) er.style.display = 'none';
+  renderMyFeedback();
+}
+
+function closeFeedback() {
+  const v = document.getElementById('view-feedback');
+  v.style.display = 'none'; v.classList.remove('active');
+  document.body.classList.remove('settings-open');
+  if (FEEDBACK_RETURN === 'admin') { enterAdminConsole('overview'); return; }
+  const btn = document.querySelector('.nav:not(.admin-nav) .nav-btn[onclick*="home"]');
+  showView('home', btn);
+}
+
+async function submitFeedback() {
+  const msgEl = document.getElementById('fb-message');
+  const er = document.getElementById('fb-error');
+  const btn = document.getElementById('fb-send-btn');
+  const message = (msgEl.value || '').trim();
+  if (!message) { er.textContent = 'Please write a message first.'; er.style.display = 'block'; return; }
+  await ensureFreshToken();
+  if (!currentUser || !currentSession) { er.textContent = 'You need to be signed in.'; er.style.display = 'block'; return; }
+  const old = btn.textContent; btn.disabled = true; btn.textContent = 'Sending\u2026';
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/feedback`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${currentSession.access_token}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal'
+      },
+      body: JSON.stringify({ user_id: currentUser.id, kind: FB_KIND, message, app_version: APP_VERSION })
+    });
+    if (!r.ok) throw new Error('insert ' + r.status);
+    msgEl.value = ''; er.style.display = 'none';
+    showToast('Thanks \u2014 feedback sent');
+    renderMyFeedback();
+  } catch (e) {
+    console.error(e);
+    er.textContent = 'Could not send. Please try again.'; er.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = old;
+  }
+}
+
+async function renderMyFeedback() {
+  const host = document.getElementById('fb-mine');
+  if (!host) return;
+  await ensureFreshToken();
+  if (!currentUser || !currentSession) { host.innerHTML = ''; return; }
+  host.innerHTML = '<div style="color:var(--muted); font-size:13px;">Loading\u2026</div>';
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/feedback?user_id=eq.${currentUser.id}&select=kind,message,status,created_at&order=created_at.desc&limit=25`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentSession.access_token}` }
+    });
+    if (!r.ok) throw new Error('list ' + r.status);
+    const rows = await r.json();
+    if (!rows.length) { host.innerHTML = '<div style="color:var(--muted); font-size:13px;">You haven\'t sent any feedback yet.</div>'; return; }
+    host.innerHTML = rows.map(row => {
+      const date = (row.created_at || '').slice(0, 10);
+      const status = (row.status && row.status !== 'new') ? ' \u00b7 ' + escapeHtml(row.status) : '';
+      return '<div class="med-row" style="flex-direction:column; align-items:flex-start; gap:4px;">' +
+        '<span style="font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em;">' + escapeHtml(row.kind) + ' \u00b7 ' + date + status + '</span>' +
+        '<span style="font-size:14px; line-height:1.5;">' + escapeHtml(row.message) + '</span></div>';
+    }).join('');
+  } catch (e) {
+    console.error(e);
+    host.innerHTML = '<div style="color:var(--muted); font-size:13px;">Could not load your feedback.</div>';
+  }
+}
+
+async function runFeedbackDigest() {
+  const out = document.getElementById('fb-digest-out');
+  const btn = document.getElementById('fb-digest-btn');
+  await ensureFreshToken();
+  if (!currentSession) { if (out) out.textContent = 'You need to be signed in.'; return; }
+  const old = btn.textContent; btn.disabled = true; btn.textContent = 'Generating\u2026';
+  if (out) out.textContent = '';
+  try {
+    const resp = await fetch('/.netlify/functions/ai-insight', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${currentSession.access_token}`
+      },
+      body: JSON.stringify({ type: 'feedback_digest' })
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      if (out) out.textContent = (data && data.error === 'forbidden') ? 'Not authorised.' : 'Could not generate a summary right now.';
+      return;
+    }
+    const meta = data.total ? ('\n\n(' + data.total + ' items from ' + (data.distinctUsers || '?') + ' people)') : '';
+    if (out) out.textContent = (data.summary || 'No summary returned.') + meta;
+  } catch (e) {
+    console.error(e);
+    if (out) out.textContent = 'Could not generate a summary right now.';
+  } finally {
+    btn.disabled = false; btn.textContent = old;
+  }
+}
+
+// ── ADMIN DASHBOARD ──────────────────────────────────────────────────────────
+// Founder-only. Every number here is computed server-side behind a token check;
+// this view is hidden for everyone else, but the real gate is on the server.
+function isAdmin() { return !!(currentUser && currentUser.id === ADMIN_USER_ID); }
+
+let ADMIN_MODE = false;
+
+// Admin account: the whole app becomes the console. Consumer nav hidden, admin nav shown.
+function enterAdminConsole(tab) {
+  if (!isAdmin()) return;
+  ADMIN_MODE = true;
+  document.body.classList.add('admin-mode');
+  document.body.classList.remove('settings-open');
+  const addMenu = document.getElementById('add-menu'); if (addMenu) addMenu.style.display = 'none';
+  const cn = document.querySelector('.nav:not(.admin-nav)'); if (cn) cn.style.display = 'none';
+  const an = document.getElementById('admin-nav'); if (an) an.style.display = '';
+  const ret = document.getElementById('admin-return'); if (ret) ret.style.display = 'none';
+  showAdminTab(tab || 'overview');
+}
+
+// Drop the admin into the normal patient app (for testing). A pill lets them return.
+function enterPatientMode() {
+  ADMIN_MODE = false;
+  document.body.classList.remove('admin-mode');
+  const an = document.getElementById('admin-nav'); if (an) an.style.display = 'none';
+  const cn = document.querySelector('.nav:not(.admin-nav)'); if (cn) cn.style.display = '';
+  const homeBtn = document.querySelector('.nav:not(.admin-nav) .nav-btn');
+  showView('home', homeBtn);
+  const ret = document.getElementById('admin-return');
+  if (ret) ret.style.display = isAdmin() ? 'block' : 'none';
+}
+
+function showAdminTab(tab, btn) {
+  document.body.classList.remove('settings-open');
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  const an = document.getElementById('admin-nav');
+  if (an) an.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  const map = { overview: 'view-aoverview', feedback: 'view-afeedback', issues: 'view-aissues' };
+  const v = document.getElementById(map[tab] || 'view-aoverview');
+  if (v) v.classList.add('active');
+  if (btn) btn.classList.add('active');
+  else { const nb = document.getElementById('anav-' + tab); if (nb) nb.classList.add('active'); }
+  if (tab === 'overview') loadAdminOverview();
+  if (tab === 'issues') loadAdminErrors();
+}
+
+function adminRow(label, val) {
+  const v = (val === null || val === undefined || val === '') ? '\u2014' : String(val);
+  return '<div class="admin-row"><span>' + escapeHtml(label) + '</span><strong>' + escapeHtml(v) + '</strong></div>';
+}
+
+async function loadAdminOverview() {
+  const out = document.getElementById('admin-overview-out');
+  if (!out) return;
+  out.textContent = 'Loading\u2026';
+  await ensureFreshToken();
+  if (!currentSession) { out.textContent = 'You need to be signed in.'; return; }
+  try {
+    const resp = await fetch('/.netlify/functions/ai-insight', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentSession.access_token}` },
+      body: JSON.stringify({ type: 'admin_overview' })
+    });
+    const data = await resp.json();
+    if (!resp.ok) { out.textContent = (data && data.error === 'forbidden') ? 'Not authorised.' : 'Could not load stats.'; return; }
+    const s = data.stats || {};
+    const money = n => '$' + (Number(n) || 0).toFixed(2);
+    out.innerHTML =
+      adminRow('Total users', s.total_users) +
+      adminRow('Pro', s.tier_pro) +
+      adminRow('Plus', s.tier_plus) +
+      adminRow('On trial', s.tier_trial) +
+      adminRow('Free', s.tier_free) +
+      adminRow('AI spend today', money(s.spend_today)) +
+      adminRow('Spend · 7 days', money(s.spend_7d)) +
+      adminRow('Spend · 30 days', money(s.spend_30d)) +
+      adminRow('Spend · year', money(s.spend_365d)) +
+      adminRow('AI calls today', s.calls_today) +
+      adminRow('Feedback · total', s.feedback_total) +
+      adminRow('Feedback · new', s.feedback_new) +
+      adminRow('Open bugs', s.bugs_open) +
+      adminRow('Errors · 24h', s.errors_24h) +
+      adminRow('Errors · unresolved', s.errors_unresolved);
+  } catch (e) {
+    console.error(e);
+    out.textContent = 'Could not load stats.';
+  }
+}
+
+async function loadAdminErrors() {
+  const out = document.getElementById('admin-errors-out');
+  if (!out) return;
+  out.textContent = 'Loading\u2026';
+  await ensureFreshToken();
+  if (!currentSession) { out.textContent = 'You need to be signed in.'; return; }
+  try {
+    const resp = await fetch('/.netlify/functions/ai-insight', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentSession.access_token}` },
+      body: JSON.stringify({ type: 'admin_errors' })
+    });
+    const data = await resp.json();
+    if (!resp.ok) { out.textContent = (data && data.error === 'forbidden') ? 'Not authorised.' : 'Could not load errors.'; return; }
+    const errors = data.errors || [];
+    const bugs = data.bugs || [];
+    let html = '';
+    html += '<div style="font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;">Errors (' + errors.length + ')</div>';
+    html += errors.length
+      ? errors.slice(0, 25).map(e =>
+          '<div class="admin-err"><div class="meta">' + escapeHtml(e.source || '') + ' \u00b7 ' + escapeHtml((e.context || '')) + ' \u00b7 ' + escapeHtml((e.created_at || '').slice(0, 16).replace('T', ' ')) + '</div>' +
+          '<div>' + escapeHtml((e.message || '').slice(0, 200)) + '</div></div>').join('')
+      : '<div style="color:var(--muted); font-size:13px;">No errors logged.</div>';
+    html += '<div style="font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em; margin:14px 0 6px;">Bug reports (' + bugs.length + ')</div>';
+    html += bugs.length
+      ? bugs.slice(0, 25).map(b =>
+          '<div class="admin-err"><div class="meta">' + escapeHtml((b.status || 'new')) + ' \u00b7 ' + escapeHtml((b.created_at || '').slice(0, 10)) + '</div>' +
+          '<div>' + escapeHtml((b.message || '').slice(0, 300)) + '</div></div>').join('')
+      : '<div style="color:var(--muted); font-size:13px;">No bug reports.</div>';
+    out.innerHTML = html;
+  } catch (e) {
+    console.error(e);
+    out.textContent = 'Could not load errors.';
+  }
+}
+
+// ── CLIENT ERROR CAPTURE ─────────────────────────────────────────────────────
+// Logs uncaught errors to app_errors (authenticated users only), deduped to at
+// most one of the same error per minute so a loop can't flood the table.
+let LAST_ERR_KEY = '';
+let LAST_ERR_AT = 0;
+async function logClientError(context, message, stack) {
+  try {
+    if (!currentUser || !currentSession) return;
+    const key = (context || '') + '|' + (message || '').slice(0, 120);
+    const now = Date.now();
+    if (key === LAST_ERR_KEY && (now - LAST_ERR_AT) < 60000) return;
+    LAST_ERR_KEY = key; LAST_ERR_AT = now;
+    await fetch(`${SUPABASE_URL}/rest/v1/app_errors`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${currentSession.access_token}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal'
+      },
+      body: JSON.stringify({
+        user_id: currentUser.id,
+        source: 'client',
+        context: (context || '').slice(0, 200),
+        message: (message || '').slice(0, 1000),
+        stack: (stack || '').slice(0, 4000),
+        app_version: APP_VERSION,
+        user_agent: (navigator.userAgent || '').slice(0, 300)
+      })
+    });
+  } catch (e) { /* never let logging throw */ }
+}
+
+window.addEventListener('error', function (ev) {
+  const where = ev.filename ? (' @ ' + ev.filename + ':' + ev.lineno) : '';
+  logClientError('window.onerror', (ev.message || 'error') + where, ev.error && ev.error.stack);
+});
+window.addEventListener('unhandledrejection', function (ev) {
+  const r = ev.reason;
+  logClientError('unhandledrejection', (r && r.message) ? r.message : String(r), r && r.stack);
+});
 
 function renderMedsList() {
   const host = document.getElementById('med-current-list');
