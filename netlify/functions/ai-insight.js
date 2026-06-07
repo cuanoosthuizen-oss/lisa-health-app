@@ -155,10 +155,29 @@ async function verifyCaller(event) {
 
 // Founder-only: summarise all submitted feedback into themes + a prioritised shortlist.
 // Verifies the caller's token against the admin id; does not touch any user's AI cap.
-async function handleFeedbackDigest(event) {
+async function handleFeedbackDigest(event, body) {
   const callerId = await verifyCaller(event);
   if (!callerId || callerId !== ADMIN_USER_ID) {
     return json(403, { error: 'forbidden' });
+  }
+
+  const date = (body && body.date) || new Date().toISOString().slice(0, 10);
+  const generate = !!(body && body.generate);
+
+  // Return the saved digest for this day if one exists.
+  try {
+    const saved = await sb(`feedback_digests?digest_date=eq.${date}&select=content,total,distinct_users`);
+    if (saved && saved.length) {
+      const row = saved[0];
+      return json(200, { summary: row.content, total: row.total, distinctUsers: row.distinct_users, date, cached: true });
+    }
+  } catch (e) {
+    console.error('Digest read failed:', e.message);
+  }
+
+  // Nothing saved and not asked to generate → just report that.
+  if (!generate) {
+    return json(200, { summary: null, date });
   }
 
   let rows = [];
@@ -170,7 +189,7 @@ async function handleFeedbackDigest(event) {
   }
 
   if (!rows.length) {
-    return json(200, { summary: 'No feedback has been submitted yet.', total: 0, distinctUsers: 0 });
+    return json(200, { summary: 'No feedback has been submitted yet.', total: 0, distinctUsers: 0, date });
   }
 
   const distinctUsers = new Set(rows.map(r => r.user_id)).size;
@@ -180,9 +199,9 @@ async function handleFeedbackDigest(event) {
   let n = 0;
   const lines = rows.map(r => {
     if (!(r.user_id in tag)) { n += 1; tag[r.user_id] = 'U' + n; }
-    const date = (r.created_at || '').slice(0, 10);
+    const d = (r.created_at || '').slice(0, 10);
     const msg = (r.message || '').replace(/\s+/g, ' ').trim().slice(0, 600);
-    return `[${tag[r.user_id]} | ${r.kind} | ${date}] ${msg}`;
+    return `[${tag[r.user_id]} | ${r.kind} | ${d}] ${msg}`;
   }).join('\n');
 
   const systemPrompt = `You are helping the founder of a small Australian health-tracking app triage user feedback. You will be given a list of feedback items, one per line, tagged with an anonymous user id, a type, and a date.
@@ -224,7 +243,18 @@ Be specific and quote short fragments where useful. Do not invent feedback that 
   const summary = apiResponse.content && apiResponse.content[0] && apiResponse.content[0].text;
   if (!summary) return json(502, { error: 'no_content_in_response' });
 
-  return json(200, { summary, total: rows.length, distinctUsers });
+  // Save (upsert) this day's digest so it isn't regenerated on every view.
+  try {
+    await sb('feedback_digests?on_conflict=digest_date', {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({ digest_date: date, content: summary, total: rows.length, distinct_users: distinctUsers })
+    });
+  } catch (e) {
+    console.error('Digest save failed:', e.message);
+  }
+
+  return json(200, { summary, total: rows.length, distinctUsers, date });
 }
 
 // Founder-only: aggregate stats via the locked-down admin_stats() RPC (service role).
@@ -294,7 +324,7 @@ exports.handler = async function(event) {
 
   // Founder-only feedback digest. Identity comes from the verified token, not the body.
   if (type === 'feedback_digest') {
-    return await handleFeedbackDigest(event);
+    return await handleFeedbackDigest(event, body);
   }
   if (type === 'admin_overview') {
     return await handleAdminOverview(event);
