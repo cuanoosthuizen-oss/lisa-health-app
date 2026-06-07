@@ -4352,6 +4352,10 @@ async function errorSetResolved(id, resolved) {
 }
 
 
+function isAdmin() {
+  return !!(currentUser && currentUser.id === ADMIN_USER_ID);
+}
+
 let ADMIN_MODE = false;
 
 const ADMIN_VIEW_IDS = ['view-aoverview', 'view-afeedback', 'view-aissues'];
