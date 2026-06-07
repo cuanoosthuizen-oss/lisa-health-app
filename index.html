@@ -1397,7 +1397,16 @@
   .home-hero { margin: 20px 20px 2px; }
   .home-hero-greeting { font-family: var(--font-serif); font-size: 22px; color: var(--text); letter-spacing: -0.2px; }
   .home-hero-slogan { font-size: 13px; color: var(--muted); margin-top: 3px; line-height: 1.4; }
-  .home-tip-link { color: var(--accent); cursor: pointer; font-weight: 600; white-space: nowrap; }
+  .home-hero-week { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+  .wk-dots { display: flex; gap: 4px; }
+  .wk-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--border); }
+  .wk-dot.on { background: var(--accent); }
+  .wk-label { font-size: 12px; color: var(--muted); }
+  .hp-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+  .hp-bar { height: 8px; border-radius: 999px; background: var(--surface2); overflow: hidden; }
+  .hp-fill { height: 100%; background: var(--accent); border-radius: 999px; transition: width 0.3s ease; }
+  .hp-line { font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.4; }
+  .hp-link { font-size: 12px; color: var(--accent); font-weight: 600; cursor: pointer; margin-top: 8px; }
 
   /* Today prompt — tappable card prompting check-in */
   .today-prompt-tap {
@@ -2120,10 +2129,8 @@
       <div class="mini-chart" id="mini-chart"></div>
     </div>
 
-    <!-- Gentle tip: enrich data for better insights (shown until insights unlock) -->
-    <div class="card home-tip" id="home-tip" style="display:none; font-size:13px; color:var(--muted); line-height:1.5;">
-      <span id="home-tip-text"></span>
-    </div>
+    <!-- Pre-insight progress (shown until the data gate unlocks) -->
+    <div class="card home-progress" id="home-tip" style="display:none;"></div>
   </div>
 
   <!-- CHECK-IN VIEW -->
@@ -4676,6 +4683,22 @@ function goToCustomise() {
   showView('customise', btn);
 }
 
+// Forgiving weekly consistency: how many of the last 7 days had any check-in.
+// Deliberately not a hard streak — a missed day doesn't wipe the count.
+function weeklyConsistency() {
+  const logged = new Set(VALUES.map(v => v.entry_date));
+  let count = 0;
+  let dots = '';
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - i);
+    const ds = d.toLocaleDateString('en-CA');
+    const on = logged.has(ds);
+    if (on) count++;
+    dots += '<span class="wk-dot' + (on ? ' on' : '') + '"></span>';
+  }
+  return { count, dotsHtml: '<div class="wk-dots">' + dots + '</div>' };
+}
+
 function renderHome() {
   const latest = getLatest();
   const last7 = getLast7();
@@ -4683,19 +4706,30 @@ function renderHome() {
   // Header date
   document.getElementById('header-date').textContent = new Date().toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long'});
 
-  // Streak
+  // Streak — gentle: hide the badge entirely on a zero streak rather than
+  // showing a deflating "0 day streak" to someone having a rough patch.
   const streak = computeStreak();
-  document.getElementById('streak-badge').textContent = streak + ' day streak';
+  const badge = document.getElementById('streak-badge');
+  if (badge) {
+    if (streak > 0) { badge.textContent = streak + ' day streak'; badge.style.display = ''; }
+    else { badge.style.display = 'none'; }
+  }
 
-  // Today prompt: greeting + slogan, then the check-in action (or a warm
-  // "checked in" confirmation once the primary metric is recorded today).
+  // Today prompt: greeting + slogan + a forgiving weekly-consistency strip,
+  // then the check-in action (or a warm "checked in" confirmation).
   const pmToday = primaryMetric();
   const loggedToday = pmToday ? !!valuesByDate(today())[pmToday.id] : false;
   const promptEl = document.getElementById('today-prompt');
+  const wk = weeklyConsistency();
+  const consistency = wk.count >= 1
+    ? '<div class="home-hero-week">' + wk.dotsHtml +
+      '<span class="wk-label">' + wk.count + ' of the last 7 days</span></div>'
+    : '';
   const heroTop =
     '<div class="home-hero">' +
       '<div class="home-hero-greeting">' + escapeHtml(timeGreeting()) + '</div>' +
       '<div class="home-hero-slogan">' + escapeHtml(todaySlogan()) + '</div>' +
+      consistency +
     '</div>';
   if (loggedToday) {
     promptEl.innerHTML = heroTop +
@@ -4743,13 +4777,25 @@ function renderHome() {
     return `<div class="mini-bar" style="height:${pct}%;background:${col};"></div>`;
   }).join('');
 
-  // Gentle nudge to enrich data while insights are still locked.
+  // Pre-insight progress: while the data gate is locked, show how close the
+  // user is to unlocking patterns/insights instead of an empty space.
   const tipEl = document.getElementById('home-tip');
   if (tipEl) {
     if (!insightsUnlocked()) {
+      const have = recentLoggedDays();
+      const need = INSIGHT_UNLOCK_THRESHOLD;
+      const pct = Math.max(0, Math.min(100, Math.round((have / need) * 100)));
+      const remaining = Math.max(0, need - have);
+      let line;
+      if (have === 0) line = 'Log your first check-in to start unlocking your patterns and insights.';
+      else if (remaining <= 1) line = 'Just 1 more check-in day and Stilte starts spotting your patterns.';
+      else line = remaining + ' more check-in days and Stilte starts spotting your patterns.';
       tipEl.style.display = 'block';
-      const t = document.getElementById('home-tip-text');
-      if (t) t.innerHTML = 'The more you track, the sharper your AI insights become. <span class="home-tip-link" onclick="goToCustomise()">Add what matters \u2192</span>';
+      tipEl.innerHTML =
+        '<div class="hp-title">Unlocking your insights</div>' +
+        '<div class="hp-bar"><div class="hp-fill" style="width:' + pct + '%;"></div></div>' +
+        '<div class="hp-line">' + have + ' of ' + need + ' days logged · ' + escapeHtml(line) + '</div>' +
+        '<div class="hp-link" onclick="goToCustomise()">Add more to track \u2192</div>';
     } else {
       tipEl.style.display = 'none';
     }
