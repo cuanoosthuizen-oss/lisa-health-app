@@ -936,6 +936,9 @@
   body.settings-open #view-meds { padding-top: calc(8px + env(safe-area-inset-top, 0px)); }
   body.settings-open #view-feedback { padding-top: calc(8px + env(safe-area-inset-top, 0px)); }
   body.settings-open #view-admin { padding-top: calc(8px + env(safe-area-inset-top, 0px)); }
+  body.admin-mode #view-aoverview,
+  body.admin-mode #view-afeedback,
+  body.admin-mode #view-aissues { padding-top: calc(12px + env(safe-area-inset-top, 0px)); }
 
   .admin-row { display:flex; justify-content:space-between; gap:12px; padding:6px 0; border-bottom:1px solid var(--border); }
   .admin-row:last-child { border-bottom:none; }
@@ -950,6 +953,17 @@
     background: var(--accent); color: #fff; border: none; cursor: pointer;
     padding: 9px 16px; border-radius: 999px; font-size: 13px; font-weight: 600;
     box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+  }
+  .fb-date-nav { display:flex; align-items:center; gap:8px; }
+  .fb-date-nav button {
+    width:38px; height:38px; flex-shrink:0; border:1px solid var(--border);
+    background:var(--surface2); border-radius:10px; font-size:18px; line-height:1;
+    color:var(--text); cursor:pointer; -webkit-tap-highlight-color:transparent;
+  }
+  .fb-date-nav button:disabled { opacity:0.4; cursor:default; }
+  .fb-date-nav input[type="date"] {
+    flex:1; min-width:0; padding:9px 10px; border:1px solid var(--border);
+    border-radius:10px; background:var(--surface); color:var(--text); font-size:14px;
   }
 
   /* Cards */
@@ -2631,9 +2645,14 @@
     <div class="card">
       <div class="card-title">Feedback summary</div>
       <div style="font-size:13px; color:var(--muted); margin-bottom:12px; line-height:1.5;">
-        Reads all submitted feedback — including anything you send yourself — and produces a themed, prioritised summary.
+        A themed, prioritised summary of all submitted feedback. Each day's summary is saved — generate today's, or step back through earlier days.
       </div>
-      <button class="submit-btn" id="fb-digest-btn" onclick="runFeedbackDigest()">Generate summary</button>
+      <div class="fb-date-nav">
+        <button type="button" onclick="fbDigestShiftDay(-1)" aria-label="Previous day">‹</button>
+        <input type="date" id="fb-digest-date" onchange="fbDigestDateChanged()">
+        <button type="button" id="fb-digest-next" onclick="fbDigestShiftDay(1)" aria-label="Next day">›</button>
+      </div>
+      <button class="submit-btn" id="fb-digest-btn" style="margin-top:12px;" onclick="runFeedbackDigest()">Generate summary</button>
       <div id="fb-digest-out" style="margin-top:14px; white-space:pre-wrap; font-size:14px; line-height:1.6;"></div>
     </div>
   </div>
@@ -4088,6 +4107,76 @@ async function renderMyFeedback() {
   }
 }
 
+let FB_DIGEST_DATE = null;
+
+function initFeedbackDigest() {
+  FB_DIGEST_DATE = today();
+  const input = document.getElementById('fb-digest-date');
+  if (input) { input.max = today(); input.value = FB_DIGEST_DATE; }
+  loadFeedbackDigest();
+}
+
+function fbDigestDateChanged() {
+  const input = document.getElementById('fb-digest-date');
+  if (!input || !input.value) return;
+  FB_DIGEST_DATE = input.value;
+  loadFeedbackDigest();
+}
+
+function fbDigestShiftDay(delta) {
+  const d = new Date(FB_DIGEST_DATE + 'T00:00:00');
+  d.setDate(d.getDate() + delta);
+  const next = d.toLocaleDateString('en-CA');
+  if (next > today()) return; // no future days
+  FB_DIGEST_DATE = next;
+  const input = document.getElementById('fb-digest-date');
+  if (input) input.value = FB_DIGEST_DATE;
+  loadFeedbackDigest();
+}
+
+// Update the generate button + next-arrow state for the currently viewed day.
+function fbDigestControls(hasSummary) {
+  const btn = document.getElementById('fb-digest-btn');
+  const next = document.getElementById('fb-digest-next');
+  const isToday = FB_DIGEST_DATE === today();
+  if (next) next.disabled = isToday;
+  if (btn) {
+    btn.style.display = isToday ? 'block' : 'none';
+    btn.textContent = hasSummary ? "Regenerate today's summary" : 'Generate summary';
+  }
+}
+
+// Fetch (without generating) the saved summary for the viewed day.
+async function loadFeedbackDigest() {
+  const out = document.getElementById('fb-digest-out');
+  if (out) out.textContent = 'Loading\u2026';
+  await ensureFreshToken();
+  if (!currentSession) { if (out) out.textContent = 'You need to be signed in.'; return; }
+  try {
+    const resp = await fetch('/.netlify/functions/ai-insight', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentSession.access_token}` },
+      body: JSON.stringify({ type: 'feedback_digest', date: FB_DIGEST_DATE, generate: false })
+    });
+    const data = await resp.json();
+    if (!resp.ok) { if (out) out.textContent = (data && data.error === 'forbidden') ? 'Not authorised.' : 'Could not load the summary.'; return; }
+    if (data.summary) {
+      const meta = data.total ? ('\n\n(' + data.total + ' items from ' + (data.distinctUsers || '?') + ' people)') : '';
+      if (out) out.textContent = data.summary + meta;
+      fbDigestControls(true);
+    } else {
+      if (out) out.textContent = (FB_DIGEST_DATE === today())
+        ? 'No summary yet for today. Tap Generate summary to create one.'
+        : 'No summary was saved for this day.';
+      fbDigestControls(false);
+    }
+  } catch (e) {
+    console.error(e);
+    if (out) out.textContent = 'Could not load the summary.';
+  }
+}
+
+// Generate + save today's summary (overwrites if one already exists).
 async function runFeedbackDigest() {
   const out = document.getElementById('fb-digest-out');
   const btn = document.getElementById('fb-digest-btn');
@@ -4098,11 +4187,8 @@ async function runFeedbackDigest() {
   try {
     const resp = await fetch('/.netlify/functions/ai-insight', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${currentSession.access_token}`
-      },
-      body: JSON.stringify({ type: 'feedback_digest' })
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentSession.access_token}` },
+      body: JSON.stringify({ type: 'feedback_digest', date: today(), generate: true })
     });
     const data = await resp.json();
     if (!resp.ok) {
@@ -4111,6 +4197,7 @@ async function runFeedbackDigest() {
     }
     const meta = data.total ? ('\n\n(' + data.total + ' items from ' + (data.distinctUsers || '?') + ' people)') : '';
     if (out) out.textContent = (data.summary || 'No summary returned.') + meta;
+    fbDigestControls(true);
   } catch (e) {
     console.error(e);
     if (out) out.textContent = 'Could not generate a summary right now.';
@@ -4178,6 +4265,7 @@ function showAdminTab(tab, btn) {
   if (btn) btn.classList.add('active');
   else { const nb = document.getElementById('anav-' + tab); if (nb) nb.classList.add('active'); }
   if (tab === 'overview') loadAdminOverview();
+  if (tab === 'feedback') initFeedbackDigest();
   if (tab === 'issues') loadAdminErrors();
 }
 
