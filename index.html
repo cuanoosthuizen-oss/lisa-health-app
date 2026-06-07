@@ -978,6 +978,8 @@
   .fb-status.s-actioned { background:#e7f3ea; color:#2e7d4f; }
   .fb-status.s-dismissed { background:var(--surface2); color:var(--muted); }
   .fb-status.s-reviewed { background:#eef2f7; color:#5b6b7c; }
+  .fb-status.s-ready { background:#e6eefc; color:#2f5fb3; }
+  .fb-status.s-planned { background:#f3ecfb; color:#7a4fb0; }
   .fb-actions { display:flex; gap:6px; flex-wrap:wrap; }
   .fb-actions button { padding:6px 10px; border:1px solid var(--border); border-radius:8px; background:var(--surface); font-size:12px; color:var(--text); cursor:pointer; -webkit-tap-highlight-color:transparent; }
   .fb-actions button.active { background:var(--accent); color:#fff; border-color:var(--accent); }
@@ -1391,6 +1393,11 @@
     -webkit-tap-highlight-color: transparent;
   }
   .checkin-cta:active { opacity: 0.85; }
+
+  .home-hero { margin: 20px 20px 2px; }
+  .home-hero-greeting { font-family: var(--font-serif); font-size: 22px; color: var(--text); letter-spacing: -0.2px; }
+  .home-hero-slogan { font-size: 13px; color: var(--muted); margin-top: 3px; line-height: 1.4; }
+  .home-tip-link { color: var(--accent); cursor: pointer; font-weight: 600; white-space: nowrap; }
 
   /* Today prompt — tappable card prompting check-in */
   .today-prompt-tap {
@@ -2107,15 +2114,15 @@
       <div style="margin-top:10px; font-size:11px; color:var(--muted); cursor:pointer;" onclick="goToTrends()">See all patterns →</div>
     </div>
 
-    <!-- Compact latest entry summary -->
-    <div class="card" id="latest-summary-card" style="display:none;">
-      <div class="latest-summary-row" id="latest-summary-row"></div>
-    </div>
-
-    <!-- 7-day mini chart -->
+    <!-- 7-day mini chart (the daily snapshot bar graph) -->
     <div class="card">
       <div class="card-title">7-day wellbeing</div>
       <div class="mini-chart" id="mini-chart"></div>
+    </div>
+
+    <!-- Gentle tip: enrich data for better insights (shown until insights unlock) -->
+    <div class="card home-tip" id="home-tip" style="display:none; font-size:13px; color:var(--muted); line-height:1.5;">
+      <span id="home-tip-text"></span>
     </div>
   </div>
 
@@ -2155,7 +2162,7 @@
 
     <div class="submitted-state" id="submitted-state">
       <div class="submitted-icon">✓</div>
-      <h2 id="done-heading">All done.</h2>
+      <h2 id="done-heading">Thank you.</h2>
       <p>Your check-in has been saved.<br>Keep it up — the more data, the better the insights.</p>
       <br>
       <button class="submit-btn" onclick="newEntry()">Add another entry</button>
@@ -2679,9 +2686,11 @@
       <div class="card-title">Feedback inbox</div>
       <div class="fb-filter" id="fb-filter">
         <button type="button" class="fb-filter-btn active" data-status="new" onclick="setFbFilter('new',this)">New</button>
-        <button type="button" class="fb-filter-btn" data-status="all" onclick="setFbFilter('all',this)">All</button>
+        <button type="button" class="fb-filter-btn" data-status="ready" onclick="setFbFilter('ready',this)">To build</button>
+        <button type="button" class="fb-filter-btn" data-status="planned" onclick="setFbFilter('planned',this)">Planned</button>
         <button type="button" class="fb-filter-btn" data-status="actioned" onclick="setFbFilter('actioned',this)">Actioned</button>
-        <button type="button" class="fb-filter-btn" data-status="dismissed" onclick="setFbFilter('dismissed',this)">Dismissed</button>
+        <button type="button" class="fb-filter-btn" data-status="dismissed" onclick="setFbFilter('dismissed',this)">Ignored</button>
+        <button type="button" class="fb-filter-btn" data-status="all" onclick="setFbFilter('all',this)">All</button>
       </div>
       <div id="fb-list" style="margin-top:12px;">Loading…</div>
     </div>
@@ -3193,7 +3202,7 @@ function applyBranding() {
   setText('settings-about-foot', `Made with care${userName() ? ' for ' + userName() : ''}`);
   // Done-screen greeting
   const done = document.getElementById('done-heading');
-  if (done) done.textContent = userName() ? `All done, ${userName()}.` : 'All done.';
+  if (done) done.textContent = userName() ? `Thank you, ${userName()}.` : 'Thank you.';
   // Share patient name
   setText('share-patient-name', userName() || '—');
   // Profile button initial
@@ -4239,7 +4248,8 @@ async function runFeedbackDigest() {
 
 // ── FEEDBACK INBOX (triage) ──────────────────────────────────────────────────
 let FB_FILTER = 'new';
-const FB_STATUSES = ['new', 'reviewed', 'actioned', 'dismissed'];
+const FB_STATUSES = ['new', 'ready', 'planned', 'actioned', 'dismissed'];
+const FB_STATUS_LABEL = { new: 'New', ready: 'To build', planned: 'Planned', actioned: 'Actioned', dismissed: 'Ignored' };
 
 function setFbFilter(status, btn) {
   FB_FILTER = status;
@@ -4275,11 +4285,11 @@ function fbItemHtml(row) {
   const note = row.admin_note ? '<div class="note">' + escapeHtml(row.admin_note) + '</div>' : '';
   const btns = FB_STATUSES.map(s =>
     '<button class="' + (s === status ? 'active' : '') + '" onclick="feedbackSetStatus(\'' + row.id + '\',\'' + s + '\')">' +
-    s.charAt(0).toUpperCase() + s.slice(1) + '</button>'
+    (FB_STATUS_LABEL[s] || s) + '</button>'
   ).join('');
   return '<div class="fb-item" id="fbitem-' + row.id + '">' +
     '<div class="meta"><span>' + escapeHtml(row.kind) + ' \u00b7 ' + date + '</span>' +
-    '<span class="fb-status s-' + status + '">' + status + '</span></div>' +
+    '<span class="fb-status s-' + status + '">' + (FB_STATUS_LABEL[status] || status) + '</span></div>' +
     '<div class="msg">' + escapeHtml(row.message || '') + '</div>' +
     note +
     '<div class="fb-actions">' + btns +
@@ -4448,6 +4458,7 @@ async function loadAdminOverview() {
       adminRow('AI calls today', s.calls_today) +
       adminRow('Feedback · total', s.feedback_total) +
       adminRow('Feedback · new', s.feedback_new) +
+      adminRow('Feedback · to build', s.feedback_ready) +
       adminRow('Open bugs', s.bugs_open) +
       adminRow('Errors · 24h', s.errors_24h) +
       adminRow('Errors · unresolved', s.errors_unresolved);
@@ -4637,6 +4648,34 @@ function showToast(msg) {
 }
 
 // ── HOME ─────────────────────────────────────────────────────────────────────
+// Time-of-day greeting, personalised when we know the user's first name.
+function timeGreeting() {
+  const h = new Date().getHours();
+  const part = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+  const n = userName();
+  return n ? part + ', ' + n : part;
+}
+
+// A small rotating wellbeing line. Stable across a given day.
+const HOME_SLOGANS = [
+  'A few quiet minutes today, a clearer picture over time.',
+  'Small notes today, real patterns tomorrow.',
+  'Tune in to how you are doing.',
+  'Your wellbeing, one day at a time.',
+  'Notice the patterns. Trust the trend.'
+];
+function todaySlogan() {
+  const d = new Date();
+  const dayOfYear = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000);
+  return HOME_SLOGANS[dayOfYear % HOME_SLOGANS.length];
+}
+
+// Jump to the Customise tab, keeping the nav highlight in sync.
+function goToCustomise() {
+  const btn = document.querySelector('.nav:not(.admin-nav) .nav-btn[onclick*="\'customise\'"]');
+  showView('customise', btn);
+}
+
 function renderHome() {
   const latest = getLatest();
   const last7 = getLast7();
@@ -4648,14 +4687,23 @@ function renderHome() {
   const streak = computeStreak();
   document.getElementById('streak-badge').textContent = streak + ' day streak';
 
-  // Today prompt: "done" = the primary metric was recorded today (spec 2.5)
+  // Today prompt: greeting + slogan, then the check-in action (or a warm
+  // "checked in" confirmation once the primary metric is recorded today).
   const pmToday = primaryMetric();
   const loggedToday = pmToday ? !!valuesByDate(today())[pmToday.id] : false;
   const promptEl = document.getElementById('today-prompt');
+  const heroTop =
+    '<div class="home-hero">' +
+      '<div class="home-hero-greeting">' + escapeHtml(timeGreeting()) + '</div>' +
+      '<div class="home-hero-slogan">' + escapeHtml(todaySlogan()) + '</div>' +
+    '</div>';
   if (loggedToday) {
-    promptEl.innerHTML = `<div class="today-done">Check-in complete for today</div>`;
+    promptEl.innerHTML = heroTop +
+      '<div class="today-done">Thanks' + (userName() ? ', ' + escapeHtml(userName()) : '') +
+      ' — you are checked in for today.</div>';
   } else {
-    promptEl.innerHTML = `<button class="checkin-cta" onclick="goToCheckin()">Check in now</button>`;
+    promptEl.innerHTML = heroTop +
+      '<button class="checkin-cta" onclick="goToCheckin()">Check in now</button>';
   }
 
   // Today's medications quick-tick (shown only when meds are set up)
@@ -4683,25 +4731,7 @@ function renderHome() {
     patternCard.style.display = 'none';
   }
 
-  // Compact latest entry summary
-  const summaryCard = document.getElementById('latest-summary-card');
-  const summaryRow = document.getElementById('latest-summary-row');
-  if (latest) {
-    summaryCard.style.display = 'block';
-    const dateStr = fmt(latest.date);
-    const pm = latest.metric;
-    const val = (typeof latest.value === 'number') ? latest.value : null;
-    const isScale = pm && pm.type === 'scale_10';
-    const valStr = val == null ? '—' : (isScale ? val + '/10' : val + (pm && pm.unit ? ' ' + pm.unit : ''));
-    const valColor = (isScale && val != null) ? scoreColorHex(val) : 'var(--text)';
-    summaryRow.innerHTML = `
-      <span class="latest-summary-label">Last logged · ${dateStr}</span>
-      <span class="latest-summary-value" style="color:${valColor};">${escapeHtml(pm ? pm.name : '')} ${valStr}</span>`;
-  } else {
-    summaryCard.style.display = 'none';
-  }
-
-  // Mini chart
+  // Mini chart — the daily snapshot bar graph (tester feedback: keep this).
   const miniEl = document.getElementById('mini-chart');
   const pm7 = primaryMetric();
   const isScale7 = pm7 && pm7.type === 'scale_10';
@@ -4712,6 +4742,18 @@ function renderHome() {
     const col = isScale7 ? scoreColorHex(val) : 'var(--accent)';
     return `<div class="mini-bar" style="height:${pct}%;background:${col};"></div>`;
   }).join('');
+
+  // Gentle nudge to enrich data while insights are still locked.
+  const tipEl = document.getElementById('home-tip');
+  if (tipEl) {
+    if (!insightsUnlocked()) {
+      tipEl.style.display = 'block';
+      const t = document.getElementById('home-tip-text');
+      if (t) t.innerHTML = 'The more you track, the sharper your AI insights become. <span class="home-tip-link" onclick="goToCustomise()">Add what matters \u2192</span>';
+    } else {
+      tipEl.style.display = 'none';
+    }
+  }
 
   // AI insight (now the top element)
   generateInsight();
