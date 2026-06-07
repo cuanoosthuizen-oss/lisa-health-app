@@ -281,11 +281,78 @@ async function handleAdminErrors(event) {
   }
   try {
     const errors = await sb('app_errors?select=id,source,context,message,app_version,created_at,resolved&order=created_at.desc&limit=50') || [];
-    const bugs = await sb('feedback?kind=eq.bug&select=id,message,status,created_at&order=created_at.desc&limit=50') || [];
+    const bugs = await sb('feedback?kind=eq.bug&select=id,message,status,admin_note,created_at&order=created_at.desc&limit=50') || [];
     return json(200, { errors, bugs });
   } catch (e) {
     console.error('admin_errors failed:', e.message);
     return json(502, { error: 'errors_failed' });
+  }
+}
+
+const FEEDBACK_STATUSES = ['new', 'reviewed', 'actioned', 'dismissed'];
+
+// Founder-only: list feedback items (optionally filtered by status) for triage.
+async function handleFeedbackList(event, body) {
+  const callerId = await verifyCaller(event);
+  if (!callerId || callerId !== ADMIN_USER_ID) return json(403, { error: 'forbidden' });
+  const status = body && body.status;
+  let q = 'feedback?select=id,kind,message,status,admin_note,app_version,created_at&order=created_at.desc&limit=200';
+  if (status && status !== 'all' && FEEDBACK_STATUSES.includes(status)) {
+    q += `&status=eq.${status}`;
+  }
+  try {
+    const rows = await sb(q) || [];
+    return json(200, { items: rows });
+  } catch (e) {
+    console.error('feedback_list failed:', e.message);
+    return json(502, { error: 'list_failed' });
+  }
+}
+
+// Founder-only: update a feedback item's status and/or private note.
+async function handleFeedbackUpdate(event, body) {
+  const callerId = await verifyCaller(event);
+  if (!callerId || callerId !== ADMIN_USER_ID) return json(403, { error: 'forbidden' });
+  const id = body && body.id;
+  if (!id) return json(400, { error: 'missing_id' });
+  const patch = {};
+  if (body.status !== undefined) {
+    if (!FEEDBACK_STATUSES.includes(body.status)) return json(400, { error: 'bad_status' });
+    patch.status = body.status;
+  }
+  if (body.note !== undefined) {
+    patch.admin_note = (body.note === null || body.note === '') ? null : String(body.note).slice(0, 2000);
+  }
+  if (!Object.keys(patch).length) return json(400, { error: 'nothing_to_update' });
+  try {
+    await sb(`feedback?id=eq.${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify(patch)
+    });
+    return json(200, { ok: true });
+  } catch (e) {
+    console.error('feedback_update failed:', e.message);
+    return json(502, { error: 'update_failed' });
+  }
+}
+
+// Founder-only: mark an error resolved / unresolved.
+async function handleErrorUpdate(event, body) {
+  const callerId = await verifyCaller(event);
+  if (!callerId || callerId !== ADMIN_USER_ID) return json(403, { error: 'forbidden' });
+  const id = body && body.id;
+  if (!id) return json(400, { error: 'missing_id' });
+  try {
+    await sb(`app_errors?id=eq.${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({ resolved: !!body.resolved })
+    });
+    return json(200, { ok: true });
+  } catch (e) {
+    console.error('error_update failed:', e.message);
+    return json(502, { error: 'update_failed' });
   }
 }
 
@@ -331,6 +398,15 @@ exports.handler = async function(event) {
   }
   if (type === 'admin_errors') {
     return await handleAdminErrors(event);
+  }
+  if (type === 'feedback_list') {
+    return await handleFeedbackList(event, body);
+  }
+  if (type === 'feedback_update') {
+    return await handleFeedbackUpdate(event, body);
+  }
+  if (type === 'error_update') {
+    return await handleErrorUpdate(event, body);
   }
 
   if (!userId) return json(400, { error: 'missing_user_id' });
