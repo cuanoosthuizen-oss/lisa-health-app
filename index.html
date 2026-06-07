@@ -4126,15 +4126,20 @@ function isAdmin() { return !!(currentUser && currentUser.id === ADMIN_USER_ID);
 
 let ADMIN_MODE = false;
 
-// Admin account: the whole app becomes the console. Consumer nav hidden, admin nav shown.
+const ADMIN_VIEW_IDS = ['view-aoverview', 'view-afeedback', 'view-aissues'];
+
+// Admin account: the whole app becomes the console. Consumer nav + patient header
+// hidden, admin nav shown. Views are shown with explicit inline display so this
+// does not depend on the .view.active stylesheet rule.
 function enterAdminConsole(tab) {
   if (!isAdmin()) return;
   ADMIN_MODE = true;
   document.body.classList.add('admin-mode');
   document.body.classList.remove('settings-open');
+  const header = document.querySelector('.header'); if (header) header.style.display = 'none';
   const addMenu = document.getElementById('add-menu'); if (addMenu) addMenu.style.display = 'none';
   const cn = document.querySelector('.nav:not(.admin-nav)'); if (cn) cn.style.display = 'none';
-  const an = document.getElementById('admin-nav'); if (an) an.style.display = '';
+  const an = document.getElementById('admin-nav'); if (an) an.style.display = 'flex';
   const ret = document.getElementById('admin-return'); if (ret) ret.style.display = 'none';
   showAdminTab(tab || 'overview');
 }
@@ -4143,6 +4148,11 @@ function enterAdminConsole(tab) {
 function enterPatientMode() {
   ADMIN_MODE = false;
   document.body.classList.remove('admin-mode');
+  ADMIN_VIEW_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.style.display = 'none'; el.classList.remove('active'); }
+  });
+  const header = document.querySelector('.header'); if (header) header.style.display = '';
   const an = document.getElementById('admin-nav'); if (an) an.style.display = 'none';
   const cn = document.querySelector('.nav:not(.admin-nav)'); if (cn) cn.style.display = '';
   const homeBtn = document.querySelector('.nav:not(.admin-nav) .nav-btn');
@@ -4153,12 +4163,18 @@ function enterPatientMode() {
 
 function showAdminTab(tab, btn) {
   document.body.classList.remove('settings-open');
+  const map = { overview: 'view-aoverview', feedback: 'view-afeedback', issues: 'view-aissues' };
+  const target = map[tab] || 'view-aoverview';
+  // Hide all patient views, then show exactly the target admin view inline.
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  ADMIN_VIEW_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = (id === target ? 'block' : 'none');
+  });
+  const tv = document.getElementById(target);
+  if (tv) tv.classList.add('active');
   const an = document.getElementById('admin-nav');
   if (an) an.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  const map = { overview: 'view-aoverview', feedback: 'view-afeedback', issues: 'view-aissues' };
-  const v = document.getElementById(map[tab] || 'view-aoverview');
-  if (v) v.classList.add('active');
   if (btn) btn.classList.add('active');
   else { const nb = document.getElementById('anav-' + tab); if (nb) nb.classList.add('active'); }
   if (tab === 'overview') loadAdminOverview();
