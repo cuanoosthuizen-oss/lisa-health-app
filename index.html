@@ -965,6 +965,25 @@
     flex:1; min-width:0; padding:9px 10px; border:1px solid var(--border);
     border-radius:10px; background:var(--surface); color:var(--text); font-size:14px;
   }
+  .fb-filter { display:flex; gap:6px; flex-wrap:wrap; }
+  .fb-filter-btn { padding:6px 12px; border:1px solid var(--border); border-radius:999px; background:var(--surface2); font-size:13px; color:var(--muted); cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .fb-filter-btn.active { background:rgba(206,146,102,0.15); border-color:var(--accent); color:var(--accent); }
+  .fb-item { padding:12px 0; border-bottom:1px solid var(--border); }
+  .fb-item:last-child { border-bottom:none; }
+  .fb-item .meta { font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--muted); margin-bottom:4px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .fb-item .msg { font-size:14px; line-height:1.5; margin-bottom:8px; }
+  .fb-item .note { font-size:13px; color:var(--muted); font-style:italic; margin:6px 0; padding-left:10px; border-left:2px solid var(--border); white-space:pre-wrap; }
+  .fb-status { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:0.04em; padding:2px 7px; border-radius:999px; background:var(--surface2); color:var(--muted); }
+  .fb-status.s-new { background:rgba(206,146,102,0.15); color:var(--accent); }
+  .fb-status.s-actioned { background:#e7f3ea; color:#2e7d4f; }
+  .fb-status.s-dismissed { background:var(--surface2); color:var(--muted); }
+  .fb-status.s-reviewed { background:#eef2f7; color:#5b6b7c; }
+  .fb-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  .fb-actions button { padding:6px 10px; border:1px solid var(--border); border-radius:8px; background:var(--surface); font-size:12px; color:var(--text); cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .fb-actions button.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .fb-note-edit { margin-top:8px; }
+  .fb-note-edit textarea { width:100%; box-sizing:border-box; border:1px solid var(--border); border-radius:8px; padding:8px; font-size:13px; font-family:inherit; }
+  .fb-note-edit .save { margin-top:6px; padding:6px 12px; border:none; border-radius:8px; background:var(--accent); color:#fff; font-size:12px; cursor:pointer; }
 
   /* Cards */
   .card {
@@ -2655,6 +2674,17 @@
       <button class="submit-btn" id="fb-digest-btn" style="margin-top:12px;" onclick="runFeedbackDigest()">Generate summary</button>
       <div id="fb-digest-out" style="margin-top:14px; white-space:pre-wrap; font-size:14px; line-height:1.6;"></div>
     </div>
+
+    <div class="card">
+      <div class="card-title">Feedback inbox</div>
+      <div class="fb-filter" id="fb-filter">
+        <button type="button" class="fb-filter-btn active" data-status="new" onclick="setFbFilter('new',this)">New</button>
+        <button type="button" class="fb-filter-btn" data-status="all" onclick="setFbFilter('all',this)">All</button>
+        <button type="button" class="fb-filter-btn" data-status="actioned" onclick="setFbFilter('actioned',this)">Actioned</button>
+        <button type="button" class="fb-filter-btn" data-status="dismissed" onclick="setFbFilter('dismissed',this)">Dismissed</button>
+      </div>
+      <div id="fb-list" style="margin-top:12px;">Loading…</div>
+    </div>
   </div>
 
   <div class="view main" id="view-aissues" style="display:none;">
@@ -4114,6 +4144,7 @@ function initFeedbackDigest() {
   const input = document.getElementById('fb-digest-date');
   if (input) { input.max = today(); input.value = FB_DIGEST_DATE; }
   loadFeedbackDigest();
+  loadFeedbackList();
 }
 
 function fbDigestDateChanged() {
@@ -4206,10 +4237,120 @@ async function runFeedbackDigest() {
   }
 }
 
-// ── ADMIN DASHBOARD ──────────────────────────────────────────────────────────
-// Founder-only. Every number here is computed server-side behind a token check;
-// this view is hidden for everyone else, but the real gate is on the server.
-function isAdmin() { return !!(currentUser && currentUser.id === ADMIN_USER_ID); }
+// ── FEEDBACK INBOX (triage) ──────────────────────────────────────────────────
+let FB_FILTER = 'new';
+const FB_STATUSES = ['new', 'reviewed', 'actioned', 'dismissed'];
+
+function setFbFilter(status, btn) {
+  FB_FILTER = status;
+  document.querySelectorAll('#fb-filter .fb-filter-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  loadFeedbackList();
+}
+
+async function loadFeedbackList() {
+  const host = document.getElementById('fb-list');
+  if (!host) return;
+  host.textContent = 'Loading\u2026';
+  await ensureFreshToken();
+  if (!currentSession) { host.textContent = 'You need to be signed in.'; return; }
+  try {
+    const resp = await fetch('/.netlify/functions/ai-insight', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentSession.access_token}` },
+      body: JSON.stringify({ type: 'feedback_list', status: FB_FILTER })
+    });
+    const data = await resp.json();
+    if (!resp.ok) { host.textContent = (data && data.error === 'forbidden') ? 'Not authorised.' : 'Could not load feedback.'; return; }
+    renderFeedbackItems(host, data.items || []);
+  } catch (e) {
+    console.error(e);
+    host.textContent = 'Could not load feedback.';
+  }
+}
+
+function fbItemHtml(row) {
+  const date = (row.created_at || '').slice(0, 10);
+  const status = row.status || 'new';
+  const note = row.admin_note ? '<div class="note">' + escapeHtml(row.admin_note) + '</div>' : '';
+  const btns = FB_STATUSES.map(s =>
+    '<button class="' + (s === status ? 'active' : '') + '" onclick="feedbackSetStatus(\'' + row.id + '\',\'' + s + '\')">' +
+    s.charAt(0).toUpperCase() + s.slice(1) + '</button>'
+  ).join('');
+  return '<div class="fb-item" id="fbitem-' + row.id + '">' +
+    '<div class="meta"><span>' + escapeHtml(row.kind) + ' \u00b7 ' + date + '</span>' +
+    '<span class="fb-status s-' + status + '">' + status + '</span></div>' +
+    '<div class="msg">' + escapeHtml(row.message || '') + '</div>' +
+    note +
+    '<div class="fb-actions">' + btns +
+    '<button onclick="toggleFbNote(\'' + row.id + '\')">' + (row.admin_note ? 'Edit note' : 'Note') + '</button></div>' +
+    '<div class="fb-note-edit" id="fbnote-' + row.id + '" style="display:none;">' +
+    '<textarea id="fbnotetext-' + row.id + '" rows="2" placeholder="Private note (only you see this)">' + escapeHtml(row.admin_note || '') + '</textarea>' +
+    '<button class="save" onclick="saveFbNote(\'' + row.id + '\')">Save note</button></div>' +
+    '</div>';
+}
+
+function renderFeedbackItems(host, rows) {
+  if (!rows.length) {
+    host.innerHTML = '<div style="color:var(--muted); font-size:13px;">Nothing here' + (FB_FILTER !== 'all' ? ' with this status.' : '.') + '</div>';
+    return;
+  }
+  host.innerHTML = rows.map(fbItemHtml).join('');
+}
+
+async function feedbackSetStatus(id, status) {
+  await ensureFreshToken();
+  if (!currentSession) return;
+  try {
+    const resp = await fetch('/.netlify/functions/ai-insight', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentSession.access_token}` },
+      body: JSON.stringify({ type: 'feedback_update', id, status })
+    });
+    if (!resp.ok) { showToast('Could not update'); return; }
+    showToast('Marked ' + status);
+    loadFeedbackList();
+  } catch (e) { console.error(e); showToast('Could not update'); }
+}
+
+function toggleFbNote(id) {
+  const el = document.getElementById('fbnote-' + id);
+  if (el) el.style.display = (el.style.display === 'none' ? 'block' : 'none');
+}
+
+async function saveFbNote(id) {
+  const ta = document.getElementById('fbnotetext-' + id);
+  if (!ta) return;
+  await ensureFreshToken();
+  if (!currentSession) return;
+  try {
+    const resp = await fetch('/.netlify/functions/ai-insight', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentSession.access_token}` },
+      body: JSON.stringify({ type: 'feedback_update', id, note: ta.value.trim() })
+    });
+    if (!resp.ok) { showToast('Could not save note'); return; }
+    showToast('Note saved');
+    loadFeedbackList();
+  } catch (e) { console.error(e); showToast('Could not save note'); }
+}
+
+// Used by the Issues tab for bug reports + error resolve.
+async function errorSetResolved(id, resolved) {
+  await ensureFreshToken();
+  if (!currentSession) return;
+  try {
+    const resp = await fetch('/.netlify/functions/ai-insight', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentSession.access_token}` },
+      body: JSON.stringify({ type: 'error_update', id, resolved })
+    });
+    if (!resp.ok) { showToast('Could not update'); return; }
+    showToast(resolved ? 'Marked resolved' : 'Reopened');
+    loadAdminErrors();
+  } catch (e) { console.error(e); showToast('Could not update'); }
+}
+
 
 let ADMIN_MODE = false;
 
@@ -4331,15 +4472,21 @@ async function loadAdminErrors() {
     let html = '';
     html += '<div style="font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;">Errors (' + errors.length + ')</div>';
     html += errors.length
-      ? errors.slice(0, 25).map(e =>
-          '<div class="admin-err"><div class="meta">' + escapeHtml(e.source || '') + ' \u00b7 ' + escapeHtml((e.context || '')) + ' \u00b7 ' + escapeHtml((e.created_at || '').slice(0, 16).replace('T', ' ')) + '</div>' +
-          '<div>' + escapeHtml((e.message || '').slice(0, 200)) + '</div></div>').join('')
+      ? errors.slice(0, 25).map(e => {
+          const when = escapeHtml((e.created_at || '').slice(0, 16).replace('T', ' '));
+          const tag = e.resolved
+            ? '<span class="fb-status s-actioned">resolved</span>'
+            : '<span class="fb-status s-new">open</span>';
+          return '<div class="fb-item">' +
+            '<div class="meta"><span>' + escapeHtml(e.source || '') + ' \u00b7 ' + escapeHtml(e.context || '') + ' \u00b7 ' + when + '</span>' + tag + '</div>' +
+            '<div class="msg">' + escapeHtml((e.message || '').slice(0, 300)) + '</div>' +
+            '<div class="fb-actions"><button onclick="errorSetResolved(\'' + e.id + '\',' + (e.resolved ? 'false' : 'true') + ')">' + (e.resolved ? 'Reopen' : 'Mark resolved') + '</button></div>' +
+          '</div>';
+        }).join('')
       : '<div style="color:var(--muted); font-size:13px;">No errors logged.</div>';
     html += '<div style="font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em; margin:14px 0 6px;">Bug reports (' + bugs.length + ')</div>';
     html += bugs.length
-      ? bugs.slice(0, 25).map(b =>
-          '<div class="admin-err"><div class="meta">' + escapeHtml((b.status || 'new')) + ' \u00b7 ' + escapeHtml((b.created_at || '').slice(0, 10)) + '</div>' +
-          '<div>' + escapeHtml((b.message || '').slice(0, 300)) + '</div></div>').join('')
+      ? bugs.slice(0, 25).map(b => fbItemHtml({ id: b.id, kind: 'bug', message: b.message, status: b.status, admin_note: b.admin_note, created_at: b.created_at })).join('')
       : '<div style="color:var(--muted); font-size:13px;">No bug reports.</div>';
     out.innerHTML = html;
   } catch (e) {
