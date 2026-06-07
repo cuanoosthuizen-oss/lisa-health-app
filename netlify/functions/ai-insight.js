@@ -289,7 +289,7 @@ async function handleAdminErrors(event) {
   }
 }
 
-const FEEDBACK_STATUSES = ['new', 'reviewed', 'actioned', 'dismissed'];
+const FEEDBACK_STATUSES = ['new', 'ready', 'planned', 'actioned', 'dismissed'];
 
 // Founder-only: list feedback items (optionally filtered by status) for triage.
 async function handleFeedbackList(event, body) {
