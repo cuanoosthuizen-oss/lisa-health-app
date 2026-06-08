@@ -591,6 +591,20 @@
   .pattern-effect-down { color: #c98a7a; }
   .pattern-effect-up { color: var(--good); }
 
+  .whatsnew-card { border: 1px solid var(--accent); }
+  .whatsnew-head { font-family: var(--font-serif); font-size: 16px; color: var(--text); margin-bottom: 8px; }
+  .whatsnew-list { margin: 0 0 12px; padding-left: 18px; }
+  .whatsnew-list li { font-size: 13px; color: var(--text); line-height: 1.5; margin-bottom: 5px; }
+  .whatsnew-ok { width: 100%; padding: 11px; border: none; border-radius: 10px; background: var(--btn); color: var(--btn-on); font-weight: 600; font-size: 14px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+
+  .focus-card { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .focus-set { font-size:14px; color:var(--text); }
+  .focus-change { background:none; border:none; color:var(--accent); font-weight:600; font-size:13px; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .focus-q { font-size:14px; font-weight:600; color:var(--text); margin-bottom:10px; }
+  .focus-row { display:flex; gap:8px; align-items:center; }
+  .focus-select { flex:1; min-width:0; padding:10px; border:1px solid var(--border); border-radius:10px; background:var(--surface); color:var(--text); font-size:14px; }
+  .focus-save { flex-shrink:0; padding:10px 16px; border:none; border-radius:10px; background:var(--btn); color:var(--btn-on); font-weight:600; font-size:14px; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .focus-hint { font-size:12px; color:var(--muted); margin-top:8px; line-height:1.4; }
   .patterns-empty {
     font-size: 13px;
     color: var(--muted);
@@ -967,6 +981,12 @@
   }
   .fb-filter { display:flex; gap:6px; flex-wrap:wrap; }
   .fb-filter-btn { padding:6px 12px; border:1px solid var(--border); border-radius:999px; background:var(--surface2); font-size:13px; color:var(--muted); cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .focus-chips { display:flex; flex-wrap:wrap; gap:8px; }
+  .focus-chip { padding:7px 13px; border:1px solid var(--border); border-radius:999px; background:var(--surface2); font-size:13px; color:var(--muted); cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .focus-chip.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .focus-advice-box { font-size:13px; color:var(--text); line-height:1.6; background:var(--surface2); border-radius:12px; padding:12px 14px; }
+  .focus-advice-box .focus-factors { color:var(--text); font-weight:600; }
+  .focus-cta { margin-top:10px; display:inline-block; background:var(--accent); color:#fff; border:none; border-radius:10px; padding:9px 14px; font-size:13px; font-weight:600; cursor:pointer; }
   .fb-filter-btn.active { background:rgba(206,146,102,0.15); border-color:var(--accent); color:var(--accent); }
   .fb-item { padding:12px 0; border-bottom:1px solid var(--border); }
   .fb-item:last-child { border-bottom:none; }
@@ -1996,6 +2016,7 @@
   .onb-progress { height: 4px; background: var(--border); border-radius: 4px; overflow: hidden; margin-bottom: 28px; }
   .onb-progress-fill { height: 100%; background: var(--accent); width: 0; transition: width .3s ease; }
   .onb-h { font-family: var(--font-serif); font-size: 26px; line-height: 1.2; margin-bottom: 10px; color: var(--text); }
+  .onb-tour-step { font-size: 12px; letter-spacing: 0.5px; color: var(--muted); text-transform: uppercase; margin-bottom: 12px; }
   .onb-sub { color: var(--muted); font-size: 14px; line-height: 1.5; margin-bottom: 24px; }
   .onb-options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
   .onb-opt { padding: 14px 16px; border: 1px solid var(--border); border-radius: 12px; font-size: 15px; color: var(--text); cursor: pointer; background: transparent; text-align: left; width: 100%; }
@@ -2097,6 +2118,9 @@
   <!-- HOME VIEW -->
   <div class="view active main" id="view-home">
 
+    <!-- What's new (shown once when there's an unseen update) -->
+    <div class="card whatsnew-card" id="whatsnew-card" style="display:none;"></div>
+
     <!-- Today's check-in (primary action; flips to "complete" when logged) -->
     <div id="today-prompt"></div>
 
@@ -2181,6 +2205,8 @@
   <div class="view main" id="view-trends">
     <div class="section-heading">Trends & <em>patterns</em></div>
 
+    <div id="focus-picker"></div>
+
     <!-- View specific day -->
     <div class="card">
       <div class="card-title">View a specific day</div>
@@ -2251,6 +2277,16 @@
       <div class="chart-container">
         <canvas id="chart-symptoms"></canvas>
       </div>
+    </div>
+
+    <!-- Focus helper: pick what you most want to understand, get tailored suggestions -->
+    <div class="card" id="focus-card">
+      <div class="card-title">Want sharper insights?</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:12px;">
+        Tell Stilte what you most want to understand, and it'll suggest what to track so it can actually show you.
+      </div>
+      <div class="focus-chips" id="focus-chips"></div>
+      <div id="focus-advice" style="margin-top:12px;"></div>
     </div>
   </div>
 
@@ -4700,6 +4736,7 @@ function weeklyConsistency() {
 }
 
 function renderHome() {
+  renderWhatsNew();
   const latest = getLatest();
   const last7 = getLast7();
 
@@ -5011,7 +5048,10 @@ async function requestAiInsight() {
     recentEntriesBlock(),  // full history
     medicalFilesBlock(),   // Pro: AI summaries of uploaded records (empty otherwise)
     ``,
-    `Write a 2-3 sentence observation about patterns in this data. Be specific and reference dates where useful. Do not diagnose, predict, or give medical advice. Only refer to the metrics listed above — do not invent metrics the user does not track.`
+    aiContextBlock(),      // goal, focus metric, medication adherence (when known)
+    ``,
+    `Signals the app's own statistics flagged (these are raw correlations from the user's data — evaluate them: confirm, qualify, or set aside, and don't just repeat them verbatim):`,
+    patternsForAi(),
   ].join('\n');
 
   try {
@@ -5607,6 +5647,165 @@ function insightLockProgress() {
     </div>`;
 }
 
+// Specific, helpful guidance when there isn't enough to show yet. Looks at WHY the
+// data is thin and suggests the single most useful next step, rather than a generic
+// "keep logging". Tailored to the user's actual gap.
+function dataGapAdvice() {
+  const days = recentLoggedDays();
+  const tagDays = new Set(
+    VALUES.filter(v => Array.isArray(v.value_tags) && v.value_tags.length).map(v => v.entry_date)
+  ).size;
+  const hasTagMetrics = (METRICS_CACHE || []).some(m => !m.archived && m.type === 'tag_list');
+  const fm = getFocusMetric();
+  const subject = fm ? ('your ' + fm.name) : 'your scores';
+  if (days < INSIGHT_UNLOCK_THRESHOLD) {
+    return 'A few more daily check-ins and there will be enough to start spotting patterns.';
+  }
+  if (tagDays < 5) {
+    return hasTagMetrics
+      ? ('You are logging scores but rarely adding tags. Tags — things like diet, sleep, stress or activity — are what let Stilte work out what actually moves ' + subject + ', so try adding a few when you check in.')
+      : ('Add a tag-style metric in Customise (for things like diet, sleep or stress). Noting what your days involve is what lets Stilte connect those things to ' + subject + '.');
+  }
+  return 'Keep logging with a little more variety and clearer patterns will surface here.';
+}
+
+// The strongest current patterns, formatted for the AI to evaluate (not to repeat).
+function patternsForAi() {
+  const ps = computePatterns();
+  if (!ps.length) return '- None strong enough yet; not enough varied data.';
+  return ps.map(p => {
+    const lead = p.factorKind === 'numeric'
+      ? ('on days ' + p.factorMetric + ' was higher')
+      : ('on days ' + p.factor + ' was logged');
+    return '- ' + p.scoreLabel + ' tended to be ' + p.rawDirection + ' ' + lead + ' (based on ' + p.n + ' days).';
+  }).join('\n');
+}
+
+// ── WHAT'S NEW ────────────────────────────────────────────────────────────────
+// Add a new entry (with the next id, newest first) whenever you ship something
+// existing users would notice. They see one gentle, dismissible card the next time
+// they open Home; dismissing records the latest id they've seen (in auth metadata).
+const RELEASE_NOTES = [
+  {
+    id: 1,
+    title: 'A few improvements',
+    items: [
+      'Home now greets you and shows your week at a glance.',
+      'Trends only shows patterns it can genuinely stand behind — and tells you what to add when there isn\u2019t enough data yet.',
+      'You can now tell Stilte what you most want to understand, on the Trends screen.',
+      'Your insights now read more like a thoughtful clinician than a list of numbers.'
+    ]
+  }
+];
+
+function latestNoteId() {
+  return RELEASE_NOTES.reduce((m, n) => Math.max(m, n.id), 0);
+}
+function getWhatsNewSeen() {
+  return (currentUser && currentUser.user_metadata && Number(currentUser.user_metadata.whatsnew_seen)) || 0;
+}
+function renderWhatsNew() {
+  const host = document.getElementById('whatsnew-card');
+  if (!host) return;
+  const seen = getWhatsNewSeen();
+  const unseen = RELEASE_NOTES.filter(n => n.id > seen).sort((a, b) => b.id - a.id);
+  if (!unseen.length) { host.style.display = 'none'; return; }
+  const items = unseen.flatMap(n => n.items).slice(0, 6)
+    .map(t => '<li>' + escapeHtml(t) + '</li>').join('');
+  host.innerHTML =
+    '<div class="whatsnew-head">What\u2019s new</div>' +
+    '<ul class="whatsnew-list">' + items + '</ul>' +
+    '<button class="whatsnew-ok" onclick="dismissWhatsNew()">Got it</button>';
+  host.style.display = 'block';
+}
+async function dismissWhatsNew() {
+  const host = document.getElementById('whatsnew-card');
+  if (host) host.style.display = 'none'; // optimistic
+  try { await auth.updateUserMetadata({ whatsnew_seen: latestNoteId() }); }
+  catch (e) { console.error(e); }
+}
+
+// ── USER FOCUS + GOAL (stored in auth metadata; no schema change) ─────────────
+function getUserGoal() {
+  return (currentUser && currentUser.user_metadata && currentUser.user_metadata.health_goal) || '';
+}
+function getFocusMetricId() {
+  return (currentUser && currentUser.user_metadata && currentUser.user_metadata.focus_metric_id) || '';
+}
+function getFocusMetric() {
+  const id = getFocusMetricId();
+  if (!id) return null;
+  return (METRICS_CACHE || []).find(m => m.id === id && !m.archived) || null;
+}
+async function saveFocusMetric(id) {
+  try {
+    await auth.updateUserMetadata({ focus_metric_id: id || null });
+    showToast(id ? 'Saved — we will tailor your suggestions' : 'Cleared');
+  } catch (e) {
+    console.error(e); showToast('Could not save');
+  }
+  renderFocusPicker();
+  renderPatterns();
+  renderHelpful();
+}
+function saveFocusFromSelect() {
+  const sel = document.getElementById('focus-select');
+  if (sel && sel.value) saveFocusMetric(sel.value);
+}
+function clearFocusMetric() { saveFocusMetric(''); }
+
+// The "what do you most want to understand?" prompt. Only worth asking once there
+// are at least a couple of outcome metrics to choose between.
+function renderFocusPicker() {
+  const host = document.getElementById('focus-picker');
+  if (!host) return;
+  const outcomes = outcomeMetrics();
+  if (outcomes.length < 2) { host.innerHTML = ''; return; }
+  const fm = getFocusMetric();
+  if (fm) {
+    host.innerHTML =
+      '<div class="card focus-card"><span class="focus-set">Focused on <strong>' + escapeHtml(fm.name) + '</strong></span>' +
+      '<button class="focus-change" onclick="clearFocusMetric()">Change</button></div>';
+    return;
+  }
+  const opts = outcomes.map(m => '<option value="' + m.id + '">' + escapeHtml(m.name) + '</option>').join('');
+  host.innerHTML =
+    '<div class="card focus-card-pick">' +
+      '<div class="focus-q">What do you most want to understand right now?</div>' +
+      '<div class="focus-row">' +
+        '<select id="focus-select" class="focus-select"><option value="">Choose a metric\u2026</option>' + opts + '</select>' +
+        '<button class="focus-save" onclick="saveFocusFromSelect()">Save</button>' +
+      '</div>' +
+      '<div class="focus-hint">We will tailor what we suggest you track so this gets clearer faster.</div>' +
+    '</div>';
+}
+
+// Medication adherence over the loaded history (for the AI context + reflection).
+function medsAdherenceBlock() {
+  const med = (typeof findMedsMetric === 'function') ? findMedsMetric() : null;
+  if (!med) return '';
+  const rows = VALUES.filter(v => v.metric_id === med.id && Array.isArray(v.value_tags) && v.value_tags.length);
+  if (!rows.length) return '';
+  const dayCount = new Set(rows.map(v => v.entry_date)).size;
+  const counts = {};
+  rows.forEach(v => v.value_tags.forEach(t => { const k = (t || '').trim(); if (k) counts[k] = (counts[k] || 0) + 1; }));
+  const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 12)
+    .map(([name, c]) => '- ' + name + ': logged on ' + c + ' day' + (c === 1 ? '' : 's'));
+  return 'Medication adherence (days each was recorded, across ' + dayCount + ' days with any meds logged):\n' + top.join('\n');
+}
+
+// Personal context for the AI: why they track, what they care most about, meds.
+function aiContextBlock() {
+  const lines = [];
+  const goal = getUserGoal();
+  if (goal) lines.push('Why they are tracking: ' + goal + '.');
+  const fm = getFocusMetric();
+  if (fm) lines.push('What they most want to understand right now: ' + fm.name + '. Where the data supports it, prioritise observations relevant to this.');
+  const meds = medsAdherenceBlock();
+  if (meds) lines.push(meds);
+  return lines.length ? ('About this person:\n' + lines.join('\n')) : '';
+}
+
 // Compute the strongest retrospective correlations
 function computePatterns() {
   const loggedDates = new Set(VALUES.map(v => v.entry_date));
@@ -5651,7 +5850,7 @@ function computePatterns() {
 
       results.push({
         factor: F.label, factorMetric: F.metricName, factorKind: F.kind || 'tag',
-        scoreLabel: O.name,
+        factorMetricId: F.metricId || null, scoreId: O.id, scoreLabel: O.name,
         rawDirection, metricDirection: O.direction, good,
         magnitude: Math.abs(diff),
         rank: Math.abs(diff) - (sameSystem ? 1.5 : 0),
@@ -5660,8 +5859,26 @@ function computePatterns() {
     });
   });
 
-  results.sort((a, b) => b.rank - a.rank);
-  return results.slice(0, 6);
+  // Tag-based patterns are the genuinely useful ones (something you do vs how you
+  // felt). Metric-vs-metric is a fallback only: dedup reciprocal pairs (A->B and
+  // B->A are the same relationship shown twice) and cap how many we show, so the
+  // card never pads itself with obvious or duplicated correlations. Fewer, stronger.
+  const tagResults = results.filter(r => r.factorKind !== 'numeric').sort((a, b) => b.rank - a.rank);
+  const numByPair = {};
+  results.filter(r => r.factorKind === 'numeric').forEach(r => {
+    const key = [r.factorMetricId || r.factor, r.scoreId].sort().join('::');
+    if (!numByPair[key] || r.magnitude > numByPair[key].magnitude) numByPair[key] = r;
+  });
+  const numResults = Object.values(numByPair).sort((a, b) => b.rank - a.rank);
+
+  const MAX_PATTERNS = 4, MAX_NUMERIC = 2;
+  const out = tagResults.slice(0, MAX_PATTERNS);
+  for (const r of numResults) {
+    if (out.length >= MAX_PATTERNS) break;
+    if (out.filter(x => x.factorKind === 'numeric').length >= MAX_NUMERIC) break;
+    out.push(r);
+  }
+  return out;
 }
 
 // "What tends to help you" — factors that appear most on her HIGHEST-scoring days.
@@ -5718,7 +5935,7 @@ function renderHelpful() {
   const helpful = computeHelpfulFactors();
 
   if (!helpful.length) {
-    el.innerHTML = `<div class="patterns-empty">Once there's a bit more variety in your logs, this will show what your higher-scoring days have tended to have in common.</div>`;
+    el.innerHTML = `<div class="patterns-empty">Once there's a bit more variety in your logs, this will show what your higher-scoring days have tended to have in common. ${escapeHtml(dataGapAdvice())}</div>`;
     return;
   }
 
@@ -5747,7 +5964,7 @@ function renderPatterns() {
   const patterns = computePatterns();
 
   if (!patterns.length) {
-    el.innerHTML = `<div class="patterns-empty">Keep logging and patterns will appear here once there's enough variety to spot them reliably. We only show a pattern when it's backed by enough days to be meaningful.</div>`;
+    el.innerHTML = `<div class="patterns-empty">No clear patterns yet — we only show ones backed by enough days to trust. ${escapeHtml(dataGapAdvice())}</div>`;
     return;
   }
 
@@ -5790,7 +6007,72 @@ function getCheckinNudge(taggedFactors) {
   }
 }
 
+// ── FOCUS HELPER ─────────────────────────────────────────────────────────────
+// Lets the user say what they most want to understand, then suggests what to log
+// so Stilte can actually surface it. Tailored by metric, additive to what they
+// already track. Ephemeral (no storage) — a gentle, helpful nudge, not a setting.
+let FOCUS_METRIC_ID = null;
+
+// Suggested daily factors to tag for a given outcome, by metric-name keywords.
+function suggestedFactorsFor(name) {
+  const n = (name || '').toLowerCase();
+  if (/sleep|rest|insomnia/.test(n)) return ['caffeine', 'alcohol', 'screen time before bed', 'exercise', 'stress'];
+  if (/head|migraine|pain|spinal|back|joint|ache/.test(n)) return ['sleep', 'water', 'stress', 'screen time', 'caffeine'];
+  if (/gut|stomach|digest|bowel|ibs|nausea|bloat/.test(n)) return ['specific foods (dairy, gluten, etc.)', 'water', 'meal timing', 'stress', 'caffeine'];
+  if (/mood|wellbeing|happy|mental|depress|low/.test(n)) return ['sleep', 'exercise', 'time outdoors', 'social contact', 'alcohol', 'stress'];
+  if (/energy|fatigue|tired|exhaust/.test(n)) return ['sleep', 'caffeine', 'meals', 'exercise', 'water'];
+  if (/anx|stress|worry|panic/.test(n)) return ['sleep', 'caffeine', 'exercise', 'workload', 'social contact'];
+  if (/menstr|cycle|period|pms/.test(n)) return ['cycle day', 'pain relief taken', 'sleep', 'diet', 'exercise'];
+  return ['sleep', 'diet', 'exercise', 'water', 'stress', 'caffeine'];
+}
+
+function setFocusMetric(id) {
+  FOCUS_METRIC_ID = (FOCUS_METRIC_ID === id) ? null : id;
+  renderFocusHelper();
+}
+
+function renderFocusHelper() {
+  const card = document.getElementById('focus-card');
+  const chipsEl = document.getElementById('focus-chips');
+  const adviceEl = document.getElementById('focus-advice');
+  if (!card || !chipsEl || !adviceEl) return;
+
+  const outcomes = outcomeMetrics();
+  if (!outcomes.length) { card.style.display = 'none'; return; }
+  card.style.display = 'block';
+
+  chipsEl.innerHTML = outcomes.map(m =>
+    '<button type="button" class="focus-chip' + (m.id === FOCUS_METRIC_ID ? ' active' : '') + '" onclick="setFocusMetric(\'' + m.id + '\')">' +
+    escapeHtml(m.name) + '</button>'
+  ).join('');
+
+  const m = outcomes.find(o => o.id === FOCUS_METRIC_ID);
+  if (!m) { adviceEl.innerHTML = ''; return; }
+
+  const factors = suggestedFactorsFor(m.name);
+  const ix = mvIndex();
+  const ov = ix[m.id] || {};
+  const haveDays = Object.keys(ov).filter(d => ov[d].value_number != null).length;
+  const hasTagMetrics = (METRICS_CACHE || []).some(x => !x.archived && x.type === 'tag_list');
+  const factorList = '<span class="focus-factors">' + factors.map(escapeHtml).join(', ') + '</span>';
+
+  let body = 'To see what affects your <span class="focus-factors">' + escapeHtml(m.name) +
+    '</span>, log it regularly and tag a few daily factors alongside it — things like ' + factorList +
+    '. Start with the ones you suspect matter most.';
+  if (!hasTagMetrics) {
+    body += ' You don\u2019t have a tag-style metric yet — add one in Customise so you can note these.';
+  }
+  if (haveDays < INSIGHT_UNLOCK_THRESHOLD) {
+    body += ' And keep checking in — a couple of weeks of days is what makes any pattern reliable.';
+  }
+
+  adviceEl.innerHTML =
+    '<div class="focus-advice-box">' + body +
+    '<div><button type="button" class="focus-cta" onclick="goToCustomise()">Open Customise</button></div></div>';
+}
+
 function renderTrends() {
+  renderFocusPicker();
   const picker = document.getElementById('day-picker');
   if (picker) {
     if (!picker.value) picker.value = today();
@@ -5800,6 +6082,7 @@ function renderTrends() {
   renderMissedDays();
   renderPatterns();
   renderHelpful();
+  renderFocusHelper();
 
   const range = getDateRange();
   const inRange = d => {
@@ -5918,10 +6201,23 @@ function renderTrends() {
     if (t) t.textContent = pm ? ('Common tags on lower ' + pm.name + ' days') : 'Common tags on lower days';
   }
   const factors = collectMetricFactors();
+  // Only surface a tag if it shows up on enough low days AND is over-represented on
+  // low days versus its overall rate (lift) — so single coincidences and ubiquitous
+  // positive tags don't get presented as "common on hard days".
+  const taggedDays = new Set(
+    VALUES.filter(v => inRange(v.entry_date) && Array.isArray(v.value_tags) && v.value_tags.length).map(v => v.entry_date)
+  ).size;
+  const lowSize = Math.max(lowDates.size, 1);
+  const TRIGGER_MIN = 3;
   const triggerRows = factors
-    .map(F => ({ label: F.label, count: [...F.dates].filter(d => lowDates.has(d)).length }))
-    .filter(x => x.count > 0)
-    .sort((a, b) => b.count - a.count)
+    .map(F => {
+      const lowHits = [...F.dates].filter(d => lowDates.has(d)).length;
+      const lowRate = lowHits / lowSize;
+      const overallRate = F.dates.size / Math.max(taggedDays, 1);
+      return { label: F.label, count: lowHits, lift: lowRate - overallRate };
+    })
+    .filter(x => x.count >= TRIGGER_MIN && x.lift > 0)
+    .sort((a, b) => b.lift - a.lift)
     .slice(0, 8);
   const tl = document.getElementById('triggers-list');
   if (tl) {
@@ -5929,10 +6225,10 @@ function renderTrends() {
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
         <div style="font-size:13px;color:var(--text);min-width:110px;">${escapeHtml(r.label)}</div>
         <div style="flex:1;background:var(--border);border-radius:4px;height:6px;overflow:hidden;">
-          <div style="width:${(r.count / Math.max(lowDates.size, 1) * 100).toFixed(0)}%;height:100%;background:var(--accent2);border-radius:4px;"></div>
+          <div style="width:${(r.count / lowSize * 100).toFixed(0)}%;height:100%;background:var(--accent2);border-radius:4px;"></div>
         </div>
         <div style="font-size:12px;color:var(--muted);">${r.count}x</div>
-      </div>`).join('') : '<div style="color:var(--muted);font-size:13px;">Not enough data in this range.</div>';
+      </div>`).join('') : `<div style="color:var(--muted);font-size:13px;line-height:1.5;">Nothing stands out on your harder days yet. ${escapeHtml(dataGapAdvice())}</div>`;
   }
 
   // 5) Tag frequency across the range
@@ -7509,6 +7805,7 @@ function onbRender() {
 }
 
 async function onbFinish() {
+  if (ONB.purpose) { try { await auth.updateUserMetadata({ health_goal: ONB.purpose, whatsnew_seen: latestNoteId() }); } catch (e) { console.error(e); } }
   let chosen = ONB.suggestions.filter((m, i) => ONB.checked[i]);
   if (!chosen.length) { await onbSeed([
     { name: 'Wellbeing', type: 'scale_10', direction: 'higher_better', cat: 'Physical', show_in_quick: true },
@@ -7567,6 +7864,45 @@ async function onbSeed(metrics, primaryPos) {
   if (primaryId) { try { await sbMetrics.setPrimary(primaryId); } catch (e) {} }
   try { await refreshMetricsCache(); } catch (e) {}
   try { await loadValues(); } catch (e) {}
+  // Short, skippable orientation before the first check-in.
+  onbStartTour();
+}
+
+// ── ORIENTATION TOUR ─────────────────────────────────────────────────────────
+// A few plain, skippable cards shown once at the end of onboarding. Calm, no
+// jargon — just where things live and what to expect.
+const ONB_TOUR = [
+  { h: 'Check in each day', sub: 'A short daily check-in is the heart of Stilte. Tap Check in on the Home screen, or the + button, whenever suits you — it only takes a moment.' },
+  { h: 'Watch your trends build', sub: 'As you log, the Trends tab fills in with your patterns and what tends to help. The more you check in, the clearer it gets.' },
+  { h: 'Make it yours', sub: 'Everything you track is yours to change. Add, rename or remove what you track anytime in Customise.' },
+  { h: 'Insights come with time', sub: 'After about a week of logging, Stilte starts surfacing personalised insights. Until then, every entry is helping it learn what is normal for you.' }
+];
+let ONB_TOUR_I = 0;
+
+function onbStartTour() {
+  ONB_TOUR_I = 0;
+  const f = document.getElementById('onb-progress-fill');
+  if (f) f.style.width = '100%';
+  onbRenderTour();
+}
+function onbRenderTour() {
+  const body = document.getElementById('onb-body');
+  if (!body) { onbFinishTour(); return; }
+  const c = ONB_TOUR[ONB_TOUR_I];
+  const last = ONB_TOUR_I === ONB_TOUR.length - 1;
+  body.innerHTML =
+    '<div class="onb-tour-step">' + (ONB_TOUR_I + 1) + ' of ' + ONB_TOUR.length + '</div>' +
+    '<div class="onb-h">' + escapeHtml(c.h) + '</div>' +
+    '<div class="onb-sub">' + escapeHtml(c.sub) + '</div>' +
+    '<div class="onb-nav"><button class="submit-btn" style="flex:1" onclick="onbTourNext()">' + (last ? 'Start using Stilte' : 'Next') + '</button></div>' +
+    '<button class="onb-skip" onclick="onbFinishTour()">Skip</button>';
+}
+function onbTourNext() {
+  if (ONB_TOUR_I >= ONB_TOUR.length - 1) { onbFinishTour(); return; }
+  ONB_TOUR_I++;
+  onbRenderTour();
+}
+function onbFinishTour() {
   const ov = document.getElementById('onboarding-overlay');
   if (ov) ov.style.display = 'none';
   ONB = null;
