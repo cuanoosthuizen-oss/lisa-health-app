@@ -526,6 +526,7 @@ ${dataDictionary}`;
 - Be factual and structured: lead with the clearest, most clinically relevant observations — recurring symptoms, notable changes across the period, medication adherence, and any associations the data suggests (stated as associations, not causes).
 - Quantify where it helps (averages, number of days, direction of change), but do not list every metric.
 - State honestly where the data is too sparse or variable for a pattern to be reliable.
+- If uploaded medical records are included in the data, take their relevant contents into account and reflect them in the summary (noting they are user-provided, not verified clinical fact).
 - Do NOT diagnose, stage, or suggest treatment. Flag what may warrant clinical attention and leave the judgement to the clinician.
 - Plain clinical language, roughly 4 to 6 sentences. Use only metrics present in the data.
 
