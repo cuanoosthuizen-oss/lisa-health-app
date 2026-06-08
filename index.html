@@ -2207,20 +2207,6 @@
 
     <div id="focus-picker"></div>
 
-    <!-- View specific day -->
-    <div class="card">
-      <div class="card-title">View a specific day</div>
-      <div class="day-picker-row">
-        <input type="hidden" id="day-picker">
-        <button type="button" class="date-trigger" id="day-picker-trigger" onclick="openCalendar('day-picker', renderSelectedDay)">
-          <span id="day-picker-label">Today</span>
-          <span class="date-trigger-icon">▾</span>
-        </button>
-      </div>
-      <div id="day-detail"></div>
-      <div id="missed-days"></div>
-    </div>
-
     <!-- Patterns in your data -->
     <div class="card" id="patterns-card">
       <div class="card-title">Patterns in your data</div>
@@ -2279,14 +2265,21 @@
       </div>
     </div>
 
-    <!-- Focus helper: pick what you most want to understand, get tailored suggestions -->
-    <div class="card" id="focus-card">
-      <div class="card-title">Want sharper insights?</div>
+    <!-- Look back at a single day — a browser, kept separate from the all-entries trends above -->
+    <div class="card">
+      <div class="card-title">Look back at a day</div>
       <div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:12px;">
-        Tell Stilte what you most want to understand, and it'll suggest what to track so it can actually show you.
+        The patterns above cover all your entries. Use this to revisit what you logged on one particular day.
       </div>
-      <div class="focus-chips" id="focus-chips"></div>
-      <div id="focus-advice" style="margin-top:12px;"></div>
+      <div class="day-picker-row">
+        <input type="hidden" id="day-picker">
+        <button type="button" class="date-trigger" id="day-picker-trigger" onclick="openCalendar('day-picker', renderSelectedDay)">
+          <span id="day-picker-label">Today</span>
+          <span class="date-trigger-icon">▾</span>
+        </button>
+      </div>
+      <div id="day-detail"></div>
+      <div id="missed-days"></div>
     </div>
   </div>
 
@@ -5737,16 +5730,18 @@ function getFocusMetric() {
   if (!id) return null;
   return (METRICS_CACHE || []).find(m => m.id === id && !m.archived) || null;
 }
+// What the Trends screen should centre on: the chosen focus, else the primary metric.
+function focusOrPrimary() {
+  return getFocusMetric() || primaryMetric();
+}
 async function saveFocusMetric(id) {
   try {
     await auth.updateUserMetadata({ focus_metric_id: id || null });
-    showToast(id ? 'Saved — we will tailor your suggestions' : 'Cleared');
+    showToast(id ? 'Updated — Trends now centres on this' : 'Cleared');
   } catch (e) {
     console.error(e); showToast('Could not save');
   }
-  renderFocusPicker();
-  renderPatterns();
-  renderHelpful();
+  renderTrends();
 }
 function saveFocusFromSelect() {
   const sel = document.getElementById('focus-select');
@@ -5763,9 +5758,20 @@ function renderFocusPicker() {
   if (outcomes.length < 2) { host.innerHTML = ''; return; }
   const fm = getFocusMetric();
   if (fm) {
+    const factors = (typeof suggestedFactorsFor === 'function') ? suggestedFactorsFor(fm.name) : [];
+    const hasTagMetrics = (METRICS_CACHE || []).some(x => !x.archived && x.type === 'tag_list');
+    let advice = 'Trends below now centre on <strong>' + escapeHtml(fm.name) + '</strong>.';
+    if (factors.length) {
+      advice += ' To see what affects it, tag a few daily factors alongside it — things like <span class="focus-factors">' +
+        factors.slice(0, 5).map(escapeHtml).join(', ') + '</span>.';
+    }
+    if (!hasTagMetrics) advice += ' You don\u2019t have a tag-style metric yet — add one in Customise so you can note these.';
     host.innerHTML =
-      '<div class="card focus-card"><span class="focus-set">Focused on <strong>' + escapeHtml(fm.name) + '</strong></span>' +
-      '<button class="focus-change" onclick="clearFocusMetric()">Change</button></div>';
+      '<div class="card focus-card-pick">' +
+        '<div class="focus-card"><span class="focus-set">Focused on <strong>' + escapeHtml(fm.name) + '</strong></span>' +
+        '<button class="focus-change" onclick="clearFocusMetric()">Change</button></div>' +
+        '<div class="focus-advice-box" style="margin-top:12px;">' + advice + '</div>' +
+      '</div>';
     return;
   }
   const opts = outcomes.map(m => '<option value="' + m.id + '">' + escapeHtml(m.name) + '</option>').join('');
@@ -5885,7 +5891,7 @@ function computePatterns() {
 // Retrospective summary (option 2, safe framing): describes what good days looked
 // like, never instructs an action.
 function computeHelpfulFactors() {
-  const pm = primaryMetric();
+  const pm = focusOrPrimary();
   if (!pm) return [];
   const ix = mvIndex();
   const pvals = ix[pm.id] || {};
@@ -5968,6 +5974,12 @@ function renderPatterns() {
     return;
   }
 
+  // If a focus metric is set, surface patterns about it first (keeping strength order within).
+  const focusId = getFocusMetricId();
+  if (focusId) {
+    patterns.sort((a, b) => (b.scoreId === focusId ? 1 : 0) - (a.scoreId === focusId ? 1 : 0));
+  }
+
   const rows = patterns.map(p => {
     const effectClass = p.good === true ? 'pattern-effect-up' : p.good === false ? 'pattern-effect-down' : '';
     const lead = patternLeadIn(p, `<span class="pattern-factor">${escapeHtml(p.factor)}</span>`);
@@ -6007,13 +6019,9 @@ function getCheckinNudge(taggedFactors) {
   }
 }
 
-// ── FOCUS HELPER ─────────────────────────────────────────────────────────────
-// Lets the user say what they most want to understand, then suggests what to log
-// so Stilte can actually surface it. Tailored by metric, additive to what they
-// already track. Ephemeral (no storage) — a gentle, helpful nudge, not a setting.
-let FOCUS_METRIC_ID = null;
-
+// ── FOCUS SUGGESTIONS ─────────────────────────────────────────────────────────
 // Suggested daily factors to tag for a given outcome, by metric-name keywords.
+// Used by the focus picker (top of Trends) to tailor its "what to log" advice.
 function suggestedFactorsFor(name) {
   const n = (name || '').toLowerCase();
   if (/sleep|rest|insomnia/.test(n)) return ['caffeine', 'alcohol', 'screen time before bed', 'exercise', 'stress'];
@@ -6024,51 +6032,6 @@ function suggestedFactorsFor(name) {
   if (/anx|stress|worry|panic/.test(n)) return ['sleep', 'caffeine', 'exercise', 'workload', 'social contact'];
   if (/menstr|cycle|period|pms/.test(n)) return ['cycle day', 'pain relief taken', 'sleep', 'diet', 'exercise'];
   return ['sleep', 'diet', 'exercise', 'water', 'stress', 'caffeine'];
-}
-
-function setFocusMetric(id) {
-  FOCUS_METRIC_ID = (FOCUS_METRIC_ID === id) ? null : id;
-  renderFocusHelper();
-}
-
-function renderFocusHelper() {
-  const card = document.getElementById('focus-card');
-  const chipsEl = document.getElementById('focus-chips');
-  const adviceEl = document.getElementById('focus-advice');
-  if (!card || !chipsEl || !adviceEl) return;
-
-  const outcomes = outcomeMetrics();
-  if (!outcomes.length) { card.style.display = 'none'; return; }
-  card.style.display = 'block';
-
-  chipsEl.innerHTML = outcomes.map(m =>
-    '<button type="button" class="focus-chip' + (m.id === FOCUS_METRIC_ID ? ' active' : '') + '" onclick="setFocusMetric(\'' + m.id + '\')">' +
-    escapeHtml(m.name) + '</button>'
-  ).join('');
-
-  const m = outcomes.find(o => o.id === FOCUS_METRIC_ID);
-  if (!m) { adviceEl.innerHTML = ''; return; }
-
-  const factors = suggestedFactorsFor(m.name);
-  const ix = mvIndex();
-  const ov = ix[m.id] || {};
-  const haveDays = Object.keys(ov).filter(d => ov[d].value_number != null).length;
-  const hasTagMetrics = (METRICS_CACHE || []).some(x => !x.archived && x.type === 'tag_list');
-  const factorList = '<span class="focus-factors">' + factors.map(escapeHtml).join(', ') + '</span>';
-
-  let body = 'To see what affects your <span class="focus-factors">' + escapeHtml(m.name) +
-    '</span>, log it regularly and tag a few daily factors alongside it — things like ' + factorList +
-    '. Start with the ones you suspect matter most.';
-  if (!hasTagMetrics) {
-    body += ' You don\u2019t have a tag-style metric yet — add one in Customise so you can note these.';
-  }
-  if (haveDays < INSIGHT_UNLOCK_THRESHOLD) {
-    body += ' And keep checking in — a couple of weeks of days is what makes any pattern reliable.';
-  }
-
-  adviceEl.innerHTML =
-    '<div class="focus-advice-box">' + body +
-    '<div><button type="button" class="focus-cta" onclick="goToCustomise()">Open Customise</button></div></div>';
 }
 
 function renderTrends() {
@@ -6082,7 +6045,6 @@ function renderTrends() {
   renderMissedDays();
   renderPatterns();
   renderHelpful();
-  renderFocusHelper();
 
   const range = getDateRange();
   const inRange = d => {
@@ -6126,14 +6088,15 @@ function renderTrends() {
   const labels = allDates.map(d => new Date(d+'T12:00:00').toLocaleDateString('en-AU', { day:'numeric', month:'short' }));
   const seriesFor = m => allDates.map(d => (ix[m.id] && ix[m.id][d] && ix[m.id][d].value_number != null) ? ix[m.id][d].value_number : null);
 
-  // 1) Primary metric over time
-  if (pm) setTitle('chart-wellbeing', pm.name + ' over time');
+  // 1) Focus metric (or primary) over time
+  const focusM = focusOrPrimary();
+  if (focusM) setTitle('chart-wellbeing', focusM.name + ' over time');
   destroy('wellbeing');
-  if (pm) {
+  if (focusM) {
     chartInstances['wellbeing'] = new Chart(document.getElementById('chart-wellbeing'), {
       type: 'line',
       data: { labels, datasets: [{
-        label: pm.name, data: seriesFor(pm),
+        label: focusM.name, data: seriesFor(focusM),
         borderColor: accent, backgroundColor: 'rgba(206,146,102,0.12)',
         fill: true, spanGaps: true, tension: 0.4, pointRadius: 3, pointBackgroundColor: accent
       }] },
@@ -6143,7 +6106,7 @@ function renderTrends() {
 
   // 2) Other scale_10 metrics overlaid
   const palette = ['#c98a5e','#8a9a6b','#bc90ce','#c2a35e','#a3765a','#cf8b72'];
-  const others = outcomeMetrics().filter(m => !pm || m.id !== pm.id).slice(0, 6);
+  const others = outcomeMetrics().filter(m => !focusM || m.id !== focusM.id).slice(0, 6);
   destroy('scores');
   chartInstances['scores'] = new Chart(document.getElementById('chart-scores'), {
     type: 'line',
