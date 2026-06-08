@@ -2207,9 +2207,18 @@
 
     <div id="focus-picker"></div>
 
-    <!-- Patterns in your data -->
+    <!-- Focus metric over time (title + series follow the focus picker above) -->
+    <div class="card">
+      <div class="card-title">Wellbeing over time</div>
+      <div class="chart-container">
+        <canvas id="chart-wellbeing"></canvas>
+      </div>
+    </div>
+
+    <!-- Patterns across all data -->
     <div class="card" id="patterns-card">
       <div class="card-title">Patterns in your data</div>
+      <div style="font-size:12px;color:var(--muted);margin:-4px 0 12px;line-height:1.4;">Across everything you track — not tied to your focus.</div>
       <div id="patterns-list"></div>
     </div>
 
@@ -2219,23 +2228,13 @@
       <div id="helpful-list"></div>
     </div>
 
-    <!-- Date range filter -->
+    <!-- Date range filter (rolling windows) — governs the charts below -->
     <div style="padding: 0 16px 4px; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch;">
       <div style="display: inline-flex; gap: 6px; padding-bottom: 4px;">
         <button class="range-btn active" onclick="setRange('all',this)">All time</button>
-        <button class="range-btn" onclick="setRange('this_week',this)">This week</button>
-        <button class="range-btn" onclick="setRange('last_week',this)">Last week</button>
-        <button class="range-btn" onclick="setRange('this_month',this)">This month</button>
-        <button class="range-btn" onclick="setRange('last_month',this)">Last month</button>
+        <button class="range-btn" onclick="setRange('last_7',this)">Last 7 days</button>
         <button class="range-btn" onclick="setRange('last_30',this)">Last 30 days</button>
         <button class="range-btn" onclick="setRange('last_90',this)">Last 90 days</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Wellbeing over time</div>
-      <div class="chart-container">
-        <canvas id="chart-wellbeing"></canvas>
       </div>
     </div>
 
@@ -5358,25 +5357,12 @@ function setRange(range, btn) {
 
 function getDateRange() {
   const now = new Date();
-  const startOfWeek = d => { const x = new Date(d); x.setDate(x.getDate() - x.getDay() + 1); x.setHours(0,0,0,0); return x; };
-  const startOfMonth = d => new Date(d.getFullYear(), d.getMonth(), 1);
-
+  const back = days => { const s = new Date(now); s.setDate(s.getDate() - (days - 1)); s.setHours(0, 0, 0, 0); return { from: s, to: now }; };
   switch (currentRange) {
-    case 'this_week': return { from: startOfWeek(now), to: now };
-    case 'last_week': {
-      const s = startOfWeek(now); s.setDate(s.getDate() - 7);
-      const e = new Date(s); e.setDate(e.getDate() + 6);
-      return { from: s, to: e };
-    }
-    case 'this_month': return { from: startOfMonth(now), to: now };
-    case 'last_month': {
-      const s = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const e = new Date(now.getFullYear(), now.getMonth(), 0);
-      return { from: s, to: e };
-    }
-    case 'last_30': { const s = new Date(now); s.setDate(s.getDate() - 30); return { from: s, to: now }; }
-    case 'last_90': { const s = new Date(now); s.setDate(s.getDate() - 90); return { from: s, to: now }; }
-    default: return null;
+    case 'last_7': return back(7);
+    case 'last_30': return back(30);
+    case 'last_90': return back(90);
+    default: return null; // 'all'
   }
 }
 
@@ -5974,12 +5960,6 @@ function renderPatterns() {
     return;
   }
 
-  // If a focus metric is set, surface patterns about it first (keeping strength order within).
-  const focusId = getFocusMetricId();
-  if (focusId) {
-    patterns.sort((a, b) => (b.scoreId === focusId ? 1 : 0) - (a.scoreId === focusId ? 1 : 0));
-  }
-
   const rows = patterns.map(p => {
     const effectClass = p.good === true ? 'pattern-effect-up' : p.good === false ? 'pattern-effect-down' : '';
     const lead = patternLeadIn(p, `<span class="pattern-factor">${escapeHtml(p.factor)}</span>`);
@@ -6254,10 +6234,12 @@ async function renderShare() {
     insightEl.innerHTML = `<div class="insight-label">AI clinical summary</div><div class="insight-text" style="color:var(--muted);">You've used your ${AI_USAGE.effectiveCap} insights this month. Resets next month.</div><div class="insight-meta">${aiUsageLabel()}</div>`;
     return;
   }
+  await ensureMedicalSummaries();
   insightEl.innerHTML = `
     <div class="insight-label">AI clinical summary</div>
     <div class="insight-text" style="color:var(--muted); margin-bottom:12px;">Generate an AI clinical summary of your recent data to share with your health team.</div>
     <button class="ai-generate-btn" id="doctor-generate-btn" onclick="requestDoctorSummary()">Generate clinical summary</button>
+    ${medicalFilesNote()}
     <div class="insight-meta">${aiUsageLabel()}</div>`;
 }
 
@@ -6316,7 +6298,7 @@ async function requestDoctorSummary() {
     }
     if (result.usage) AI_USAGE = result.usage;
     LAST_AI_CLINICAL_SUMMARY = result.content || '';
-    insightEl.innerHTML = `<div class="insight-label">AI clinical summary</div><div class="insight-text">${result.content}</div><div class="insight-meta">${aiUsageLabel()}</div>`;
+    insightEl.innerHTML = `<div class="insight-label">AI clinical summary</div><div class="insight-text">${result.content}</div>${medicalFilesNote()}<div class="insight-meta">${aiUsageLabel()}</div>`;
   } catch (e) {
     console.error('Clinical summary failed:', e);
     insightEl.innerHTML = `<div class="insight-label">AI clinical summary</div><div class="insight-text" style="color:var(--muted);">Connect to the internet to generate AI summaries.</div><button class="ai-generate-btn" onclick="requestDoctorSummary()" style="margin-top:12px;">Try again</button>`;
@@ -7073,6 +7055,31 @@ async function ensureMedicalSummaries() {
 }
 
 // Prompt block: AI summaries of the most recent analysed files (Pro only).
+// A short, human-readable note about whether uploaded documents are feeding the
+// clinical summary — so the user isn't left guessing.
+function medicalFilesNote() {
+  const files = MEDICAL_FILES || [];
+  if (!files.length) return '';
+  const done = files.filter(f => f.extract_status === 'done' && f.extracted_text);
+  const nameOf = f => {
+    const lbl = f.label || f.file_name || 'Document';
+    return f.doc_date ? (lbl + ' (' + fmt(f.doc_date) + ')') : lbl;
+  };
+  if (effectiveTier() !== 'pro') {
+    return '<div class="insight-meta">You have ' + files.length + ' uploaded document' + (files.length === 1 ? '' : 's') + '. Stilte Pro includes them in this summary.</div>';
+  }
+  if (done.length) {
+    const named = done.slice(0, 6).map(nameOf).join(', ');
+    const extra = done.length > 6 ? ' +' + (done.length - 6) + ' more' : '';
+    return '<div class="insight-meta">Includes: ' + escapeHtml(named + extra) + '</div>';
+  }
+  const pending = files.length - done.length;
+  if (pending > 0) {
+    return '<div class="insight-meta">' + pending + ' uploaded document' + (pending === 1 ? '' : 's') + ' still processing — not included yet.</div>';
+  }
+  return '';
+}
+
 function medicalFilesBlock() {
   if (effectiveTier() !== 'pro') return '';
   const done = (MEDICAL_FILES || []).filter(f => f.extract_status === 'done' && f.extracted_text);
