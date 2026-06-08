@@ -605,6 +605,18 @@
   .focus-select { flex:1; min-width:0; padding:10px; border:1px solid var(--border); border-radius:10px; background:var(--surface); color:var(--text); font-size:14px; }
   .focus-save { flex-shrink:0; padding:10px 16px; border:none; border-radius:10px; background:var(--btn); color:var(--btn-on); font-weight:600; font-size:14px; cursor:pointer; -webkit-tap-highlight-color:transparent; }
   .focus-hint { font-size:12px; color:var(--muted); margin-top:8px; line-height:1.4; }
+  .discovery-soft { font-size:13px; color:var(--muted); line-height:1.5; }
+  .discovery-card .disc-body { font-size:13px; color:var(--text); line-height:1.5; margin:6px 0 12px; }
+  .disc-btn { width:100%; padding:11px; border:none; border-radius:10px; background:var(--btn); color:var(--btn-on); font-weight:600; font-size:14px; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .disc-note { font-size:13px; color:var(--muted); line-height:1.5; margin-top:10px; }
+  .disc-sub { font-size:12px; color:var(--muted); margin:12px 0 8px; }
+  .disc-item { border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-bottom:8px; }
+  .disc-item-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .disc-name { font-size:14px; font-weight:600; color:var(--text); }
+  .disc-why { font-size:12px; color:var(--muted); line-height:1.4; margin-top:4px; }
+  .disc-actions { display:flex; gap:8px; margin-top:10px; }
+  .disc-add { flex:1; padding:9px; border:none; border-radius:9px; background:var(--btn); color:var(--btn-on); font-weight:600; font-size:13px; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .disc-dismiss { flex:1; padding:9px; border:1px solid var(--border); border-radius:9px; background:none; color:var(--muted); font-size:13px; cursor:pointer; -webkit-tap-highlight-color:transparent; }
   .patterns-empty {
     font-size: 13px;
     color: var(--muted);
@@ -2206,6 +2218,8 @@
     <div class="section-heading">Trends & <em>patterns</em></div>
 
     <div id="focus-picker"></div>
+
+    <div id="discovery"></div>
 
     <!-- Focus metric over time (title + series follow the focus picker above) -->
     <div class="card">
@@ -5372,6 +5386,7 @@ function getDateRange() {
 const PATTERN_MIN_WITH = 8;      // need >=8 days WITH the factor (was 5)
 const PATTERN_MIN_WITHOUT = 8;   // and >=8 days WITHOUT it (was 5)
 const PATTERN_MIN_DIFF = 1.5;    // average score gap must be >= 1.5 to matter (was 1.0)
+const PATTERN_LAGS = [0, 1, 2, 3]; // test same-day + delayed effects up to 3 days later
 
 const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0;
 
@@ -5443,8 +5458,15 @@ function collectNumericFactors() {
   return out;
 }
 
-// Lead-in clause for a pattern, phrased for tags vs numeric factors.
+// Lead-in clause for a pattern, phrased for tags vs numeric, same-day vs next-day.
 function patternLeadIn(p, factorHtml) {
+  const lag = p.lag || 0;
+  if (lag >= 1) {
+    const when = lag === 1 ? 'The day after' : ('About ' + lag + ' days after');
+    return p.factorKind === 'numeric'
+      ? `${when} your ${factorHtml} was higher`
+      : `${when} you logged ${factorHtml}`;
+  }
   return p.factorKind === 'numeric'
     ? `On days your ${factorHtml} was higher`
     : `On days you logged ${factorHtml}`;
@@ -5772,6 +5794,169 @@ function renderFocusPicker() {
     '</div>';
 }
 
+// ── DISCOVERY: help find what's driving the focus metric ─────────────────────
+// Guardrails: we only invite deeper digging once there's genuinely enough data
+// and the existing evidence bar still finds nothing — never to force a result.
+const DISCOVERY_MIN_DAYS = 14;
+let DISC_SUGGESTIONS = [];
+
+function focusLoggedDays(m) {
+  const ov = mvIndex()[m.id] || {};
+  return Object.keys(ov).filter(d => ov[d].value_number != null).length;
+}
+function influencesLoggedEnough() {
+  const ix = mvIndex();
+  return (METRICS_CACHE || []).filter(m => !m.archived && m.role === 'influence').filter(m => {
+    const ov = ix[m.id] || {};
+    const days = Object.keys(ov).filter(d => { const r = ov[d]; return r.value_number != null || r.value_bool != null || (Array.isArray(r.value_tags) && r.value_tags.length); }).length;
+    return days >= PATTERN_MIN_WITH;
+  }).length;
+}
+function discoveryState() {
+  const m = getFocusMetric();
+  if (!m || m.type !== 'scale_10') return null;
+  const days = focusLoggedDays(m);
+  if (days < DISCOVERY_MIN_DAYS) return { state: 'building', days, need: DISCOVERY_MIN_DAYS, name: m.name };
+  if (computePatterns().some(p => p.scoreId === m.id)) return { state: 'has_signal', name: m.name };
+  if (influencesLoggedEnough() < 2) return { state: 'need_influences', name: m.name };
+  return { state: 'no_signal', name: m.name };
+}
+function getDiscDismissed(fid) {
+  const md = (currentUser && currentUser.user_metadata) || {};
+  const dd = md.discovery_dismissed || {};
+  return Array.isArray(dd[fid]) ? dd[fid] : [];
+}
+
+function renderDiscovery() {
+  const host = document.getElementById('discovery');
+  if (!host) return;
+  const st = discoveryState();
+  if (!st || st.state === 'has_signal') { host.innerHTML = ''; return; }
+  const nm = escapeHtml(st.name);
+  if (st.state === 'building') {
+    const left = Math.max(st.need - st.days, 1);
+    host.innerHTML = '<div class="card discovery-soft">About ' + left + ' more day' + (left === 1 ? '' : 's') + ' of logging your ' + nm + ' alongside the things around it, and Stilte can start pinpointing what affects it. Keep checking in.</div>';
+    return;
+  }
+  if (st.state === 'need_influences') {
+    host.innerHTML = '<div class="card discovery-soft">You\u2019re logging your ' + nm + ', but not many of the everyday things that might affect it. Log a few of your Watch items — sleep, stress, diet — alongside it, so Stilte has something to connect it to.</div>';
+    return;
+  }
+  host.innerHTML =
+    '<div class="card discovery-card">' +
+      '<div class="card-title">No clear driver yet</div>' +
+      '<div class="disc-body">Stilte has looked across everything you track and nothing clearly explains your ' + nm + ' yet. That can mean it\u2019s driven by several small things at once, or by something you\u2019re not yet tracking. Want to dig deeper?</div>' +
+      '<button class="disc-btn" id="disc-btn" onclick="runDiscovery()">Find what\u2019s affecting my ' + nm + '</button>' +
+      '<div id="disc-results"></div>' +
+    '</div>';
+}
+
+async function runDiscovery() {
+  const m = getFocusMetric();
+  if (!m) return;
+  const r = document.getElementById('disc-results');
+  if (!aiInsightsUnlocked()) {
+    if (r) r.innerHTML = '<div class="disc-note">This uses AI, which needs a paid plan, an active trial, or credits.</div>';
+    return;
+  }
+  const btn = document.getElementById('disc-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Thinking\u2026'; }
+  const tracked = (METRICS_CACHE || []).filter(x => !x.archived).map(x => x.name);
+  const dismissed = getDiscDismissed(m.id);
+  const payload = [
+    'Outcome they want to understand: ' + m.name + '.',
+    'Already tracking: ' + (tracked.join(', ') || 'nothing yet') + '.',
+    'Already ruled out / dismissed: ' + (dismissed.join(', ') || 'none') + '.'
+  ].join('\n');
+  try {
+    const resp = await fetch('/.netlify/functions/ai-insight', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: currentUser.id, type: 'discover', data: payload })
+    });
+    const result = await resp.json();
+    if (!resp.ok) {
+      const msg = result.error === 'cap_reached' ? 'You\u2019ve used your AI allowance for this month.'
+        : result.error === 'circuit_breaker' ? 'AI is briefly unavailable — try again later.'
+        : 'Could not fetch suggestions right now.';
+      if (r) r.innerHTML = '<div class="disc-note">' + msg + '</div>';
+      if (btn) { btn.disabled = false; btn.textContent = 'Try again'; }
+      return;
+    }
+    let items = [];
+    try { items = JSON.parse((result.content || '').replace(/```json|```/g, '').trim()); } catch (e) { items = []; }
+    const trackedLow = new Set(tracked.map(s => s.toLowerCase()));
+    const dismissedLow = new Set(dismissed.map(s => s.toLowerCase()));
+    DISC_SUGGESTIONS = (Array.isArray(items) ? items : [])
+      .filter(s => s && s.name && !trackedLow.has(String(s.name).toLowerCase()) && !dismissedLow.has(String(s.name).toLowerCase()))
+      .slice(0, 5);
+    if (btn) { btn.style.display = 'none'; }
+    renderDiscResults();
+  } catch (e) {
+    if (r) r.innerHTML = '<div class="disc-note">Could not fetch suggestions right now.</div>';
+    if (btn) { btn.disabled = false; btn.textContent = 'Try again'; }
+  }
+}
+
+function renderDiscResults() {
+  const r = document.getElementById('disc-results');
+  if (!r) return;
+  if (!DISC_SUGGESTIONS.length) { r.innerHTML = '<div class="disc-note">No new suggestions this time. Keep logging, and try again in a week or two.</div>'; return; }
+  r.innerHTML = '<div class="disc-sub">Worth starting to track — each becomes a quick daily item:</div>' +
+    DISC_SUGGESTIONS.map((s, i) => {
+      const why = s.why ? '<div class="disc-why">' + escapeHtml(String(s.why)) + '</div>' : '';
+      const typeLabel = s.type === 'scale_10' ? '1–10' : s.type === 'yes_no' ? 'yes/no' : s.type === 'number' ? ('number' + (s.unit ? ' · ' + escapeHtml(String(s.unit)) : '')) : s.type === 'tag_list' ? 'tags' : '';
+      return '<div class="disc-item">' +
+        '<div class="disc-item-head"><span class="disc-name">' + escapeHtml(String(s.name)) + '</span><span class="onb-badge">' + typeLabel + '</span></div>' +
+        why +
+        '<div class="disc-actions"><button class="disc-add" onclick="discAdd(' + i + ')">Add to my journal</button>' +
+        '<button class="disc-dismiss" onclick="discDismiss(' + i + ')">Not relevant</button></div>' +
+      '</div>';
+    }).join('');
+}
+
+async function discAdd(i) {
+  const s = DISC_SUGGESTIONS[i];
+  const fm = getFocusMetric();
+  if (!s || !fm) return;
+  const valid = ['scale_10', 'yes_no', 'number', 'tag_list'];
+  const type = valid.includes(s.type) ? s.type : 'scale_10';
+  let cat = (CATEGORIES_CACHE || []).find(c => c.name === 'Lifestyle');
+  if (!cat) { try { cat = await sbMetrics.createCategory({ name: 'Lifestyle', position: (CATEGORIES_CACHE || []).length }); } catch (e) {} }
+  try {
+    await sbMetrics.createMetric({
+      name: String(s.name).slice(0, 40),
+      type,
+      direction: (type === 'scale_10' || type === 'number') ? 'neutral' : null,
+      unit: type === 'number' ? (s.unit ? String(s.unit).slice(0, 12) : null) : null,
+      numeric_mode: 'linear',
+      category_id: cat ? cat.id : null,
+      position: 99,
+      is_primary: false,
+      show_in_quick: true,
+      archived: false,
+      role: 'influence',
+      options: type === 'tag_list' ? (Array.isArray(s.options) ? s.options.slice(0, 8).map(o => String(o).slice(0, 30)) : []) : null
+    });
+    showToast('Added — log it alongside your ' + fm.name);
+  } catch (e) { showToast('Could not add'); return; }
+  DISC_SUGGESTIONS.splice(i, 1);
+  try { await refreshMetricsCache(); } catch (e) {}
+  renderDiscResults();
+}
+
+async function discDismiss(i) {
+  const s = DISC_SUGGESTIONS[i];
+  const m = getFocusMetric();
+  if (!s || !m) return;
+  const md = (currentUser && currentUser.user_metadata) || {};
+  const dd = Object.assign({}, md.discovery_dismissed || {});
+  dd[m.id] = Array.from(new Set([...(dd[m.id] || []), s.name])).slice(0, 60);
+  try { await auth.updateUserMetadata({ discovery_dismissed: dd }); } catch (e) {}
+  DISC_SUGGESTIONS.splice(i, 1);
+  renderDiscResults();
+}
+
 // Medication adherence over the loaded history (for the AI context + reflection).
 function medsAdherenceBlock() {
   const med = (typeof findMedsMetric === 'function') ? findMedsMetric() : null;
@@ -5791,6 +5976,8 @@ function aiContextBlock() {
   const lines = [];
   const goal = getUserGoal();
   if (goal) lines.push('Why they are tracking: ' + goal + '.');
+  const cond = (currentUser && currentUser.user_metadata && currentUser.user_metadata.health_condition) || '';
+  if (cond) lines.push('Main focus area: ' + cond + '. Their journal was set up around this, with outcome metrics and the everyday factors that may influence it.');
   const fm = getFocusMetric();
   if (fm) lines.push('What they most want to understand right now: ' + fm.name + '. Where the data supports it, prioritise observations relevant to this.');
   const meds = medsAdherenceBlock();
@@ -5799,6 +5986,12 @@ function aiContextBlock() {
 }
 
 // Compute the strongest retrospective correlations
+function addDays(dstr, n) {
+  const d = new Date(dstr + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return d.toLocaleDateString('en-CA');
+}
+
 function computePatterns() {
   const loggedDates = new Set(VALUES.map(v => v.entry_date));
   if (loggedDates.size < 10) return [];
@@ -5814,50 +6007,65 @@ function computePatterns() {
     outcomes.forEach(O => {
       // Never correlate a metric against itself.
       if (F.metricId && F.metricId === O.id) return;
-
       const ovals = ix[O.id] || {};
-      const withDates = [...F.dates].filter(d => ovals[d] && ovals[d].value_number != null);
-      // "without" group: for a numeric factor it's the LOW days (logged + low);
-      // for a tag it's any outcome-logged day the tag wasn't selected on.
-      const withoutDates = F.kind === 'numeric'
-        ? [...F.lowDates].filter(d => ovals[d] && ovals[d].value_number != null)
-        : Object.keys(ovals).filter(d => ovals[d].value_number != null && !F.dates.has(d));
-      if (withDates.length < PATTERN_MIN_WITH || withoutDates.length < PATTERN_MIN_WITHOUT) return;
+      const outcomeDates = Object.keys(ovals).filter(d => ovals[d].value_number != null);
+      if (!outcomeDates.length) return;
 
-      const withVals = withDates.map(d => ovals[d].value_number);
-      const withoutVals = withoutDates.map(d => ovals[d].value_number);
-      const diff = avg(withVals) - avg(withoutVals);
-      if (Math.abs(diff) < PATTERN_MIN_DIFF) return;
+      // Build the with/without outcome-value arrays for a lag in days: 0 = same
+      // day, 1..N = that many days AFTER the factor (a delayed effect — e.g. a
+      // food eaten Monday showing up two or three days later). Same strict bar.
+      const build = (lag) => {
+        const valAt = d => { const D = lag ? addDays(d, lag) : d; const r = ovals[D]; return (r && r.value_number != null) ? r.value_number : null; };
+        const withVals = [];
+        F.dates.forEach(d => { const v = valAt(d); if (v != null) withVals.push(v); });
+        const withoutVals = [];
+        if (F.kind === 'numeric') {
+          F.lowDates.forEach(d => { const v = valAt(d); if (v != null) withoutVals.push(v); });
+        } else if (lag === 0) {
+          outcomeDates.forEach(d => { if (!F.dates.has(d)) withoutVals.push(ovals[d].value_number); });
+        } else {
+          outcomeDates.forEach(d => { const p = addDays(d, -lag); if (loggedDates.has(p) && !F.dates.has(p)) withoutVals.push(ovals[d].value_number); });
+        }
+        return { withVals, withoutVals };
+      };
 
-      const rawDirection = diff < 0 ? 'lower' : 'higher';
-      // Direction-aware "is this good news?": higher on a higher_better metric is
-      // good; lower on a lower_better metric is good; neutral metrics are uncoloured.
-      let good = null;
-      if (O.direction === 'higher_better') good = (rawDirection === 'higher');
-      else if (O.direction === 'lower_better') good = (rawDirection === 'lower');
+      PATTERN_LAGS.forEach(lag => {
+        const { withVals, withoutVals } = build(lag);
+        if (withVals.length < PATTERN_MIN_WITH || withoutVals.length < PATTERN_MIN_WITHOUT) return;
+        const diff = avg(withVals) - avg(withoutVals);
+        if (Math.abs(diff) < PATTERN_MIN_DIFF) return;
 
-      // Down-rank near-tautological links (factor from the same body system as the
-      // outcome, e.g. "Heart symptoms" -> "Heart"). Cross-domain links are the useful ones.
-      const sameSystem = sharesWord(F.metricName, O.name) || sharesWord(F.label, O.name);
+        const rawDirection = diff < 0 ? 'lower' : 'higher';
+        let good = null;
+        if (O.direction === 'higher_better') good = (rawDirection === 'higher');
+        else if (O.direction === 'lower_better') good = (rawDirection === 'lower');
+        const sameSystem = sharesWord(F.metricName, O.name) || sharesWord(F.label, O.name);
 
-      results.push({
-        factor: F.label, factorMetric: F.metricName, factorKind: F.kind || 'tag',
-        factorMetricId: F.metricId || null, scoreId: O.id, scoreLabel: O.name,
-        rawDirection, metricDirection: O.direction, good,
-        magnitude: Math.abs(diff),
-        rank: Math.abs(diff) - (sameSystem ? 1.5 : 0),
-        n: withDates.length
+        results.push({
+          factor: F.label, factorMetric: F.metricName, factorKind: F.kind || 'tag',
+          factorMetricId: F.metricId || null, scoreId: O.id, scoreLabel: O.name,
+          rawDirection, metricDirection: O.direction, good, lag,
+          magnitude: Math.abs(diff),
+          // Down-rank longer lags (less interpretable, more false-positive prone)
+          // and same-system links, so shorter/cleaner relationships win ties.
+          rank: Math.abs(diff) - (sameSystem ? 1.5 : 0) - (lag * 0.25),
+          n: withVals.length
+        });
       });
     });
   });
 
+  // Keep only the strongest form per (factor, outcome) so the same relationship
+  // never shows twice as both a same-day and a next-day pattern.
+  const bestByPair = {};
+  results.forEach(r => { const k = (r.factorMetricId || r.factor) + '::' + r.scoreId; if (!bestByPair[k] || r.rank > bestByPair[k].rank) bestByPair[k] = r; });
+  const deduped = Object.values(bestByPair);
+
   // Tag-based patterns are the genuinely useful ones (something you do vs how you
-  // felt). Metric-vs-metric is a fallback only: dedup reciprocal pairs (A->B and
-  // B->A are the same relationship shown twice) and cap how many we show, so the
-  // card never pads itself with obvious or duplicated correlations. Fewer, stronger.
-  const tagResults = results.filter(r => r.factorKind !== 'numeric').sort((a, b) => b.rank - a.rank);
+  // felt). Metric-vs-metric is a fallback only: dedup reciprocal pairs and cap.
+  const tagResults = deduped.filter(r => r.factorKind !== 'numeric').sort((a, b) => b.rank - a.rank);
   const numByPair = {};
-  results.filter(r => r.factorKind === 'numeric').forEach(r => {
+  deduped.filter(r => r.factorKind === 'numeric').forEach(r => {
     const key = [r.factorMetricId || r.factor, r.scoreId].sort().join('::');
     if (!numByPair[key] || r.magnitude > numByPair[key].magnitude) numByPair[key] = r;
   });
@@ -6016,6 +6224,7 @@ function suggestedFactorsFor(name) {
 
 function renderTrends() {
   renderFocusPicker();
+  renderDiscovery();
   const picker = document.getElementById('day-picker');
   if (picker) {
     if (!picker.value) picker.value = today();
@@ -7656,13 +7865,93 @@ const ONB_LIFESTYLE_METRICS = {
   'Screen time':  { name: 'Screen time', type: 'number', direction: 'neutral', unit: 'hours', cat: 'Lifestyle' },
   'Diet':         { name: 'Diet', type: 'tag_list', cat: 'Lifestyle', options: ['Coffee', 'Alcohol', 'Sugar', 'Dairy', 'Gluten', 'Takeaway', 'Home cooked'] }
 };
+// Shared influence palette — the everyday "Watch" factors profiles draw from.
+// role:'influence' so Trends/the discovery loop can tell drivers from outcomes.
+const INF = {
+  sleepQuality:  { name: 'Sleep quality', type: 'scale_10', direction: 'higher_better', cat: 'Physical', role: 'influence' },
+  sleepHours:    { name: 'Hours of sleep', type: 'number', unit: 'h', cat: 'Physical', role: 'influence' },
+  stress:        { name: 'Stress', type: 'scale_10', direction: 'lower_better', cat: 'Mental', role: 'influence' },
+  caffeine:      { name: 'Caffeine', type: 'number', unit: 'cups', cat: 'Lifestyle', role: 'influence' },
+  alcohol:       { name: 'Alcohol', type: 'number', unit: 'drinks', cat: 'Lifestyle', role: 'influence' },
+  exercise:      { name: 'Exercise', type: 'yes_no', cat: 'Lifestyle', role: 'influence' },
+  water:         { name: 'Water intake', type: 'number', unit: 'glasses', cat: 'Lifestyle', role: 'influence' },
+  activity:      { name: 'Activity', type: 'number', unit: 'min', cat: 'Lifestyle', role: 'influence' },
+  social:        { name: 'Social contact', type: 'yes_no', cat: 'Lifestyle', role: 'influence' },
+  overexert:     { name: 'Pushed too hard', type: 'yes_no', cat: 'Lifestyle', role: 'influence' },
+  weatherCold:   { name: 'Cold or damp weather', type: 'yes_no', cat: 'Lifestyle', role: 'influence' },
+  weatherChange: { name: 'Weather change', type: 'yes_no', cat: 'Lifestyle', role: 'influence' },
+  saltMeal:      { name: 'High-salt meal', type: 'yes_no', cat: 'Lifestyle', role: 'influence' },
+  screensBed:    { name: 'Screens before bed', type: 'yes_no', cat: 'Lifestyle', role: 'influence' },
+  lateMeal:      { name: 'Late meal', type: 'yes_no', cat: 'Lifestyle', role: 'influence' },
+  painRelief:    { name: 'Pain relief taken', type: 'yes_no', cat: 'Lifestyle', role: 'influence' },
+  medTaken:      { name: 'Medication taken', type: 'yes_no', cat: 'Lifestyle', role: 'influence' }
+};
+
+// Outcome shorthand
+const OUT = (name, dir, cat) => ({ name, type: 'scale_10', direction: dir, cat: cat || 'Physical', role: 'outcome' });
+const YN  = (name, role, cat) => ({ name, type: 'yes_no', cat: cat || 'Physical', role: role || 'outcome' });
+const NUM = (name, unit, role, cat) => ({ name, type: 'number', unit, cat: cat || 'Physical', role: role || 'outcome' });
+
+// Condition profiles. Each: Track (the outcomes being explained) + Watch (likely
+// drivers). All profile metrics go into the daily quick check-in so both sides of
+// the correlation actually get logged. Fully editable at the review step.
+const ONB_CONDITION_PROFILES = {
+  'Migraine or headaches': { group: 'chronic',
+    track: [ OUT('Headache severity', 'lower_better'), YN('Migraine today'), YN('Aura') ],
+    watch: [ { name: 'Triggers', type: 'tag_list', cat: 'Lifestyle', role: 'influence', options: ['Skipped meal', 'Dehydration', 'Bright light', 'Screens', 'Weather change', 'Hormonal', 'Strong smells'] }, INF.sleepQuality, INF.stress, INF.caffeine, INF.alcohol ] },
+  'Chronic pain or fibromyalgia': { group: 'chronic',
+    track: [ OUT('Pain', 'lower_better'), OUT('Fatigue', 'lower_better'), YN('Flare today') ],
+    watch: [ INF.sleepQuality, INF.stress, INF.overexert, INF.activity, INF.painRelief ] },
+  'Arthritis or joint pain': { group: 'chronic',
+    track: [ OUT('Joint pain', 'lower_better'), OUT('Stiffness', 'lower_better'), { name: 'Affected joints', type: 'tag_list', cat: 'Physical', role: 'outcome', options: ['Hands', 'Wrists', 'Elbows', 'Shoulders', 'Neck', 'Back', 'Hips', 'Knees', 'Feet'] } ],
+    watch: [ INF.sleepQuality, INF.stress, INF.activity, INF.weatherCold, INF.medTaken ] },
+  'IBS or digestive issues': { group: 'chronic',
+    track: [ OUT('Gut comfort', 'higher_better'), OUT('Bloating', 'lower_better'), NUM('Bowel movements', 'count') ],
+    watch: [ { name: 'Trigger foods', type: 'tag_list', cat: 'Lifestyle', role: 'influence', options: ['Dairy', 'Gluten', 'Caffeine', 'Alcohol', 'Spicy', 'High-FODMAP', 'Fatty or fried', 'Takeaway'] }, INF.stress, INF.sleepQuality, INF.water ] },
+  'Anxiety or low mood': { group: 'chronic',
+    track: [ OUT('Mood', 'higher_better', 'Mental'), OUT('Anxiety', 'lower_better', 'Mental'), OUT('Energy', 'higher_better') ],
+    watch: [ INF.sleepQuality, INF.stress, INF.exercise, INF.social, INF.caffeine ] },
+  'Chronic fatigue / ME / long COVID': { group: 'chronic',
+    track: [ OUT('Energy', 'higher_better'), OUT('Fatigue', 'lower_better'), OUT('Brain fog', 'lower_better', 'Mental'), YN('Post-exertional crash') ],
+    watch: [ INF.activity, INF.overexert, INF.sleepQuality, INF.stress ] },
+  'Endometriosis or menstrual health': { group: 'chronic',
+    track: [ OUT('Pelvic pain', 'lower_better'), OUT('Menstrual comfort', 'higher_better'), { name: 'Bleeding', type: 'tag_list', cat: 'Physical', role: 'outcome', options: ['None', 'Spotting', 'Light', 'Medium', 'Heavy'] } ],
+    watch: [ { name: 'Cycle day', type: 'number', numeric_mode: 'cyclical', cat: 'Physical', role: 'influence' }, INF.stress, INF.sleepQuality, INF.exercise, INF.painRelief ] },
+  'Racing heart or palpitations': { group: 'chronic',
+    track: [ OUT('Palpitation severity', 'lower_better'), YN('Palpitations today'), NUM('Resting heart rate', 'bpm') ],
+    watch: [ INF.caffeine, INF.alcohol, INF.stress, INF.sleepQuality, INF.water ] },
+  'Sleep problems': { group: 'chronic',
+    track: [ OUT('Sleep quality', 'higher_better'), NUM('Hours of sleep', 'h'), NUM('Night wakings', 'count') ],
+    watch: [ INF.caffeine, INF.alcohol, INF.screensBed, INF.lateMeal, INF.exercise ] },
+  'Diabetes or blood sugar': { group: 'chronic',
+    track: [ NUM('Blood glucose', 'mmol/L'), OUT('Energy', 'higher_better') ],
+    watch: [ { name: 'Diet', type: 'tag_list', cat: 'Lifestyle', role: 'influence', options: ['Sugary', 'High-carb', 'Balanced', 'Skipped meal', 'Takeaway'] }, INF.exercise, INF.alcohol, INF.stress, { name: 'Medication / insulin taken', type: 'yes_no', cat: 'Lifestyle', role: 'influence' } ] },
+  'Blood pressure or heart health': { group: 'chronic',
+    track: [ NUM('Systolic', 'mmHg'), NUM('Diastolic', 'mmHg'), NUM('Resting heart rate', 'bpm'), OUT('Energy', 'higher_better') ],
+    watch: [ INF.saltMeal, INF.alcohol, INF.caffeine, INF.exercise, INF.stress ] },
+  'Asthma or breathing': { group: 'chronic',
+    track: [ OUT('Breathing ease', 'higher_better'), YN('Symptoms today'), NUM('Reliever puffs', 'puffs') ],
+    watch: [ { name: 'Triggers', type: 'tag_list', cat: 'Lifestyle', role: 'influence', options: ['Exercise', 'Cold air', 'Dust', 'Pollen', 'Smoke', 'Pets', 'Illness', 'Strong smells'] }, INF.weatherChange, INF.sleepQuality, INF.stress ] },
+  'Injury or surgery recovery': { group: 'recovery',
+    track: [ OUT('Pain', 'lower_better'), OUT('Mobility', 'higher_better'), YN('Swelling') ],
+    watch: [ { name: 'Physio / exercises done', type: 'yes_no', cat: 'Lifestyle', role: 'influence' }, INF.activity, INF.sleepQuality, INF.painRelief ] },
+  'Recovery from an illness': { group: 'recovery',
+    track: [ OUT('Energy', 'higher_better'), OUT('Symptom severity', 'lower_better'), OUT('Fatigue', 'lower_better') ],
+    watch: [ INF.sleepQuality, INF.sleepHours, OUT('Appetite', 'higher_better'), INF.stress ] }
+};
+
+function onbWantsCondition() {
+  return ONB.purpose === 'Managing a chronic condition or symptom pattern'
+      || ONB.purpose === 'Tracking recovery from an illness or injury';
+}
+
 const ONB_STEPS = 7;
 let ONB = null;
 
 function maybeStartOnboarding() {
   if (!currentUser) return;
   if ((METRICS_CACHE || []).filter(m => !m.archived).length > 0) return; // already set up
-  ONB = { step: 0, purpose: '', areas: [], cycle: '', lifestyle: [], freeText: '', suggestions: [], checked: {}, primaryIdx: 0 };
+  ONB = { step: 0, purpose: '', condition: '', areas: [], cycle: '', lifestyle: [], freeText: '', suggestions: [], checked: {}, primaryIdx: 0 };
   const ov = document.getElementById('onboarding-overlay');
   if (ov) { ov.style.display = 'flex'; onbRender(); }
 }
@@ -7689,20 +7978,33 @@ function onbBuildSuggestions() {
   const list = [];
   const seen = new Set();
   const add = (m) => { const k = m.name.trim().toLowerCase(); if (!k || seen.has(k)) return; seen.add(k); list.push(m); };
-  add({ name: 'Wellbeing', type: 'scale_10', direction: 'higher_better', cat: 'Physical', show_in_quick: true });
-  ONB.areas.forEach(a => (ONB_AREA_METRICS[a] || []).forEach(m => add({ ...m, show_in_quick: false })));
+
+  const profile = ONB.condition && ONB_CONDITION_PROFILES[ONB.condition];
+  if (profile) {
+    // Condition path: Track outcomes + Watch influences, all in the daily quick set.
+    profile.track.forEach(m => add({ ...m, role: m.role || 'outcome', show_in_quick: true }));
+    profile.watch.forEach(m => add({ ...m, role: m.role || 'influence', show_in_quick: true }));
+  } else {
+    // General / "something else" path: Wellbeing + area-based outcomes.
+    add({ name: 'Wellbeing', type: 'scale_10', direction: 'higher_better', cat: 'Physical', role: 'outcome', show_in_quick: true });
+    ONB.areas.forEach(a => (ONB_AREA_METRICS[a] || []).forEach(m => add({ ...m, role: 'outcome', show_in_quick: false })));
+  }
+
   if (ONB.cycle === 'Yes, track my menstrual cycle') {
-    add({ name: 'Menstrual comfort', type: 'scale_10', direction: 'higher_better', cat: 'Physical', show_in_quick: false });
-    add({ name: 'Cycle day', type: 'number', direction: 'neutral', numeric_mode: 'cyclical', cat: 'Physical', show_in_quick: false });
+    add({ name: 'Menstrual comfort', type: 'scale_10', direction: 'higher_better', cat: 'Physical', role: 'outcome', show_in_quick: false });
+    add({ name: 'Cycle day', type: 'number', direction: 'neutral', numeric_mode: 'cyclical', cat: 'Physical', role: 'influence', show_in_quick: false });
   }
   (ONB.freeText || '').split(/[,\n]/).map(s => s.trim()).filter(Boolean).slice(0, 8)
-    .forEach(item => add({ name: item.slice(0, 40), type: 'scale_10', direction: 'lower_better', cat: 'Physical', show_in_quick: false }));
-  ONB.lifestyle.forEach(l => { const m = ONB_LIFESTYLE_METRICS[l]; if (m) add({ ...m, show_in_quick: false }); });
-  add({ name: 'Notes', type: 'free_text', cat: 'Notes', show_in_quick: true });
+    .forEach(item => add({ name: item.slice(0, 40), type: 'scale_10', direction: 'lower_better', cat: 'Physical', role: 'outcome', show_in_quick: false }));
+  ONB.lifestyle.forEach(l => { const m = ONB_LIFESTYLE_METRICS[l]; if (m) add({ ...m, role: 'influence', show_in_quick: false }); });
+  add({ name: 'Notes', type: 'free_text', cat: 'Notes', role: 'neutral', show_in_quick: true });
+
   ONB.suggestions = list;
   ONB.checked = {};
   list.forEach((m, i) => { ONB.checked[i] = true; });
-  ONB.primaryIdx = 0; // Wellbeing
+  // Main metric = first scale_10 (the condition outcome for profiles, else Wellbeing).
+  const pIdx = list.findIndex(m => m.type === 'scale_10');
+  ONB.primaryIdx = pIdx >= 0 ? pIdx : 0;
 }
 
 function onbRender() {
@@ -7727,10 +8029,19 @@ function onbRender() {
       <div class="onb-options">${['Managing a chronic condition or symptom pattern','Tracking recovery from an illness or injury','General health awareness','Curiosity / exploration'].map(v => opt('purpose', v, true)).join('')}</div>
       ${nav('Next', 'onbGo(1)')}`;
   } else if (ONB.step === 2) {
-    h = `<div class="onb-h">Which areas matter most?</div>
+    if (onbWantsCondition()) {
+      const grp = ONB.purpose.indexOf('recovery') >= 0 ? 'recovery' : 'chronic';
+      const keys = Object.keys(ONB_CONDITION_PROFILES).filter(k => ONB_CONDITION_PROFILES[k].group === grp);
+      h = `<div class="onb-h">What are you focusing on?</div>
+      <div class="onb-sub">Pick the closest. We'll set up what to track for it, plus the everyday factors that tend to affect it — so Stilte can work out what's driving it. All editable later.</div>
+      <div class="onb-options">${keys.map(v => opt('condition', v, true)).join('')}${opt('condition', 'Something else / not sure', true)}</div>
+      ${nav('Next', 'onbGo(1)')}`;
+    } else {
+      h = `<div class="onb-h">Which areas matter most?</div>
       <div class="onb-sub">Pick up to five — we'll suggest metrics for each.</div>
       <div class="onb-options">${['Physical pain','Mental health and mood','Energy levels','Digestive / gut','Cardiovascular','Sleep','Reproductive / hormonal','Other'].map(v => opt('areas', v, false)).join('')}</div>
       ${nav('Next', 'onbGo(1)')}`;
+    }
   } else if (ONB.step === 3) {
     h = `<div class="onb-h">Track a menstrual cycle?</div>
       <div class="onb-options">${['Yes, track my menstrual cycle','I menstruate, but not here','No / not applicable'].map(v => opt('cycle', v, true)).join('')}</div>
@@ -7749,10 +8060,16 @@ function onbRender() {
   } else if (ONB.step === 6) {
     let rev = `<div class="onb-h">Your starter journal</div>
       <div class="onb-sub">Untick anything you don't want, and pick your main metric (the one your streak and home screen follow). Everything's editable later.</div>`;
-    ['Physical', 'Mental', 'Lifestyle', 'Notes'].forEach(cat => {
-      const items = ONB.suggestions.map((m, i) => ({ m, i })).filter(x => x.m.cat === cat);
+    const groups = [
+      { role: 'outcome', h: 'Track', sub: 'The things you want to understand.' },
+      { role: 'influence', h: 'Watch', sub: 'The everyday things that may be making them better or worse. Tracking these is how Stilte works out what to cut back on, limit or avoid — it\'s where the real answers come from.' },
+      { role: 'neutral', h: 'Also', sub: '' }
+    ];
+    groups.forEach(g => {
+      const items = ONB.suggestions.map((m, i) => ({ m, i })).filter(x => (x.m.role || 'neutral') === g.role);
       if (!items.length) return;
-      rev += `<div class="onb-cat-h">${cat}</div>`;
+      rev += `<div class="onb-cat-h">${g.h}</div>`;
+      if (g.sub) rev += `<div class="onb-sub" style="margin-top:-6px;margin-bottom:10px;">${g.sub}</div>`;
       items.forEach(({ m, i }) => {
         const badge = m.type === 'scale_10' ? (m.direction === 'lower_better' ? '1–10 · lower better' : '1–10 · higher better')
           : m.type === 'number' ? ('number' + (m.unit ? ' · ' + m.unit : ''))
@@ -7775,7 +8092,10 @@ function onbRender() {
 }
 
 async function onbFinish() {
-  if (ONB.purpose) { try { await auth.updateUserMetadata({ health_goal: ONB.purpose, whatsnew_seen: latestNoteId() }); } catch (e) { console.error(e); } }
+  if (ONB.purpose) {
+    const cond = ONB_CONDITION_PROFILES[ONB.condition] ? ONB.condition : '';
+    try { await auth.updateUserMetadata({ health_goal: ONB.purpose, health_condition: cond, whatsnew_seen: latestNoteId() }); } catch (e) { console.error(e); }
+  }
   let chosen = ONB.suggestions.filter((m, i) => ONB.checked[i]);
   if (!chosen.length) { await onbSeed([
     { name: 'Wellbeing', type: 'scale_10', direction: 'higher_better', cat: 'Physical', show_in_quick: true },
@@ -7826,12 +8146,18 @@ async function onbSeed(metrics, primaryPos) {
         is_primary: false,
         show_in_quick: !!m.show_in_quick,
         archived: false,
+        role: m.role || 'neutral',
         options: m.type === 'tag_list' ? (m.options || []) : null
       });
     } catch (e) {}
     if (created && idx === primaryPos) primaryId = created.id;
   }
   if (primaryId) { try { await sbMetrics.setPrimary(primaryId); } catch (e) {} }
+  // For a condition profile, point the Trends focus at the main outcome so the app
+  // immediately centres on what they came to understand.
+  if (primaryId && ONB && ONB.condition && ONB_CONDITION_PROFILES[ONB.condition]) {
+    try { await auth.updateUserMetadata({ focus_metric_id: primaryId }); } catch (e) {}
+  }
   try { await refreshMetricsCache(); } catch (e) {}
   try { await loadValues(); } catch (e) {}
   // Short, skippable orientation before the first check-in.
