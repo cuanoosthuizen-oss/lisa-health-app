@@ -532,7 +532,24 @@ ${dataDictionary}`;
 
 ${dataDictionary}`;
 
-  const systemPrompt = type === 'clinical' ? clinicalPrompt : dailyPrompt;
+  const discoverPrompt = `You are helping someone work out what might be affecting a health outcome they care about. They have tracked it for a while and no clear driver has shown up yet. Your job is to propose new, specific, everyday factors they could START tracking — things they are not already tracking and have not already ruled out.
+
+The user's message gives: the outcome they want to understand, the factors they already track, and factors they have already dismissed.
+
+Rules:
+- Suggest 3 to 5 NEW candidate factors. Never repeat anything already tracked or dismissed (match loosely — don't propose a near-synonym of something listed).
+- Prefer specific, modifiable, daily-observable things plausibly linked to this outcome, and favour the non-obvious ones a person might not think of themselves. Think about timing, environment, diet detail, posture, hydration, hormonal phase, weather, screens — whatever fits this particular outcome.
+- Each must be loggable as exactly one of: scale_10 (a 1-10 rating), yes_no, number (give a short unit), or tag_list (give a small set of options).
+- These are things to OBSERVE, not interventions. Do NOT give medical advice, diagnoses, treatments, doses, or supplements.
+- Keep each name short (2-3 words), plain language.
+
+Return ONLY a JSON array, with no prose and no code fences:
+[{"name":"Screen hours","type":"number","unit":"hours","why":"Eye strain from screens is a common, easily-missed headache driver."}]
+Valid "type" values: scale_10, yes_no, number, tag_list. Include "unit" only for number, and "options" (3-7 short strings) only for tag_list.`;
+
+  const systemPrompt = type === 'clinical' ? clinicalPrompt
+    : type === 'discover' ? discoverPrompt
+    : dailyPrompt;
 
   let apiResponse;
   try {
@@ -545,7 +562,7 @@ ${dataDictionary}`;
       },
       body: JSON.stringify({
         model: tierConfig.model,
-        max_tokens: 500,
+        max_tokens: type === 'discover' ? 800 : 500,
         system: systemPrompt,
         messages: [{ role: 'user', content: prompt }]
       })
