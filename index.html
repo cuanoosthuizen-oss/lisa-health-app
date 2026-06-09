@@ -617,6 +617,28 @@
   .disc-actions { display:flex; gap:8px; margin-top:10px; }
   .disc-add { flex:1; padding:9px; border:none; border-radius:9px; background:var(--btn); color:var(--btn-on); font-weight:600; font-size:13px; cursor:pointer; -webkit-tap-highlight-color:transparent; }
   .disc-dismiss { flex:1; padding:9px; border:1px solid var(--border); border-radius:9px; background:none; color:var(--muted); font-size:13px; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .hm-grid { display:flex; gap:3px; overflow-x:auto; padding-bottom:4px; }
+  .hm-col { display:flex; flex-direction:column; gap:3px; }
+  .hm-cell { width:14px; height:14px; border-radius:3px; background:var(--surface2); cursor:pointer; }
+  .hm-empty { background:var(--surface2); }
+  .hm-future { visibility:hidden; }
+  .hm-labels { margin-right:2px; }
+  .hm-day-label { width:14px; height:14px; font-size:9px; color:var(--muted); line-height:14px; text-align:center; }
+  .hm-legend { display:flex; align-items:center; gap:5px; margin-top:10px; font-size:11px; color:var(--muted); }
+  .hm-sw { width:13px; height:13px; border-radius:3px; display:inline-block; }
+  .bodymap { margin-top:4px; }
+  .diag-views { display:flex; gap:6px; margin-bottom:6px; flex-wrap:wrap; }
+  .diag-view-btn { padding:6px 14px; border:1px solid var(--border); border-radius:8px; background:var(--surface2); color:var(--muted); font-size:13px; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .diag-view-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .diag-svg-wrap { display:flex; justify-content:center; padding:6px 0; }
+  .diag-svg { width:auto; height:330px; max-width:100%; touch-action:manipulation; }
+  .diag-region { fill:var(--surface2); stroke:var(--border); stroke-width:1.3; cursor:pointer; transition:fill .12s ease; }
+  .diag-region:hover { fill:var(--border); }
+  .diag-region.on { fill:var(--accent); stroke:var(--accent); }
+  .diag-outline { fill:rgba(150,140,130,0.16); stroke:rgba(150,140,130,0.30); stroke-width:1.2; pointer-events:none; }
+  .diag-selected { font-size:13px; color:var(--text); margin-top:6px; line-height:1.5; text-align:center; }
+  .diag-sel-label { color:var(--muted); }
+  .diag-sel-empty { color:var(--muted); font-size:12px; }
   .patterns-empty {
     font-size: 13px;
     color: var(--muted);
@@ -1856,6 +1878,7 @@
 
   .settings-signout { color: var(--accent2) !important; }
   .settings-signout .settings-chev { color: var(--accent2); }
+  .settings-danger .settings-row-label { color: #d2674f; }
 
   .settings-about-foot {
     padding: 14px 16px;
@@ -2229,6 +2252,12 @@
       </div>
     </div>
 
+    <!-- Calendar heatmap of the focus metric -->
+    <div class="card" id="heatmap-card" style="display:none;">
+      <div class="card-title" id="heatmap-title">At a glance</div>
+      <div id="heatmap"></div>
+    </div>
+
     <!-- Patterns across all data -->
     <div class="card" id="patterns-card">
       <div class="card-title">Patterns in your data</div>
@@ -2447,9 +2476,8 @@
         <div class="settings-row-label">Export my data (CSV)</div>
         <div class="settings-coming-soon">Coming soon</div>
       </div>
-      <div class="settings-row disabled">
+      <div class="settings-row clickable settings-danger" onclick="deleteMyAccount()">
         <div class="settings-row-label">Delete my account</div>
-        <div class="settings-coming-soon">Coming soon</div>
       </div>
     </div>
 
@@ -2987,46 +3015,6 @@ async function ensureFreshToken() {
   return false;
 }
 
-const sb = {
-  async select() {
-    if (!await ensureFreshToken()) return [];
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/entries?user_id=eq.${currentUser.id}&order=date.asc`, {
-      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${currentSession.access_token}` }
-    });
-    return r.json();
-  },
-  async insert(entry) {
-    if (!await ensureFreshToken()) return null;
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/entries`, {
-      method: 'POST',
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${currentSession.access_token}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=representation'
-      },
-      body: JSON.stringify({ ...entry, user_id: currentUser.id })
-    });
-    if (!r.ok) return null;
-    const rows = await r.json();
-    return (rows && rows[0]) ? rows[0] : null;
-  },
-  async update(id, entry) {
-    if (!await ensureFreshToken()) return false;
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/entries?id=eq.${id}`, {
-      method: 'PATCH',
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${currentSession.access_token}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=minimal'
-      },
-      body: JSON.stringify(entry)
-    });
-    return r.ok;
-  }
-};
-
 // ── NEW (v0.5.0): user-defined metrics wrapper layer ─────────────────────────
 // Talks to user_categories, user_metrics, metric_values tables. Independent
 // from the `sb` wrapper above so the old check-in flow is undisturbed.
@@ -3194,7 +3182,6 @@ async function signOut() {
   await auth.signOut();
   currentSession = null;
   currentUser = null;
-  DATA = [];
   localStorage.removeItem('sb_session');
 
   // Reset UI state
@@ -3209,6 +3196,59 @@ async function signOut() {
   document.getElementById('login-email').value = '';
   document.getElementById('login-password').value = '';
   if (isSignUp) toggleAuthMode();
+}
+
+// Permanently deletes the signed-in user's account and all their data via the
+// delete_my_account RPC (which removes the auth user too, freeing the email for
+// re-signup). Irreversible — gated behind a confirm. No signOut call afterwards
+// because the token belongs to an account that no longer exists.
+async function deleteMyAccount() {
+  const ok = confirm('Permanently delete your account?\n\nThis erases all your check-ins, metrics, insights and settings, and frees your email for a fresh sign-up. It cannot be undone.');
+  if (!ok) return;
+  try {
+    if (!(await ensureFreshToken())) { showToast('Please sign in again first'); return; }
+    // Remove the actual uploaded file blobs via the Storage API first, while the
+    // token is still valid. The RPC clears the database rows but not the files.
+    try {
+      const fr = await fetch(`${SUPABASE_URL}/rest/v1/medical_files?user_id=eq.${currentUser.id}&select=storage_path`, {
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentSession.access_token}` }
+      });
+      if (fr.ok) {
+        const files = await fr.json();
+        for (const f of files) {
+          if (!f || !f.storage_path) continue;
+          try {
+            await fetch(`${SUPABASE_URL}/storage/v1/object/medical-files/${f.storage_path}`, {
+              method: 'DELETE',
+              headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentSession.access_token}` }
+            });
+          } catch (e) { /* best effort; RPC backstop clears the row regardless */ }
+        }
+      }
+    } catch (e) { /* best effort */ }
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/delete_my_account`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${currentSession.access_token}`,
+        'Content-Type': 'application/json'
+      },
+      body: '{}'
+    });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      showToast(d.message || d.msg || 'Could not delete account');
+      return;
+    }
+    try { localStorage.removeItem('sb_session'); } catch (e) {}
+    currentSession = null;
+    currentUser = null;
+    showToast('Account deleted');
+    setTimeout(() => location.reload(), 600);
+  } catch (e) {
+    console.error('Delete account failed:', e);
+    showToast('Could not delete account');
+  }
 }
 
 function showApp() {
@@ -3309,19 +3349,7 @@ if (window.matchMedia) {
 }
 
 // ── DATA ──────────────────────────────────────────────────────────────────────
-let DATA = [];
-
 async function loadData() {
-  try {
-    const rows = await sb.select();
-    if (rows && Array.isArray(rows) && rows.length) {
-      DATA = rows;
-    } else {
-      DATA = [];
-    }
-  } catch {
-    DATA = [];
-  }
   // Load metric definitions + all metric values (the v0.5.0 read model)
   try { await refreshMetricsCache(); } catch (e) {}
   try { await loadValues(); } catch (e) {}
@@ -3735,6 +3763,218 @@ async function renderCheckinForm() {
   onCheckinDateChange();
 }
 
+// ── SYMPTOM DIAGRAMS (body / head / hands) ───────────────────────────────────
+// A tap-to-select diagram is just a nicer INPUT for a tag_list metric whose
+// input_style is body_map / head_map / hand_map. Selected regions store as
+// ordinary value_tags, so trends and the AI treat them like any other tags.
+// Multiple views (front/back, etc.) let the user "turn" the figure to reach
+// every spot. Parts: t='e' ellipse(cx,cy,rx,ry), 'r' rect(x,y,w,h,rx), 'c' circle(cx,cy,r).
+const DIAGRAMS = {
+  body_map: {
+    viewBox: '0 0 200 380',
+    views: [
+      { key: 'front', label: 'Front', parts: [
+        { l:'Head', t:'e', cx:100, cy:36, rx:20, ry:24 },
+        { l:'Neck', t:'r', x:90, y:58, w:20, h:12, rx:5 },
+        { l:'Chest', t:'r', x:66, y:72, w:68, h:42, rx:12 },
+        { l:'Abdomen', t:'r', x:70, y:116, w:60, h:44, rx:12 },
+        { l:'Pelvis', t:'r', x:72, y:162, w:56, h:28, rx:12 },
+        { l:'Left shoulder', t:'e', cx:142, cy:80, rx:13, ry:11 },
+        { l:'Right shoulder', t:'e', cx:58, cy:80, rx:13, ry:11 },
+        { l:'Left upper arm', t:'r', x:140, y:90, w:15, h:50, rx:7 },
+        { l:'Right upper arm', t:'r', x:45, y:90, w:15, h:50, rx:7 },
+        { l:'Left forearm', t:'r', x:146, y:142, w:14, h:48, rx:7 },
+        { l:'Right forearm', t:'r', x:40, y:142, w:14, h:48, rx:7 },
+        { l:'Left hand', t:'e', cx:153, cy:202, rx:10, ry:13 },
+        { l:'Right hand', t:'e', cx:47, cy:202, rx:10, ry:13 },
+        { l:'Left thigh', t:'r', x:102, y:192, w:23, h:74, rx:11 },
+        { l:'Right thigh', t:'r', x:75, y:192, w:23, h:74, rx:11 },
+        { l:'Left knee', t:'e', cx:113, cy:272, rx:12, ry:12 },
+        { l:'Right knee', t:'e', cx:87, cy:272, rx:12, ry:12 },
+        { l:'Left lower leg', t:'r', x:105, y:286, w:18, h:66, rx:9 },
+        { l:'Right lower leg', t:'r', x:77, y:286, w:18, h:66, rx:9 },
+        { l:'Left foot', t:'e', cx:114, cy:362, rx:12, ry:9 },
+        { l:'Right foot', t:'e', cx:86, cy:362, rx:12, ry:9 }
+      ]},
+      { key: 'back', label: 'Back', parts: [
+        { l:'Back of head', t:'e', cx:100, cy:36, rx:20, ry:24 },
+        { l:'Neck', t:'r', x:90, y:58, w:20, h:12, rx:5 },
+        { l:'Upper back', t:'r', x:66, y:72, w:68, h:44, rx:12 },
+        { l:'Lower back', t:'r', x:70, y:118, w:60, h:42, rx:12 },
+        { l:'Buttocks', t:'r', x:72, y:162, w:56, h:30, rx:12 },
+        { l:'Left shoulder', t:'e', cx:58, cy:80, rx:13, ry:11 },
+        { l:'Right shoulder', t:'e', cx:142, cy:80, rx:13, ry:11 },
+        { l:'Left upper arm', t:'r', x:45, y:90, w:15, h:50, rx:7 },
+        { l:'Right upper arm', t:'r', x:140, y:90, w:15, h:50, rx:7 },
+        { l:'Left elbow', t:'e', cx:47, cy:140, rx:9, ry:9 },
+        { l:'Right elbow', t:'e', cx:153, cy:140, rx:9, ry:9 },
+        { l:'Left hand', t:'e', cx:47, cy:202, rx:10, ry:13 },
+        { l:'Right hand', t:'e', cx:153, cy:202, rx:10, ry:13 },
+        { l:'Left thigh', t:'r', x:75, y:192, w:23, h:74, rx:11 },
+        { l:'Right thigh', t:'r', x:102, y:192, w:23, h:74, rx:11 },
+        { l:'Left calf', t:'r', x:77, y:286, w:18, h:66, rx:9 },
+        { l:'Right calf', t:'r', x:105, y:286, w:18, h:66, rx:9 },
+        { l:'Left heel', t:'e', cx:86, cy:362, rx:12, ry:9 },
+        { l:'Right heel', t:'e', cx:114, cy:362, rx:12, ry:9 }
+      ]}
+    ]
+  },
+  head_map: {
+    viewBox: '0 0 200 212',
+    views: [
+      { key:'front', label:'Front', parts:[
+        { l:'Crown', t:'e', cx:100, cy:26, rx:40, ry:16 },
+        { l:'Forehead', t:'e', cx:100, cy:58, rx:48, ry:22 },
+        { l:'Left temple', t:'e', cx:152, cy:84, rx:16, ry:20 },
+        { l:'Right temple', t:'e', cx:48, cy:84, rx:16, ry:20 },
+        { l:'Left eye/brow', t:'e', cx:128, cy:96, rx:17, ry:13 },
+        { l:'Right eye/brow', t:'e', cx:72, cy:96, rx:17, ry:13 },
+        { l:'Nose/sinus', t:'e', cx:100, cy:118, rx:15, ry:24 },
+        { l:'Left cheek/jaw', t:'e', cx:134, cy:150, rx:23, ry:26 },
+        { l:'Right cheek/jaw', t:'e', cx:66, cy:150, rx:23, ry:26 }
+      ]},
+      { key:'back', label:'Back', parts:[
+        { l:'Crown', t:'e', cx:100, cy:30, rx:42, ry:20 },
+        { l:'Left back of head', t:'e', cx:62, cy:94, rx:32, ry:36 },
+        { l:'Right back of head', t:'e', cx:138, cy:94, rx:32, ry:36 },
+        { l:'Base of skull', t:'e', cx:100, cy:152, rx:48, ry:22 },
+        { l:'Neck', t:'r', x:80, y:180, w:40, h:26, rx:8 }
+      ]},
+      { key:'left', label:'Left side', parts:[
+        { l:'Left crown', t:'e', cx:96, cy:30, rx:42, ry:18 },
+        { l:'Left forehead', t:'e', cx:60, cy:64, rx:24, ry:22 },
+        { l:'Left temple', t:'e', cx:82, cy:90, rx:20, ry:20 },
+        { l:'Above left ear', t:'e', cx:108, cy:94, rx:18, ry:18 },
+        { l:'Behind left ear', t:'e', cx:134, cy:106, rx:18, ry:20 },
+        { l:'Left back of head', t:'e', cx:148, cy:76, rx:18, ry:24 },
+        { l:'Left jaw', t:'e', cx:84, cy:154, rx:28, ry:24 }
+      ]},
+      { key:'right', label:'Right side', parts:[
+        { l:'Right crown', t:'e', cx:104, cy:30, rx:42, ry:18 },
+        { l:'Right forehead', t:'e', cx:140, cy:64, rx:24, ry:22 },
+        { l:'Right temple', t:'e', cx:118, cy:90, rx:20, ry:20 },
+        { l:'Above right ear', t:'e', cx:92, cy:94, rx:18, ry:18 },
+        { l:'Behind right ear', t:'e', cx:66, cy:106, rx:18, ry:20 },
+        { l:'Right back of head', t:'e', cx:52, cy:76, rx:18, ry:24 },
+        { l:'Right jaw', t:'e', cx:116, cy:154, rx:28, ry:24 }
+      ]}
+    ]
+  },
+  hand_map: {
+    viewBox: '0 0 200 240',
+    views: [
+      { key:'right', label:'Right hand', outline:[
+        { t:'r', x:62, y:118, w:92, h:84, rx:22 },
+        { t:'r', x:68, y:54, w:17, h:68, rx:8 },
+        { t:'r', x:91, y:44, w:17, h:78, rx:8 },
+        { t:'r', x:114, y:54, w:17, h:70, rx:8 },
+        { t:'r', x:136, y:68, w:16, h:56, rx:8 },
+        { t:'r', x:38, y:128, w:16, h:50, rx:8, rot:[22, 46, 152] },
+        { t:'r', x:78, y:196, w:60, h:24, rx:11 }
+      ], parts:[
+        { l:'Right index DIP', t:'c', cx:76, cy:66, r:8 },
+        { l:'Right index PIP', t:'c', cx:76, cy:92, r:8 },
+        { l:'Right index MCP', t:'c', cx:76, cy:120, r:8 },
+        { l:'Right middle DIP', t:'c', cx:99, cy:56, r:8 },
+        { l:'Right middle PIP', t:'c', cx:99, cy:86, r:8 },
+        { l:'Right middle MCP', t:'c', cx:99, cy:118, r:8 },
+        { l:'Right ring DIP', t:'c', cx:122, cy:66, r:8 },
+        { l:'Right ring PIP', t:'c', cx:122, cy:92, r:8 },
+        { l:'Right ring MCP', t:'c', cx:122, cy:120, r:8 },
+        { l:'Right little DIP', t:'c', cx:144, cy:80, r:8 },
+        { l:'Right little PIP', t:'c', cx:144, cy:104, r:8 },
+        { l:'Right little MCP', t:'c', cx:144, cy:126, r:8 },
+        { l:'Right thumb IP', t:'c', cx:44, cy:132, r:8 },
+        { l:'Right thumb MCP', t:'c', cx:54, cy:158, r:8 },
+        { l:'Right wrist', t:'c', cx:108, cy:208, r:9 }
+      ]}
+    ]
+  }
+};
+
+// The left hand is the mirror of the right — generate it so the two stay in sync.
+(function buildLeftHand() {
+  const h = DIAGRAMS.hand_map;
+  if (!h || h.views.length > 1) return;
+  const R = h.views[0];
+  const mir = p => {
+    const q = Object.assign({}, p);
+    if (p.t === 'r') { q.x = 200 - (p.x + p.w); if (p.rot) q.rot = [-p.rot[0], 200 - p.rot[1], p.rot[2]]; }
+    else q.cx = 200 - p.cx;
+    if (p.l) q.l = p.l.replace('Right', 'Left');
+    return q;
+  };
+  const L = { key: 'left', label: 'Left hand', outline: R.outline.map(mir), parts: R.parts.map(mir) };
+  h.views = [L, R];
+})();
+
+let DIAG_VIEW = {}; // metricId -> current view key
+
+function diagramMetricById(id) {
+  return (RENDERED_METRICS || []).find(m => m.id === id) || (METRICS_CACHE || []).find(m => m.id === id);
+}
+function diagramInputHtml(m) {
+  const id = m.id;
+  const def = DIAGRAMS[m.input_style];
+  if (!def) return '<div class="multi-select" id="mv-' + id + '"></div>';
+  DIAG_VIEW[id] = def.views[0].key;
+  const toggle = def.views.length > 1
+    ? '<div class="diag-views">' + def.views.map(v =>
+        '<button type="button" class="diag-view-btn' + (v.key === def.views[0].key ? ' active' : '') +
+        '" data-view="' + v.key + '" onclick="setDiagramView(\'' + id + '\',\'' + v.key + '\')">' + escapeHtml(v.label) + '</button>').join('') + '</div>'
+    : '';
+  return '<div class="bodymap" id="mv-' + id + '" data-mid="' + id + '">' + toggle +
+    '<div class="diag-svg-wrap" id="diagsvg-' + id + '"></div>' +
+    '<div class="diag-selected" id="diagsel-' + id + '"></div></div>';
+}
+function renderDiagram(id) {
+  const m = diagramMetricById(id);
+  if (!m) return;
+  const def = DIAGRAMS[m.input_style];
+  const wrap = document.getElementById('diagsvg-' + id);
+  if (!def || !wrap) return;
+  const vk = DIAG_VIEW[id] || def.views[0].key;
+  const view = def.views.find(v => v.key === vk) || def.views[0];
+  const sel = new Set(tagSel[id] || []);
+  let svg = '<svg viewBox="' + def.viewBox + '" class="diag-svg" xmlns="http://www.w3.org/2000/svg">';
+  if (Array.isArray(view.outline)) view.outline.forEach(p => {
+    const tr = p.rot ? ' transform="rotate(' + p.rot[0] + ' ' + p.rot[1] + ' ' + p.rot[2] + ')"' : '';
+    if (p.t === 'r') svg += '<rect class="diag-outline" x="' + p.x + '" y="' + p.y + '" width="' + p.w + '" height="' + p.h + '" rx="' + (p.rx || 6) + '"' + tr + '/>';
+    else if (p.t === 'c') svg += '<circle class="diag-outline" cx="' + p.cx + '" cy="' + p.cy + '" r="' + p.r + '"' + tr + '/>';
+    else svg += '<ellipse class="diag-outline" cx="' + p.cx + '" cy="' + p.cy + '" rx="' + p.rx + '" ry="' + p.ry + '"' + tr + '/>';
+  });
+  view.parts.forEach(p => {
+    const cls = 'diag-region' + (sel.has(p.l) ? ' on' : '');
+    const click = ' onclick="toggleDiagRegion(\'' + id + '\',\'' + p.l.replace(/'/g, "\\'") + '\')"';
+    const tip = '><title>' + escapeHtml(p.l) + '</title>';
+    if (p.t === 'r') svg += '<rect class="' + cls + '" x="' + p.x + '" y="' + p.y + '" width="' + p.w + '" height="' + p.h + '" rx="' + (p.rx || 6) + '"' + click + tip + '</rect>';
+    else if (p.t === 'c') svg += '<circle class="' + cls + '" cx="' + p.cx + '" cy="' + p.cy + '" r="' + p.r + '"' + click + tip + '</circle>';
+    else svg += '<ellipse class="' + cls + '" cx="' + p.cx + '" cy="' + p.cy + '" rx="' + p.rx + '" ry="' + p.ry + '"' + click + tip + '</ellipse>';
+  });
+  svg += '</svg>';
+  wrap.innerHTML = svg;
+  const selEl = document.getElementById('diagsel-' + id);
+  if (selEl) {
+    const arr = [...sel];
+    selEl.innerHTML = arr.length
+      ? '<span class="diag-sel-label">Marked:</span> ' + arr.map(escapeHtml).join(', ')
+      : '<span class="diag-sel-empty">Tap the diagram where it applies — use the buttons to turn it around.</span>';
+  }
+}
+function setDiagramView(id, vk) {
+  DIAG_VIEW[id] = vk;
+  const cont = document.getElementById('mv-' + id);
+  if (cont) cont.querySelectorAll('.diag-view-btn').forEach(b => b.classList.toggle('active', b.dataset.view === vk));
+  renderDiagram(id);
+}
+function toggleDiagRegion(id, label) {
+  if (!tagSel[id]) tagSel[id] = [];
+  const i = tagSel[id].indexOf(label);
+  if (i >= 0) tagSel[id].splice(i, 1); else tagSel[id].push(label);
+  renderDiagram(id);
+  if (typeof markFieldLogged === 'function') markFieldLogged(id, tagSel[id].length > 0);
+}
+
 function metricInputHtml(m) {
   const id = m.id;
   const label = escapeHtml(m.name);
@@ -3764,6 +4004,10 @@ function metricInputHtml(m) {
   } else if (m.type === 'free_text') {
     body = '<textarea class="text-input" rows="3" id="mv-' + id + '" placeholder="Anything worth noting..."></textarea>';
   } else if (m.type === 'tag_list') {
+    if (m.input_style && m.input_style !== 'default' && DIAGRAMS[m.input_style]) {
+      body = diagramInputHtml(m);
+      return '<div class="form-group metric-field" data-mid="' + id + '" data-mtype="' + m.type + '">' + head + body + '</div>';
+    }
     const opts = (m.options || []).map(o => '<div class="ms-option" onclick="toggleMetricTag(this,\'' + id + '\')">' + escapeHtml(o) + '</div>').join('');
     const isMeds = (m.name === MED_METRIC_NAME);
     const addChip = '<div class="ms-option ms-add" onclick="openInlineTag(\'' + id + '\')">' + (isMeds ? '+ Add medication' : '+ Add') + '</div>';
@@ -3971,7 +4215,11 @@ async function prefillCheckin(date) {
     } else if (m.type === 'tag_list') {
       const tags = (v && Array.isArray(v.value_tags)) ? v.value_tags : [];
       tagSel[m.id] = tags.slice();
-      el.querySelectorAll('.ms-option').forEach(o => o.classList.toggle('selected', tags.indexOf(o.textContent) >= 0));
+      if (m.input_style && m.input_style !== 'default' && DIAGRAMS[m.input_style]) {
+        renderDiagram(m.id);
+      } else {
+        el.querySelectorAll('.ms-option').forEach(o => o.classList.toggle('selected', tags.indexOf(o.textContent) >= 0));
+      }
     }
   });
 }
@@ -5386,7 +5634,11 @@ function getDateRange() {
 const PATTERN_MIN_WITH = 8;      // need >=8 days WITH the factor (was 5)
 const PATTERN_MIN_WITHOUT = 8;   // and >=8 days WITHOUT it (was 5)
 const PATTERN_MIN_DIFF = 1.5;    // average score gap must be >= 1.5 to matter (was 1.0)
-const PATTERN_LAGS = [0, 1, 2, 3]; // test same-day + delayed effects up to 3 days later
+const PATTERN_LAGS = [   // outcome timing windows tested against each factor
+  { key: 'd0', lo: 0, hi: 0 },   // same day
+  { key: 'd1', lo: 1, hi: 1 },   // the next day
+  { key: 'd23', lo: 2, hi: 3 }   // a couple of days later (2-3 day window)
+];
 
 const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0;
 
@@ -5460,16 +5712,18 @@ function collectNumericFactors() {
 
 // Lead-in clause for a pattern, phrased for tags vs numeric, same-day vs next-day.
 function patternLeadIn(p, factorHtml) {
-  const lag = p.lag || 0;
-  if (lag >= 1) {
-    const when = lag === 1 ? 'The day after' : ('About ' + lag + ' days after');
+  const lo = p.lagLo || 0, hi = p.lagHi || 0;
+  if (hi === 0) {
     return p.factorKind === 'numeric'
-      ? `${when} your ${factorHtml} was higher`
-      : `${when} you logged ${factorHtml}`;
+      ? `On days your ${factorHtml} was higher`
+      : `On days you logged ${factorHtml}`;
   }
+  const when = lo === hi
+    ? (lo === 1 ? 'The day after' : ('About ' + lo + ' days after'))
+    : (`Within ${lo} to ${hi} days after`);
   return p.factorKind === 'numeric'
-    ? `On days your ${factorHtml} was higher`
-    : `On days you logged ${factorHtml}`;
+    ? `${when} your ${factorHtml} was higher`
+    : `${when} you logged ${factorHtml}`;
 }
 function wordsOf(str) {
   return new Set((str || '').toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length > 3));
@@ -6011,26 +6265,30 @@ function computePatterns() {
       const outcomeDates = Object.keys(ovals).filter(d => ovals[d].value_number != null);
       if (!outcomeDates.length) return;
 
-      // Build the with/without outcome-value arrays for a lag in days: 0 = same
-      // day, 1..N = that many days AFTER the factor (a delayed effect — e.g. a
-      // food eaten Monday showing up two or three days later). Same strict bar.
-      const build = (lag) => {
-        const valAt = d => { const D = lag ? addDays(d, lag) : d; const r = ovals[D]; return (r && r.value_number != null) ? r.value_number : null; };
+      // Compare the outcome AFTER days the factor was present vs days it wasn't,
+      // over a lag window. A window {lo..hi} averages the outcome across those
+      // days after the trigger, so a delay that lands somewhere in 2-3 days still
+      // registers even when it isn't on exactly the same day each time.
+      const windowVal = (d, lo, hi) => {
+        const vs = [];
+        for (let k = lo; k <= hi; k++) { const r = ovals[k === 0 ? d : addDays(d, k)]; if (r && r.value_number != null) vs.push(r.value_number); }
+        return vs.length ? avg(vs) : null;
+      };
+      const build = (spec) => {
+        const { lo, hi } = spec;
         const withVals = [];
-        F.dates.forEach(d => { const v = valAt(d); if (v != null) withVals.push(v); });
+        F.dates.forEach(d => { const v = windowVal(d, lo, hi); if (v != null) withVals.push(v); });
         const withoutVals = [];
         if (F.kind === 'numeric') {
-          F.lowDates.forEach(d => { const v = valAt(d); if (v != null) withoutVals.push(v); });
-        } else if (lag === 0) {
-          outcomeDates.forEach(d => { if (!F.dates.has(d)) withoutVals.push(ovals[d].value_number); });
+          F.lowDates.forEach(d => { const v = windowVal(d, lo, hi); if (v != null) withoutVals.push(v); });
         } else {
-          outcomeDates.forEach(d => { const p = addDays(d, -lag); if (loggedDates.has(p) && !F.dates.has(p)) withoutVals.push(ovals[d].value_number); });
+          loggedDates.forEach(p => { if (!F.dates.has(p)) { const v = windowVal(p, lo, hi); if (v != null) withoutVals.push(v); } });
         }
         return { withVals, withoutVals };
       };
 
-      PATTERN_LAGS.forEach(lag => {
-        const { withVals, withoutVals } = build(lag);
+      PATTERN_LAGS.forEach(spec => {
+        const { withVals, withoutVals } = build(spec);
         if (withVals.length < PATTERN_MIN_WITH || withoutVals.length < PATTERN_MIN_WITHOUT) return;
         const diff = avg(withVals) - avg(withoutVals);
         if (Math.abs(diff) < PATTERN_MIN_DIFF) return;
@@ -6044,11 +6302,12 @@ function computePatterns() {
         results.push({
           factor: F.label, factorMetric: F.metricName, factorKind: F.kind || 'tag',
           factorMetricId: F.metricId || null, scoreId: O.id, scoreLabel: O.name,
-          rawDirection, metricDirection: O.direction, good, lag,
+          rawDirection, metricDirection: O.direction, good,
+          lag: spec.key, lagLo: spec.lo, lagHi: spec.hi,
           magnitude: Math.abs(diff),
-          // Down-rank longer lags (less interpretable, more false-positive prone)
-          // and same-system links, so shorter/cleaner relationships win ties.
-          rank: Math.abs(diff) - (sameSystem ? 1.5 : 0) - (lag * 0.25),
+          // Down-rank longer/wider windows (less interpretable, more false-positive
+          // prone) and same-system links, so shorter/cleaner relationships win ties.
+          rank: Math.abs(diff) - (sameSystem ? 1.5 : 0) - (((spec.lo + spec.hi) / 2) * 0.25),
           n: withVals.length
         });
       });
@@ -6222,9 +6481,76 @@ function suggestedFactorsFor(name) {
   return ['sleep', 'diet', 'exercise', 'water', 'stress', 'caffeine'];
 }
 
+// ── CALENDAR HEATMAP ─────────────────────────────────────────────────────────
+// A glanceable grid of the focus metric over the last 13 weeks. Direction-aware:
+// greener is always a better day, blanks are days with no entry.
+function heatBucketColor(metric, v, lo, hi) {
+  if (v == null) return '';
+  const neutral = metric.direction !== 'higher_better' && metric.direction !== 'lower_better';
+  let frac = metric.type === 'number' ? ((hi - lo) ? (v - lo) / (hi - lo) : 0.5) : (v - 1) / 9;
+  frac = Math.max(0, Math.min(1, frac));
+  if (neutral) return 'rgba(206,146,102,' + (0.15 + 0.6 * frac).toFixed(2) + ')';
+  let g = metric.direction === 'lower_better' ? 1 - frac : frac;
+  const stops = ['#cf7f6b', '#d99e72', '#dcc079', '#b3bd7f', '#8faa7c'];
+  return stops[Math.min(4, Math.floor(g * 5))];
+}
+
+function renderHeatmap() {
+  const card = document.getElementById('heatmap-card');
+  const host = document.getElementById('heatmap');
+  if (!card || !host) return;
+  const m = focusOrPrimary();
+  if (!m || (m.type !== 'scale_10' && m.type !== 'number')) { card.style.display = 'none'; return; }
+  const ov = mvIndex()[m.id] || {};
+  const vals = Object.values(ov).map(r => r.value_number).filter(x => x != null);
+  if (vals.length < 5) { card.style.display = 'none'; return; }
+  const lo = Math.min(...vals), hi = Math.max(...vals);
+
+  const WEEKS = 13;
+  const t = today();
+  const todayDow = (new Date(t + 'T00:00:00').getDay() + 6) % 7; // 0=Mon .. 6=Sun
+  const startMonday = addDays(t, -todayDow - (WEEKS - 1) * 7);
+  const dowLabels = ['M', '', 'W', '', 'F', '', ''];
+
+  let grid = '<div class="hm-grid"><div class="hm-col hm-labels">' +
+    dowLabels.map(l => '<div class="hm-day-label">' + l + '</div>').join('') + '</div>';
+  for (let w = 0; w < WEEKS; w++) {
+    grid += '<div class="hm-col">';
+    for (let d = 0; d < 7; d++) {
+      const date = addDays(startMonday, w * 7 + d);
+      if (date > t) { grid += '<div class="hm-cell hm-future"></div>'; continue; }
+      const row = ov[date];
+      const v = row ? row.value_number : null;
+      const style = v == null ? '' : ' style="background:' + heatBucketColor(m, v, lo, hi) + '"';
+      const title = fmt(date) + (v == null ? ' — no entry' : ' — ' + m.name + ' ' + v);
+      grid += '<div class="hm-cell' + (v == null ? ' hm-empty' : '') + '"' + style +
+        ' title="' + escapeHtml(title) + '" onclick="heatmapOpenDay(\'' + date + '\')"></div>';
+    }
+    grid += '</div>';
+  }
+  grid += '</div>';
+  const lowLbl = m.direction === 'lower_better' ? 'tougher' : 'lower';
+  const highLbl = m.direction === 'lower_better' ? 'easier' : 'higher';
+  const legend = '<div class="hm-legend"><span>' + lowLbl + '</span>' +
+    '<span class="hm-sw" style="background:#cf7f6b"></span><span class="hm-sw" style="background:#dcc079"></span><span class="hm-sw" style="background:#8faa7c"></span>' +
+    '<span>' + highLbl + '</span></div>';
+  document.getElementById('heatmap-title').textContent = m.name + ' — last 13 weeks';
+  host.innerHTML = grid + legend;
+  card.style.display = 'block';
+}
+
+function heatmapOpenDay(date) {
+  const picker = document.getElementById('day-picker');
+  if (picker) { picker.value = date; if (typeof updateDateTrigger === 'function') updateDateTrigger('day-picker'); }
+  if (typeof renderSelectedDay === 'function') renderSelectedDay();
+  const dd = document.getElementById('day-detail');
+  if (dd) dd.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
 function renderTrends() {
   renderFocusPicker();
   renderDiscovery();
+  renderHeatmap();
   const picker = document.getElementById('day-picker');
   if (picker) {
     if (!picker.value) picker.value = today();
@@ -7897,13 +8223,13 @@ const NUM = (name, unit, role, cat) => ({ name, type: 'number', unit, cat: cat |
 // the correlation actually get logged. Fully editable at the review step.
 const ONB_CONDITION_PROFILES = {
   'Migraine or headaches': { group: 'chronic',
-    track: [ OUT('Headache severity', 'lower_better'), YN('Migraine today'), YN('Aura') ],
+    track: [ OUT('Headache severity', 'lower_better'), YN('Migraine today'), YN('Aura'), { name: 'Headache location', type: 'tag_list', cat: 'Physical', role: 'outcome', input_style: 'head_map', show_in_quick: true, options: [] } ],
     watch: [ { name: 'Triggers', type: 'tag_list', cat: 'Lifestyle', role: 'influence', options: ['Skipped meal', 'Dehydration', 'Bright light', 'Screens', 'Weather change', 'Hormonal', 'Strong smells'] }, INF.sleepQuality, INF.stress, INF.caffeine, INF.alcohol ] },
   'Chronic pain or fibromyalgia': { group: 'chronic',
-    track: [ OUT('Pain', 'lower_better'), OUT('Fatigue', 'lower_better'), YN('Flare today') ],
+    track: [ OUT('Pain', 'lower_better'), OUT('Fatigue', 'lower_better'), YN('Flare today'), { name: 'Pain location', type: 'tag_list', cat: 'Physical', role: 'outcome', input_style: 'body_map', show_in_quick: true, options: [] } ],
     watch: [ INF.sleepQuality, INF.stress, INF.overexert, INF.activity, INF.painRelief ] },
   'Arthritis or joint pain': { group: 'chronic',
-    track: [ OUT('Joint pain', 'lower_better'), OUT('Stiffness', 'lower_better'), { name: 'Affected joints', type: 'tag_list', cat: 'Physical', role: 'outcome', options: ['Hands', 'Wrists', 'Elbows', 'Shoulders', 'Neck', 'Back', 'Hips', 'Knees', 'Feet'] } ],
+    track: [ OUT('Joint pain', 'lower_better'), OUT('Stiffness', 'lower_better'), { name: 'Affected joints', type: 'tag_list', cat: 'Physical', role: 'outcome', options: ['Hands', 'Wrists', 'Elbows', 'Shoulders', 'Neck', 'Back', 'Hips', 'Knees', 'Feet'] }, { name: 'Hand & finger joints', type: 'tag_list', cat: 'Physical', role: 'outcome', input_style: 'hand_map', show_in_quick: true, options: [] } ],
     watch: [ INF.sleepQuality, INF.stress, INF.activity, INF.weatherCold, INF.medTaken ] },
   'IBS or digestive issues': { group: 'chronic',
     track: [ OUT('Gut comfort', 'higher_better'), OUT('Bloating', 'lower_better'), NUM('Bowel movements', 'count') ],
@@ -8147,6 +8473,7 @@ async function onbSeed(metrics, primaryPos) {
         show_in_quick: !!m.show_in_quick,
         archived: false,
         role: m.role || 'neutral',
+        input_style: m.input_style || 'default',
         options: m.type === 'tag_list' ? (m.options || []) : null
       });
     } catch (e) {}
