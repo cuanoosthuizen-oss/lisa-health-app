@@ -631,11 +631,18 @@
   .diag-view-btn { padding:6px 14px; border:1px solid var(--border); border-radius:8px; background:var(--surface2); color:var(--muted); font-size:13px; cursor:pointer; -webkit-tap-highlight-color:transparent; }
   .diag-view-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
   .diag-svg-wrap { display:flex; justify-content:center; padding:6px 0; }
+  .diag-caption { text-align:center; font-size:13px; font-weight:600; color:var(--text); letter-spacing:0.01em; margin-top:2px; }
   .diag-svg { width:auto; height:330px; max-width:100%; touch-action:manipulation; }
-  .diag-region { fill:var(--surface2); stroke:var(--border); stroke-width:1.3; cursor:pointer; transition:fill .12s ease; }
-  .diag-region:hover { fill:var(--border); }
+  .diag-region { fill:rgba(150,140,130,0.22); stroke:rgba(120,110,100,0.45); stroke-width:1.2; cursor:pointer; transition:fill .12s ease; }
+  .diag-region:hover { fill:rgba(150,140,130,0.34); }
   .diag-region.on { fill:var(--accent); stroke:var(--accent); }
-  .diag-outline { fill:rgba(150,140,130,0.16); stroke:rgba(150,140,130,0.30); stroke-width:1.2; pointer-events:none; }
+  .diag-outline { fill:rgba(150,140,130,0.16); stroke:rgba(120,110,100,0.30); stroke-width:1.2; pointer-events:none; }
+  .diag-figure { fill:rgba(150,140,130,0.18); stroke:none; pointer-events:none; }
+  .diag-figure-stroke { fill:none; stroke:rgba(110,100,92,0.55); stroke-width:1.6; pointer-events:none; }
+  .diag-decor { fill:rgba(150,140,130,0.18); stroke:rgba(110,100,92,0.42); stroke-width:1.2; pointer-events:none; }
+  .diag-zone { fill:rgba(150,140,130,0.04); stroke:rgba(110,100,92,0.28); stroke-width:1; cursor:pointer; pointer-events:all; transition:fill .12s ease; }
+  .diag-zone:hover { fill:rgba(150,140,130,0.20); }
+  .diag-zone.on { fill:var(--accent); stroke:var(--accent); }
   .diag-selected { font-size:13px; color:var(--text); margin-top:6px; line-height:1.5; text-align:center; }
   .diag-sel-label { color:var(--muted); }
   .diag-sel-empty { color:var(--muted); font-size:12px; }
@@ -3773,7 +3780,7 @@ const DIAGRAMS = {
   body_map: {
     viewBox: '0 0 200 380',
     views: [
-      { key: 'front', label: 'Front', parts: [
+      { key: 'front', label: 'Front', desc:'Front of body', parts: [
         { l:'Head', t:'e', cx:100, cy:36, rx:20, ry:24 },
         { l:'Neck', t:'r', x:90, y:58, w:20, h:12, rx:5 },
         { l:'Chest', t:'r', x:66, y:72, w:68, h:42, rx:12 },
@@ -3796,7 +3803,7 @@ const DIAGRAMS = {
         { l:'Left foot', t:'e', cx:114, cy:362, rx:12, ry:9 },
         { l:'Right foot', t:'e', cx:86, cy:362, rx:12, ry:9 }
       ]},
-      { key: 'back', label: 'Back', parts: [
+      { key: 'back', label: 'Back', desc:'Back of body', parts: [
         { l:'Back of head', t:'e', cx:100, cy:36, rx:20, ry:24 },
         { l:'Neck', t:'r', x:90, y:58, w:20, h:12, rx:5 },
         { l:'Upper back', t:'r', x:66, y:72, w:68, h:44, rx:12 },
@@ -3820,44 +3827,80 @@ const DIAGRAMS = {
     ]
   },
   head_map: {
-    viewBox: '0 0 200 212',
+    viewBox: '0 0 200 210',
     views: [
-      { key:'front', label:'Front', parts:[
-        { l:'Crown', t:'e', cx:100, cy:26, rx:40, ry:16 },
-        { l:'Forehead', t:'e', cx:100, cy:58, rx:48, ry:22 },
-        { l:'Left temple', t:'e', cx:152, cy:84, rx:16, ry:20 },
-        { l:'Right temple', t:'e', cx:48, cy:84, rx:16, ry:20 },
-        { l:'Left eye/brow', t:'e', cx:128, cy:96, rx:17, ry:13 },
-        { l:'Right eye/brow', t:'e', cx:72, cy:96, rx:17, ry:13 },
-        { l:'Nose/sinus', t:'e', cx:100, cy:118, rx:15, ry:24 },
-        { l:'Left cheek/jaw', t:'e', cx:134, cy:150, rx:23, ry:26 },
-        { l:'Right cheek/jaw', t:'e', cx:66, cy:150, rx:23, ry:26 }
-      ]},
-      { key:'back', label:'Back', parts:[
-        { l:'Crown', t:'e', cx:100, cy:30, rx:42, ry:20 },
-        { l:'Left back of head', t:'e', cx:62, cy:94, rx:32, ry:36 },
-        { l:'Right back of head', t:'e', cx:138, cy:94, rx:32, ry:36 },
-        { l:'Base of skull', t:'e', cx:100, cy:152, rx:48, ry:22 },
-        { l:'Neck', t:'r', x:80, y:180, w:40, h:26, rx:8 }
-      ]},
-      { key:'left', label:'Left side', parts:[
-        { l:'Left crown', t:'e', cx:96, cy:30, rx:42, ry:18 },
-        { l:'Left forehead', t:'e', cx:60, cy:64, rx:24, ry:22 },
-        { l:'Left temple', t:'e', cx:82, cy:90, rx:20, ry:20 },
-        { l:'Above left ear', t:'e', cx:108, cy:94, rx:18, ry:18 },
-        { l:'Behind left ear', t:'e', cx:134, cy:106, rx:18, ry:20 },
-        { l:'Left back of head', t:'e', cx:148, cy:76, rx:18, ry:24 },
-        { l:'Left jaw', t:'e', cx:84, cy:154, rx:28, ry:24 }
-      ]},
-      { key:'right', label:'Right side', parts:[
-        { l:'Right crown', t:'e', cx:104, cy:30, rx:42, ry:18 },
-        { l:'Right forehead', t:'e', cx:140, cy:64, rx:24, ry:22 },
-        { l:'Right temple', t:'e', cx:118, cy:90, rx:20, ry:20 },
-        { l:'Above right ear', t:'e', cx:92, cy:94, rx:18, ry:18 },
-        { l:'Behind right ear', t:'e', cx:66, cy:106, rx:18, ry:20 },
-        { l:'Right back of head', t:'e', cx:52, cy:76, rx:18, ry:24 },
-        { l:'Right jaw', t:'e', cx:116, cy:154, rx:28, ry:24 }
-      ]}
+      { key:'front', label:'Front', desc:'Front of head',
+        clip: { t:'p', d:'M100,16 C136,16 159,44 159,90 C159,134 139,176 100,188 C61,176 41,134 41,90 C41,44 64,16 100,16 Z' },
+        decor: [
+          { t:'e', cx:160, cy:108, rx:9, ry:15 },
+          { t:'e', cx:40, cy:108, rx:9, ry:15 },
+          { t:'p', d:'M100,118 L93,140 Q100,145 107,140 Z' }
+        ],
+        parts:[
+          { l:'Crown', t:'r', x:20, y:6, w:160, h:48 },
+          { l:'Forehead', t:'r', x:20, y:54, w:160, h:30 },
+          { l:'Right temple', t:'r', x:20, y:84, w:52, h:38 },
+          { l:'Right eye/brow', t:'r', x:72, y:84, w:28, h:38 },
+          { l:'Left eye/brow', t:'r', x:100, y:84, w:28, h:38 },
+          { l:'Left temple', t:'r', x:128, y:84, w:52, h:38 },
+          { l:'Right cheek', t:'r', x:20, y:122, w:54, h:30 },
+          { l:'Nose/sinus', t:'r', x:74, y:122, w:52, h:30 },
+          { l:'Left cheek', t:'r', x:126, y:122, w:54, h:30 },
+          { l:'Right jaw', t:'r', x:20, y:152, w:54, h:50 },
+          { l:'Chin', t:'r', x:74, y:152, w:52, h:50 },
+          { l:'Left jaw', t:'r', x:126, y:152, w:54, h:50 }
+        ]},
+      { key:'back', label:'Back', desc:'Back of head',
+        clip: { t:'p', d:'M100,14 C141,14 162,46 162,100 C162,151 139,184 100,184 C61,184 38,151 38,100 C38,46 59,14 100,14 Z' },
+        decor: [
+          { t:'e', cx:162, cy:106, rx:7, ry:13 },
+          { t:'e', cx:38, cy:106, rx:7, ry:13 }
+        ],
+        parts:[
+          { l:'Crown', t:'r', x:20, y:6, w:160, h:54 },
+          { l:'Right back of head', t:'r', x:20, y:60, w:80, h:62 },
+          { l:'Left back of head', t:'r', x:100, y:60, w:80, h:62 },
+          { l:'Base of skull', t:'r', x:20, y:122, w:160, h:34 },
+          { l:'Nape of neck', t:'r', x:20, y:156, w:160, h:46 }
+        ]},
+      { key:'left', label:'Left side', desc:'Left side of head',
+        clip: { t:'p', d:'M100,16 C145,16 168,48 168,100 C168,150 142,182 100,184 C84,184 72,178 64,166 C58,156 54,148 50,138 L38,130 L24,116 L42,104 C42,84 40,58 56,40 C66,26 80,16 100,16 Z' },
+        decor: [ { t:'e', cx:112, cy:120, rx:10, ry:15 } ],
+        parts:[
+          { l:'Crown', t:'r', x:6, y:6, w:188, h:42 },
+          { l:'Forehead', t:'r', x:6, y:48, w:74, h:42 },
+          { l:'Left temple', t:'r', x:80, y:48, w:42, h:42 },
+          { l:'Left back of head', t:'r', x:122, y:48, w:72, h:72 },
+          { l:'Above left ear', t:'r', x:80, y:90, w:42, h:32 },
+          { l:'Behind left ear', t:'r', x:122, y:120, w:72, h:44 },
+          { l:'Left jaw', t:'r', x:6, y:90, w:74, h:96 }
+        ]},
+      { key:'right', label:'Right side', flip:true, desc:'Right side of head',
+        clip: { t:'p', d:'M100,16 C145,16 168,48 168,100 C168,150 142,182 100,184 C84,184 72,178 64,166 C58,156 54,148 50,138 L38,130 L24,116 L42,104 C42,84 40,58 56,40 C66,26 80,16 100,16 Z' },
+        decor: [ { t:'e', cx:112, cy:120, rx:10, ry:15 } ],
+        parts:[
+          { l:'Crown', t:'r', x:6, y:6, w:188, h:42 },
+          { l:'Forehead', t:'r', x:6, y:48, w:74, h:42 },
+          { l:'Right temple', t:'r', x:80, y:48, w:42, h:42 },
+          { l:'Right back of head', t:'r', x:122, y:48, w:72, h:72 },
+          { l:'Above right ear', t:'r', x:80, y:90, w:42, h:32 },
+          { l:'Behind right ear', t:'r', x:122, y:120, w:72, h:44 },
+          { l:'Right jaw', t:'r', x:6, y:90, w:74, h:96 }
+        ]},
+      { key:'top', label:'Top', desc:'Top of head — looking down',
+        clip: { t:'e', cx:100, cy:106, rx:82, ry:92 },
+        decor: [
+          { t:'p', d:'M100,8 L93,28 Q100,32 107,28 Z' },
+          { t:'e', cx:20, cy:106, rx:8, ry:14 },
+          { t:'e', cx:180, cy:106, rx:8, ry:14 }
+        ],
+        parts:[
+          { l:'Forehead', t:'r', x:8, y:12, w:184, h:70 },
+          { l:'Right side of head', t:'r', x:8, y:82, w:92, h:50 },
+          { l:'Left side of head', t:'r', x:100, y:82, w:92, h:50 },
+          { l:'Back of head', t:'r', x:8, y:132, w:184, h:74 },
+          { l:'Crown', t:'c', cx:100, cy:106, r:30 }
+        ]}
     ]
   },
   hand_map: {
@@ -3924,8 +3967,17 @@ function diagramInputHtml(m) {
         '" data-view="' + v.key + '" onclick="setDiagramView(\'' + id + '\',\'' + v.key + '\')">' + escapeHtml(v.label) + '</button>').join('') + '</div>'
     : '';
   return '<div class="bodymap" id="mv-' + id + '" data-mid="' + id + '">' + toggle +
+    '<div class="diag-caption" id="diagcap-' + id + '"></div>' +
     '<div class="diag-svg-wrap" id="diagsvg-' + id + '"></div>' +
     '<div class="diag-selected" id="diagsel-' + id + '"></div></div>';
+}
+function diagShapeMarkup(p, attrs, title) {
+  const rot = p.rot ? ' transform="rotate(' + p.rot[0] + ' ' + p.rot[1] + ' ' + p.rot[2] + ')"' : '';
+  const inner = title ? '<title>' + escapeHtml(title) + '</title>' : '';
+  if (p.t === 'p') return '<path ' + attrs + ' d="' + p.d + '"' + rot + '>' + inner + '</path>';
+  if (p.t === 'r') return '<rect ' + attrs + ' x="' + p.x + '" y="' + p.y + '" width="' + p.w + '" height="' + p.h + '" rx="' + (p.rx || 0) + '"' + rot + '>' + inner + '</rect>';
+  if (p.t === 'c') return '<circle ' + attrs + ' cx="' + p.cx + '" cy="' + p.cy + '" r="' + p.r + '"' + rot + '>' + inner + '</circle>';
+  return '<ellipse ' + attrs + ' cx="' + p.cx + '" cy="' + p.cy + '" rx="' + p.rx + '" ry="' + p.ry + '"' + rot + '>' + inner + '</ellipse>';
 }
 function renderDiagram(id) {
   const m = diagramMetricById(id);
@@ -3936,23 +3988,40 @@ function renderDiagram(id) {
   const vk = DIAG_VIEW[id] || def.views[0].key;
   const view = def.views.find(v => v.key === vk) || def.views[0];
   const sel = new Set(tagSel[id] || []);
+  const clipped = !!view.clip;
   let svg = '<svg viewBox="' + def.viewBox + '" class="diag-svg" xmlns="http://www.w3.org/2000/svg">';
-  if (Array.isArray(view.outline)) view.outline.forEach(p => {
-    const tr = p.rot ? ' transform="rotate(' + p.rot[0] + ' ' + p.rot[1] + ' ' + p.rot[2] + ')"' : '';
-    if (p.t === 'r') svg += '<rect class="diag-outline" x="' + p.x + '" y="' + p.y + '" width="' + p.w + '" height="' + p.h + '" rx="' + (p.rx || 6) + '"' + tr + '/>';
-    else if (p.t === 'c') svg += '<circle class="diag-outline" cx="' + p.cx + '" cy="' + p.cy + '" r="' + p.r + '"' + tr + '/>';
-    else svg += '<ellipse class="diag-outline" cx="' + p.cx + '" cy="' + p.cy + '" rx="' + p.rx + '" ry="' + p.ry + '"' + tr + '/>';
-  });
-  view.parts.forEach(p => {
-    const cls = 'diag-region' + (sel.has(p.l) ? ' on' : '');
-    const click = ' onclick="toggleDiagRegion(\'' + id + '\',\'' + p.l.replace(/'/g, "\\'") + '\')"';
-    const tip = '><title>' + escapeHtml(p.l) + '</title>';
-    if (p.t === 'r') svg += '<rect class="' + cls + '" x="' + p.x + '" y="' + p.y + '" width="' + p.w + '" height="' + p.h + '" rx="' + (p.rx || 6) + '"' + click + tip + '</rect>';
-    else if (p.t === 'c') svg += '<circle class="' + cls + '" cx="' + p.cx + '" cy="' + p.cy + '" r="' + p.r + '"' + click + tip + '</circle>';
-    else svg += '<ellipse class="' + cls + '" cx="' + p.cx + '" cy="' + p.cy + '" rx="' + p.rx + '" ry="' + p.ry + '"' + click + tip + '</ellipse>';
-  });
+
+  // Clipped figure (head): a filled silhouette divided into zones, with the
+  // zones clipped to the silhouette so taps fill clean areas, not floating ovals.
+  if (clipped) {
+    const clipId = 'dgclip-' + id + '-' + vk;
+    let inner = '<defs><clipPath id="' + clipId + '">' + diagShapeMarkup(view.clip, '') + '</clipPath></defs>';
+    inner += diagShapeMarkup(view.clip, 'class="diag-figure"');
+    inner += '<g clip-path="url(#' + clipId + ')">';
+    view.parts.forEach(p => {
+      const cls = 'diag-zone' + (sel.has(p.l) ? ' on' : '');
+      const click = ' onclick="toggleDiagRegion(\'' + id + '\',\'' + p.l.replace(/'/g, "\\'") + '\')"';
+      inner += diagShapeMarkup(p, 'class="' + cls + '"' + click, p.l);
+    });
+    inner += '</g>';
+    if (Array.isArray(view.decor)) view.decor.forEach(p => { inner += diagShapeMarkup(p, 'class="diag-decor"'); });
+    inner += diagShapeMarkup(view.clip, 'class="diag-figure-stroke"');
+    // A mirrored view (e.g. right profile) reuses the left geometry, flipped.
+    svg += view.flip ? '<g transform="translate(200,0) scale(-1,1)">' + inner + '</g>' : inner;
+  } else {
+    if (Array.isArray(view.outline)) view.outline.forEach(p => { svg += diagShapeMarkup(p, 'class="diag-outline"'); });
+    view.parts.forEach(p => {
+      const cls = 'diag-region' + (sel.has(p.l) ? ' on' : '');
+      const click = ' onclick="toggleDiagRegion(\'' + id + '\',\'' + p.l.replace(/'/g, "\\'") + '\')"';
+      svg += diagShapeMarkup(p, 'class="' + cls + '"' + click, p.l);
+    });
+  }
   svg += '</svg>';
   wrap.innerHTML = svg;
+
+  const capEl = document.getElementById('diagcap-' + id);
+  if (capEl) capEl.textContent = view.desc || view.label || '';
+
   const selEl = document.getElementById('diagsel-' + id);
   if (selEl) {
     const arr = [...sel];
@@ -8223,7 +8292,7 @@ const NUM = (name, unit, role, cat) => ({ name, type: 'number', unit, cat: cat |
 // the correlation actually get logged. Fully editable at the review step.
 const ONB_CONDITION_PROFILES = {
   'Migraine or headaches': { group: 'chronic',
-    track: [ OUT('Headache severity', 'lower_better'), YN('Migraine today'), YN('Aura'), { name: 'Headache location', type: 'tag_list', cat: 'Physical', role: 'outcome', input_style: 'head_map', show_in_quick: true, options: [] } ],
+    track: [ OUT('Headache severity', 'lower_better'), YN('Migraine today'), YN('Aura (warning signs)'), { name: 'Headache location', type: 'tag_list', cat: 'Physical', role: 'outcome', input_style: 'head_map', show_in_quick: true, options: [] } ],
     watch: [ { name: 'Triggers', type: 'tag_list', cat: 'Lifestyle', role: 'influence', options: ['Skipped meal', 'Dehydration', 'Bright light', 'Screens', 'Weather change', 'Hormonal', 'Strong smells'] }, INF.sleepQuality, INF.stress, INF.caffeine, INF.alcohol ] },
   'Chronic pain or fibromyalgia': { group: 'chronic',
     track: [ OUT('Pain', 'lower_better'), OUT('Fatigue', 'lower_better'), YN('Flare today'), { name: 'Pain location', type: 'tag_list', cat: 'Physical', role: 'outcome', input_style: 'body_map', show_in_quick: true, options: [] } ],
