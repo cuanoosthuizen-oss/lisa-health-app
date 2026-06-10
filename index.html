@@ -632,6 +632,22 @@
   .diag-view-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
   .diag-svg-wrap { display:flex; justify-content:center; padding:6px 0; }
   .diag-caption { text-align:center; font-size:13px; font-weight:600; color:var(--text); letter-spacing:0.01em; margin-top:2px; }
+  .me-suggest { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:11px 13px; margin-bottom:14px; font-size:13px; line-height:1.45; color:var(--text); }
+  .me-suggest-actions { display:flex; gap:8px; margin-top:10px; }
+  .me-suggest-yes { flex:1; padding:8px; border:none; border-radius:8px; background:var(--accent); color:#fff; font-size:13px; font-weight:600; cursor:pointer; }
+  .me-suggest-no { padding:8px 12px; border:1px solid var(--border); border-radius:8px; background:none; color:var(--muted); font-size:13px; cursor:pointer; }
+  .me-nl-toggle { display:block; background:none; border:none; padding:6px 0 0; color:var(--accent); font-size:12.5px; cursor:pointer; text-align:left; text-decoration:underline; text-underline-offset:2px; }
+  .jc-dots { display:flex; align-items:center; gap:4px; margin:2px 0 10px; }
+  .jc-dot { width:11px; height:11px; border-radius:50%; background:var(--surface2); border:1px solid var(--border); }
+  .jc-dot.on { background:var(--accent); border-color:var(--accent); }
+  .jc-dots-label { font-size:10.5px; color:var(--muted); margin-left:4px; }
+  .jc-body { font-size:13.5px; line-height:1.5; color:var(--text); }
+  .jc-tip { margin-top:10px; padding:10px 12px; background:var(--surface2); border-radius:9px; font-size:12.5px; line-height:1.5; color:var(--muted); }
+  .fb-reply { margin-top:6px; padding:9px 11px; background:var(--surface2); border-left:2px solid var(--accent); border-radius:0 9px 9px 0; font-size:13px; line-height:1.5; }
+  .fb-reply-h { display:block; font-size:10.5px; color:var(--accent); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:3px; }
+  .cl-entry { margin-bottom:18px; }
+  .cl-title { font-weight:600; font-size:14px; margin-bottom:6px; }
+  .cl-items { margin:0; padding-left:18px; font-size:13.5px; line-height:1.6; color:var(--text); }
   .diag-svg { width:auto; height:330px; max-width:100%; touch-action:manipulation; }
   .diag-region { fill:rgba(150,140,130,0.22); stroke:rgba(120,110,100,0.45); stroke-width:1.2; cursor:pointer; transition:fill .12s ease; }
   .diag-region:hover { fill:rgba(150,140,130,0.34); }
@@ -2163,8 +2179,17 @@
     <!-- What's new (shown once when there's an unseen update) -->
     <div class="card whatsnew-card" id="whatsnew-card" style="display:none;"></div>
 
+    <!-- A reply is waiting on the person's feedback -->
+    <div class="card" id="fb-reply-card" style="display:none; cursor:pointer;" onclick="openFeedback()">
+      <div class="card-title">We've replied to your feedback</div>
+      <div style="font-size:13.5px; line-height:1.5;">Thanks for helping shape Stilte &mdash; tap to read the reply.</div>
+    </div>
+
     <!-- Today's check-in (primary action; flips to "complete" when logged) -->
     <div id="today-prompt"></div>
+
+    <!-- Building-your-picture journey card (first two weeks only) -->
+    <div class="card" id="journey-card" style="display:none;"></div>
 
     <!-- Today's medications (quick tick; shown only when meds are set up) -->
     <div class="card" id="home-meds-card" style="display:none;">
@@ -2490,6 +2515,10 @@
 
     <div class="settings-section-title">About</div>
     <div class="settings-card">
+      <div class="settings-row clickable" onclick="openChangelog()">
+        <div class="settings-row-label">What's new in Stilte</div>
+        <div class="settings-chev">&rsaquo;</div>
+      </div>
       <div class="settings-row">
         <div class="settings-row-label">Version</div>
         <div class="settings-row-value">0.5.0-dev</div>
@@ -2596,6 +2625,15 @@
 
   <!-- EDIT METRIC modal -->
   <div class="modal-backdrop" id="metric-editor-backdrop" style="display:none;" onclick="closeMetricEditor()"></div>
+
+  <div class="modal-backdrop" id="changelog-backdrop" style="display:none;" onclick="closeChangelog()"></div>
+  <div class="modal" id="changelog-modal" style="display:none;">
+    <div class="modal-header">
+      <span>What's new in Stilte</span>
+      <button class="modal-close" onclick="closeChangelog()">&#10005;</button>
+    </div>
+    <div class="modal-body" id="changelog-body"></div>
+  </div>
   <div class="modal" id="metric-editor" style="display:none;">
     <div class="modal-header">
       <span id="metric-editor-title">Add metric</span>
@@ -2604,8 +2642,15 @@
     <div class="modal-body">
       <div class="form-group">
         <label class="form-label">Name</label>
-        <input type="text" class="text-input" id="me-name" placeholder="e.g. Energy, Knee pain, Hours of sleep">
+        <input type="text" class="text-input" id="me-name" placeholder="e.g. Energy, Knee pain, Hours of sleep" oninput="onMetricNameInput()">
+        <button type="button" class="me-nl-toggle" onclick="toggleNlHelper()">Not sure how to set it up? Describe it in your own words</button>
+        <div id="me-nl-body" style="display:none; margin-top:8px;">
+          <textarea class="text-input" id="me-nl-text" rows="3" maxlength="400" placeholder="e.g. How happy I am at work — I find it affects how happy I am at home"></textarea>
+          <button type="button" class="me-suggest-yes" id="me-nl-go" style="width:100%; margin-top:8px;" onclick="runNlHelper()">Set it up for me</button>
+        </div>
       </div>
+
+      <div id="me-suggest" class="me-suggest" style="display:none;"></div>
 
       <div class="form-group">
         <label class="form-label">Type</label>
@@ -2617,6 +2662,16 @@
           <option value="tag_list">Tags</option>
         </select>
         <div id="me-type-locked" style="display:none; font-size:11px; color:var(--muted); margin-top:6px;">Type can't be changed after data is recorded for this metric.</div>
+      </div>
+
+      <div class="form-group" id="me-input-style-wrap" style="display:none;">
+        <label class="form-label">How to mark it <small>tap a diagram instead of picking from a list</small></label>
+        <select class="text-input" id="me-input-style">
+          <option value="default">A list of options</option>
+          <option value="body_map">Body diagram — front &amp; back</option>
+          <option value="head_map">Head diagram — front, back, sides, top</option>
+          <option value="hand_map">Hands diagram — individual finger joints</option>
+        </select>
       </div>
 
       <div class="form-group" id="me-direction-wrap">
@@ -3173,6 +3228,7 @@ async function handleAuth() {
       currentSession = result;
       currentUser = result.user;
       localStorage.setItem('sb_session', JSON.stringify(result));
+      if (isSignUp) logEvent('account_created');
       showApp();
     } else {
       errorEl.textContent = 'Unable to sign in. Please check your details.';
@@ -3681,6 +3737,7 @@ async function submitCheckin() {
   // Refresh the in-memory values so home/streak/trends/insight-gate reflect this
   // save immediately (without needing a full page reload).
   try { await loadValues(); } catch (e) {}
+  logEvent('checkin_saved', { date, distinct_days: distinctLoggedDays() });
 
   if (btn) { btn.disabled = false; btn.textContent = "Save check-in"; }
   document.getElementById('form-inner').style.display = 'none';
@@ -4476,7 +4533,7 @@ async function submitFeedback() {
     });
     if (!r.ok) throw new Error('insert ' + r.status);
     msgEl.value = ''; er.style.display = 'none';
-    showToast('Thanks \u2014 feedback sent');
+    showToast('Received \u2014 every submission gets reviewed');
     renderMyFeedback();
   } catch (e) {
     console.error(e);
@@ -4486,6 +4543,16 @@ async function submitFeedback() {
   }
 }
 
+// User-facing status wording — warmer than the internal triage labels, and
+// "new" explicitly confirms it's queued for review (closing the first loop).
+const FB_USER_STATUS = {
+  new: 'Received \u2014 will be reviewed',
+  ready: 'In the works',
+  planned: 'Planned',
+  actioned: 'Done \u2713',
+  dismissed: 'Reviewed'
+};
+
 async function renderMyFeedback() {
   const host = document.getElementById('fb-mine');
   if (!host) return;
@@ -4493,7 +4560,7 @@ async function renderMyFeedback() {
   if (!currentUser || !currentSession) { host.innerHTML = ''; return; }
   host.innerHTML = '<div style="color:var(--muted); font-size:13px;">Loading\u2026</div>';
   try {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/feedback?user_id=eq.${currentUser.id}&select=kind,message,status,created_at&order=created_at.desc&limit=25`, {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/feedback?user_id=eq.${currentUser.id}&select=id,kind,message,status,created_at,response,response_at,response_seen_at&order=created_at.desc&limit=25`, {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentSession.access_token}` }
     });
     if (!r.ok) throw new Error('list ' + r.status);
@@ -4501,11 +4568,25 @@ async function renderMyFeedback() {
     if (!rows.length) { host.innerHTML = '<div style="color:var(--muted); font-size:13px;">You haven\'t sent any feedback yet.</div>'; return; }
     host.innerHTML = rows.map(row => {
       const date = (row.created_at || '').slice(0, 10);
-      const status = (row.status && row.status !== 'new') ? ' \u00b7 ' + escapeHtml(row.status) : '';
+      const status = FB_USER_STATUS[row.status] || row.status || '';
+      const reply = row.response
+        ? '<div class="fb-reply"><span class="fb-reply-h">Reply from Stilte \u00b7 ' + escapeHtml((row.response_at || '').slice(0, 10)) + '</span>' +
+          escapeHtml(row.response) + '</div>'
+        : '';
       return '<div class="med-row" style="flex-direction:column; align-items:flex-start; gap:4px;">' +
-        '<span style="font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em;">' + escapeHtml(row.kind) + ' \u00b7 ' + date + status + '</span>' +
-        '<span style="font-size:14px; line-height:1.5;">' + escapeHtml(row.message) + '</span></div>';
+        '<span style="font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em;">' + escapeHtml(row.kind) + ' \u00b7 ' + date + (status ? ' \u00b7 ' + escapeHtml(status) : '') + '</span>' +
+        '<span style="font-size:14px; line-height:1.5;">' + escapeHtml(row.message) + '</span>' + reply + '</div>';
     }).join('');
+    // Viewing the list counts as reading any replies — mark them seen so the
+    // Home notice clears (users may only update this one column).
+    const unseen = rows.filter(x => x.response && !x.response_seen_at).map(x => x.id);
+    if (unseen.length) {
+      fetch(`${SUPABASE_URL}/rest/v1/feedback?id=in.(${unseen.join(',')})`, {
+        method: 'PATCH',
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentSession.access_token}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({ response_seen_at: new Date().toISOString() })
+      }).then(() => { const c = document.getElementById('fb-reply-card'); if (c) c.style.display = 'none'; }).catch(() => {});
+    }
   } catch (e) {
     console.error(e);
     host.innerHTML = '<div style="color:var(--muted); font-size:13px;">Could not load your feedback.</div>';
@@ -4649,6 +4730,9 @@ function fbItemHtml(row) {
   const date = (row.created_at || '').slice(0, 10);
   const status = row.status || 'new';
   const note = row.admin_note ? '<div class="note">' + escapeHtml(row.admin_note) + '</div>' : '';
+  const reply = row.response
+    ? '<div class="note" style="border-left:2px solid var(--accent); padding-left:8px;">Replied ' + escapeHtml((row.response_at || '').slice(0, 10)) + ': ' + escapeHtml(row.response) + '</div>'
+    : '';
   const btns = FB_STATUSES.map(s =>
     '<button class="' + (s === status ? 'active' : '') + '" onclick="feedbackSetStatus(\'' + row.id + '\',\'' + s + '\')">' +
     (FB_STATUS_LABEL[s] || s) + '</button>'
@@ -4657,13 +4741,39 @@ function fbItemHtml(row) {
     '<div class="meta"><span>' + escapeHtml(row.kind) + ' \u00b7 ' + date + '</span>' +
     '<span class="fb-status s-' + status + '">' + (FB_STATUS_LABEL[status] || status) + '</span></div>' +
     '<div class="msg">' + escapeHtml(row.message || '') + '</div>' +
-    note +
+    note + reply +
     '<div class="fb-actions">' + btns +
-    '<button onclick="toggleFbNote(\'' + row.id + '\')">' + (row.admin_note ? 'Edit note' : 'Note') + '</button></div>' +
+    '<button onclick="toggleFbNote(\'' + row.id + '\')">' + (row.admin_note ? 'Edit note' : 'Note') + '</button>' +
+    '<button onclick="toggleFbReply(\'' + row.id + '\')">' + (row.response ? 'Edit reply' : 'Reply') + '</button></div>' +
     '<div class="fb-note-edit" id="fbnote-' + row.id + '" style="display:none;">' +
     '<textarea id="fbnotetext-' + row.id + '" rows="2" placeholder="Private note (only you see this)">' + escapeHtml(row.admin_note || '') + '</textarea>' +
     '<button class="save" onclick="saveFbNote(\'' + row.id + '\')">Save note</button></div>' +
+    '<div class="fb-note-edit" id="fbreply-' + row.id + '" style="display:none;">' +
+    '<textarea id="fbreplytext-' + row.id + '" rows="3" placeholder="Reply to this person \u2014 they\u2019ll see it in the app. Thank them, and say what changed.">' + escapeHtml(row.response || '') + '</textarea>' +
+    '<button class="save" onclick="saveFbReply(\'' + row.id + '\')">Send reply</button></div>' +
     '</div>';
+}
+
+function toggleFbReply(id) {
+  const el = document.getElementById('fbreply-' + id);
+  if (el) el.style.display = (el.style.display === 'none' ? 'block' : 'none');
+}
+
+async function saveFbReply(id) {
+  const ta = document.getElementById('fbreplytext-' + id);
+  if (!ta || !ta.value.trim()) { showToast('Write the reply first'); return; }
+  await ensureFreshToken();
+  if (!currentSession) return;
+  try {
+    const resp = await fetch('/.netlify/functions/ai-insight', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentSession.access_token}` },
+      body: JSON.stringify({ type: 'feedback_update', id, response: ta.value.trim() })
+    });
+    if (!resp.ok) { showToast('Could not send reply'); return; }
+    showToast('Reply sent \u2014 they\u2019ll see it in the app');
+    loadFeedbackList();
+  } catch (e) { console.error(e); showToast('Could not send reply'); }
 }
 
 function renderFeedbackItems(host, rows) {
@@ -5058,8 +5168,98 @@ function weeklyConsistency() {
   return { count, dotsHtml: '<div class="wk-dots">' + dots + '</div>' };
 }
 
+// ── PRODUCT EVENTS ───────────────────────────────────────────────────────────
+// Fire-and-forget funnel logging (signup -> onboarding -> check-ins -> insight).
+// Never blocks or surfaces errors to the user; analysed founder-side.
+function logEvent(event, props) {
+  try {
+    if (!currentUser || !currentSession) return;
+    fetch(`${SUPABASE_URL}/rest/v1/app_events`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${currentSession.access_token}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal'
+      },
+      body: JSON.stringify({ user_id: currentUser.id, event, props: props || null })
+    }).catch(() => {});
+  } catch (e) {}
+}
+
+// ── BUILDING-YOUR-PICTURE (time-to-value framing) ───────────────────────────
+// Stilte's patterns need ~8 days of data each side, and Discovery opens at 14.
+// That wait is honest, but silent it kills new users. This card names the wait,
+// shows progress through it, and gives day-one orientation for their condition.
+const CONDITION_ORIENTATION = {
+  'Migraine or headaches': 'People tracking migraines most often find their answers in sleep regularity, hydration, caffeine and weather shifts — your check-in already covers these.',
+  'Chronic pain or fibromyalgia': 'People tracking chronic pain most often find links to sleep quality, overexertion (the day or two before), stress and weather — your check-in already covers these.',
+  'Arthritis or joint pain': 'People tracking joint pain often find links to weather changes, activity levels and sleep — and marking exact joints builds a record your doctor can actually use.',
+  'IBS or digestive issues': 'Gut symptoms often lag their trigger by a day or two — which is exactly the kind of delayed pattern Stilte tests for. Meals, stress and sleep are the usual suspects.',
+  'Anxiety or low mood': 'Mood patterns most often connect to sleep, alcohol, exercise and social time — your check-in already covers these.',
+  'Chronic fatigue / ME / long COVID': 'With fatigue conditions, overdoing it often shows up one to two days later — Stilte specifically looks for that delayed pattern.',
+  'Endometriosis or menstrual health': 'Tracking symptoms against your cycle is the foundation here — patterns often only make sense once a full cycle or two is logged.',
+  'Racing heart or palpitations': 'Palpitations most often track with caffeine, alcohol, stress and poor sleep — your check-in already covers these.',
+  'Sleep problems': 'Sleep usually reflects the day before — caffeine timing, screens, late meals and stress. That\'s exactly what your check-in watches.',
+  'Diabetes or blood sugar': 'Day-to-day readings make most sense alongside meals, activity and sleep — which is what your check-in records.',
+  'Blood pressure or heart health': 'Readings vary day to day — the value is in the trend across weeks, alongside salt, activity, sleep and stress.',
+  'Asthma or breathing': 'Breathing symptoms often track with weather changes, activity and sleep — your check-in already covers these.',
+  'Injury or surgery recovery': 'Recovery isn\'t linear — logging daily makes the overall upward trend visible even through bad days.',
+  'Recovery from an illness': 'Recovery isn\'t linear — logging daily makes the overall upward trend visible even through bad days.'
+};
+
+function distinctLoggedDays() {
+  return new Set((VALUES || []).map(v => v.entry_date)).size;
+}
+
+function renderJourneyCard() {
+  const card = document.getElementById('journey-card');
+  if (!card) return;
+  const days = distinctLoggedDays();
+  if (days >= 14) { card.style.display = 'none'; return; }
+  const condition = (currentUser && currentUser.user_metadata && currentUser.user_metadata.health_condition) || '';
+  // health_condition may hold several conditions (comma-joined); orient on the
+  // first one we have a tip for — that's their first-picked, primary condition.
+  let tip = '';
+  for (const part of condition.split(',').map(s => s.trim())) {
+    if (CONDITION_ORIENTATION[part]) { tip = CONDITION_ORIENTATION[part]; break; }
+  }
+  let title, body;
+  if (days === 0) {
+    title = 'Building your picture';
+    body = 'Your first check-in starts the clock. Stilte finds patterns by comparing your days — every entry sharpens the picture.';
+  } else if (days < 8) {
+    title = 'Building your picture — day ' + days;
+    body = 'Stilte starts calling patterns once it has about 8 days of data on both sides of a relationship — usually during week two. It will never show you a pattern the data doesn\'t support. Daily entries get you there fastest.';
+  } else {
+    title = 'Your picture is taking shape — day ' + days;
+    body = 'There\'s enough data now for first patterns to appear where the evidence supports them (check Trends). At day 14, Discovery opens: AI suggestions for new factors worth watching.';
+  }
+  const dots = Array.from({ length: 14 }, (_, i) =>
+    '<span class="jc-dot' + (i < days ? ' on' : '') + '"></span>').join('');
+  card.innerHTML = '<div class="card-title">' + title + '</div>' +
+    '<div class="jc-dots">' + dots + '<span class="jc-dots-label">14 days</span></div>' +
+    '<div class="jc-body">' + body + '</div>' +
+    (tip ? '<div class="jc-tip">' + escapeHtml(tip) + '</div>' : '');
+  card.style.display = 'block';
+}
+
+// Show a gentle Home notice when the founder has replied to this person's
+// feedback and they haven't seen it yet. Fire-and-forget; never blocks render.
+function checkFeedbackReplies() {
+  const card = document.getElementById('fb-reply-card');
+  if (!card || !currentUser || !currentSession) return;
+  fetch(`${SUPABASE_URL}/rest/v1/feedback?user_id=eq.${currentUser.id}&response=not.is.null&response_seen_at=is.null&select=id&limit=1`, {
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentSession.access_token}` }
+  }).then(r => r.ok ? r.json() : []).then(rows => {
+    card.style.display = (rows && rows.length) ? 'block' : 'none';
+  }).catch(() => {});
+}
+
 function renderHome() {
   renderWhatsNew();
+  renderJourneyCard();
+  checkFeedbackReplies();
   const latest = getLatest();
   const last7 = getLast7();
 
@@ -5411,6 +5611,7 @@ async function requestAiInsight() {
     }
 
     if (result.usage) AI_USAGE = result.usage;
+    logEvent('insight_generated', { fromCache: !!result.fromCache });
     el.innerHTML = `
       <div class="insight-label">AI insight</div>
       <div class="insight-text">${result.content}</div>
@@ -6011,6 +6212,20 @@ function patternsForAi() {
 // they open Home; dismissing records the latest id they've seen (in auth metadata).
 const RELEASE_NOTES = [
   {
+    id: 2,
+    title: 'The big one — diagrams, smarter setup, and more',
+    items: [
+      'Mark exactly where it hurts: tappable body, head and hand diagrams in your check-in (head and hands turn to show every angle).',
+      'Patterns now catch delayed effects — like a food that hits your gut two or three days later.',
+      'A calendar heatmap on Trends shows your good and tough stretches at a glance — tap any day to open it.',
+      'Adding something to track? Describe it in your own words and Stilte sets it up for you.',
+      'Managing more than one condition? Onboarding now combines them into a single journal.',
+      'A new Home card shows how your picture is building during your first two weeks.',
+      'Feedback now gets replies: when something you suggested gets built, you\u2019ll hear back right here.',
+      'You can now reset a forgotten password, and permanently delete your account and data from Settings.'
+    ]
+  },
+  {
     id: 1,
     title: 'A few improvements',
     items: [
@@ -6047,6 +6262,25 @@ async function dismissWhatsNew() {
   if (host) host.style.display = 'none'; // optimistic
   try { await auth.updateUserMetadata({ whatsnew_seen: latestNoteId() }); }
   catch (e) { console.error(e); }
+}
+
+// Full running changelog (Settings -> About -> What's new in Stilte). Same
+// RELEASE_NOTES data as the one-time Home card, but the complete history —
+// so long-time users can catch up on everything they've missed.
+function openChangelog() {
+  const body = document.getElementById('changelog-body');
+  if (body) {
+    body.innerHTML = RELEASE_NOTES.slice().sort((a, b) => b.id - a.id).map(n =>
+      '<div class="cl-entry"><div class="cl-title">' + escapeHtml(n.title) + '</div>' +
+      '<ul class="cl-items">' + n.items.map(t => '<li>' + escapeHtml(t) + '</li>').join('') + '</ul></div>'
+    ).join('');
+  }
+  document.getElementById('changelog-backdrop').style.display = 'block';
+  document.getElementById('changelog-modal').style.display = 'block';
+}
+function closeChangelog() {
+  document.getElementById('changelog-backdrop').style.display = 'none';
+  document.getElementById('changelog-modal').style.display = 'none';
 }
 
 // ── USER FOCUS + GOAL (stored in auth metadata; no schema change) ─────────────
@@ -7280,10 +7514,12 @@ function openMetricEditor(metricId) {
     document.getElementById('me-category').value = m.category_id || '';
     document.getElementById('me-quick').checked = !!m.show_in_quick;
     document.getElementById('me-primary').checked = !!m.is_primary;
+    document.getElementById('me-input-style').value = m.input_style || 'default';
     document.getElementById('me-danger-zone').style.display = 'block';
     document.getElementById('me-archive-btn').textContent =
       m.archived ? 'Restore metric' : 'Archive metric';
-    // Lock type — we don't allow changing type after creation
+    // Lock type — we don't allow changing type after creation. The diagram choice
+    // stays editable, so you can add a map to a location metric you already have.
     document.getElementById('me-type').disabled = true;
     document.getElementById('me-type-locked').style.display = 'block';
   } else {
@@ -7294,10 +7530,16 @@ function openMetricEditor(metricId) {
     document.getElementById('me-category').value = '';
     document.getElementById('me-quick').checked = false;
     document.getElementById('me-primary').checked = false;
+    document.getElementById('me-input-style').value = 'default';
     document.getElementById('me-danger-zone').style.display = 'none';
     document.getElementById('me-type').disabled = false;
     document.getElementById('me-type-locked').style.display = 'none';
   }
+  document.getElementById('me-suggest').style.display = 'none';
+  NL_ROLE = null;
+  PENDING_SECOND_METRIC = null;
+  const nlBody = document.getElementById('me-nl-body');
+  if (nlBody) { nlBody.style.display = 'none'; document.getElementById('me-nl-text').value = ''; }
 
   onMetricTypeChange();
 
@@ -7318,6 +7560,109 @@ function onMetricTypeChange() {
     (t === 'scale_10' || t === 'number') ? 'block' : 'none';
   // Unit only for number
   document.getElementById('me-unit-wrap').style.display = (t === 'number') ? 'block' : 'none';
+  // "How to mark it" (list vs body/head/hand diagram) only applies to tag lists
+  const isWrap = document.getElementById('me-input-style-wrap');
+  if (isWrap) isWrap.style.display = (t === 'tag_list') ? 'block' : 'none';
+}
+
+// Recognise when the metric the person is describing is really a location, and
+// offer the matching diagram — the same maps the condition profiles use. This is
+// the connective bit: linking what someone types to the capability that fits.
+const METRIC_SUGGESTIONS = [
+  { re: /\b(migraine|headache|head pain|head ache)\b/i, style: 'head_map', word: 'a head' },
+  { re: /\b(arthrit|knuckle|finger|hand pain|hand joint)\b/i, style: 'hand_map', word: 'a hands' },
+  { re: /\b(joint|joints)\b/i, style: 'hand_map', word: 'a hands' },
+  { re: /\b(pain|ache|sore|stiff|tender|cramp|location|where it|whereabouts)\b/i, style: 'body_map', word: 'a body' }
+];
+const STYLE_LABELS = { body_map: 'body diagram', head_map: 'head diagram', hand_map: 'hands diagram' };
+function onMetricNameInput() {
+  const banner = document.getElementById('me-suggest');
+  if (!banner) return;
+  // Don't nag if they've already chosen a diagram input for this metric
+  if (document.getElementById('me-type').value === 'tag_list' &&
+      document.getElementById('me-input-style').value !== 'default') { banner.style.display = 'none'; return; }
+  const name = document.getElementById('me-name').value || '';
+  const hit = METRIC_SUGGESTIONS.find(s => s.re.test(name));
+  if (!hit) { banner.style.display = 'none'; return; }
+  banner.innerHTML = 'Looks like you’re tracking <strong>where</strong> something is. ' +
+    'You could mark it on ' + hit.word + ' diagram instead of a plain list.' +
+    '<div class="me-suggest-actions">' +
+    '<button type="button" class="me-suggest-yes" onclick="applyMetricSuggestion(\'' + hit.style + '\')">Use the ' + STYLE_LABELS[hit.style] + '</button>' +
+    '<button type="button" class="me-suggest-no" onclick="dismissMetricSuggestion()">No thanks</button>' +
+    '</div>';
+  banner.style.display = 'block';
+}
+function applyMetricSuggestion(style) {
+  const typeSel = document.getElementById('me-type');
+  if (!typeSel.disabled) typeSel.value = 'tag_list';
+  onMetricTypeChange();
+  const isSel = document.getElementById('me-input-style');
+  if (isSel) isSel.value = style;
+  document.getElementById('me-suggest').style.display = 'none';
+}
+function dismissMetricSuggestion() {
+  document.getElementById('me-suggest').style.display = 'none';
+}
+
+// ── Natural-language metric setup ────────────────────────────────────────────
+// The person describes what they want to track in plain words; the AI returns a
+// ready-to-apply metric definition (and a second metric when they've described a
+// relationship between two things). Open to every tier — it's a setup feature.
+let NL_ROLE = null;             // role suggested for the metric being created
+let PENDING_SECOND_METRIC = null; // offered after the first metric saves
+
+function toggleNlHelper() {
+  const b = document.getElementById('me-nl-body');
+  b.style.display = b.style.display === 'none' ? 'block' : 'none';
+  if (b.style.display === 'block') document.getElementById('me-nl-text').focus();
+}
+
+async function runNlHelper() {
+  const txt = (document.getElementById('me-nl-text').value || '').trim();
+  const btn = document.getElementById('me-nl-go');
+  const banner = document.getElementById('me-suggest');
+  if (!txt) { showToast('Describe what you want to track first'); return; }
+  btn.disabled = true; btn.textContent = 'Thinking...';
+  try {
+    await ensureFreshToken();
+    if (!currentSession) { showToast('You need to be signed in'); return; }
+    const resp = await fetch('/.netlify/functions/ai-insight', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentSession.access_token}` },
+      body: JSON.stringify({ type: 'interpret', userId: currentUser.id, description: txt })
+    });
+    const data = await resp.json();
+    if (!resp.ok || !data.content || !data.content.metric) {
+      showToast(data.message || 'Could not work that one out — try rewording it');
+      return;
+    }
+    const c = data.content, m = c.metric;
+    // Apply to the form
+    document.getElementById('me-name').value = m.name;
+    const typeSel = document.getElementById('me-type');
+    if (!typeSel.disabled) typeSel.value = m.type;
+    onMetricTypeChange();
+    if (m.direction) document.getElementById('me-direction').value = m.direction;
+    if (m.unit) document.getElementById('me-unit').value = m.unit;
+    document.getElementById('me-input-style').value = m.input_style || 'default';
+    NL_ROLE = m.role || null;
+    PENDING_SECOND_METRIC = c.second_metric || null;
+    // Explain what was done, in the existing suggestion banner
+    let html = escapeHtml(c.note || 'Set up from your description — check it looks right, then save.');
+    if (PENDING_SECOND_METRIC) {
+      html += '<br><br>You also mentioned <strong>' + escapeHtml(PENDING_SECOND_METRIC.name) + '</strong>' +
+        (c.relationship_note ? ' — ' + escapeHtml(c.relationship_note) : '') +
+        '<br>After you save this one, I\'ll offer to add it too, so Stilte can look for the pattern between them.';
+    }
+    banner.innerHTML = html;
+    banner.style.display = 'block';
+    document.getElementById('me-nl-body').style.display = 'none';
+  } catch (e) {
+    console.error('NL helper failed:', e);
+    showToast('Could not reach the helper — try again');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Set it up for me';
+  }
 }
 
 // Inline category creation from the metric editor's dropdown.
@@ -7359,6 +7704,10 @@ async function saveMetric() {
   const category_id = document.getElementById('me-category').value || null;
   const show_in_quick = document.getElementById('me-quick').checked;
   const want_primary = document.getElementById('me-primary').checked;
+  // Diagram input only applies to tag lists; otherwise it's a plain metric.
+  const input_style = (type === 'tag_list')
+    ? (document.getElementById('me-input-style').value || 'default')
+    : 'default';
 
   const errEl = document.getElementById('me-error');
   errEl.style.display = 'none';
@@ -7375,7 +7724,7 @@ async function saveMetric() {
   try {
     if (EDITING_METRIC) {
       // Update existing
-      const patch = { name, direction, unit, category_id, show_in_quick };
+      const patch = { name, direction, unit, category_id, show_in_quick, input_style };
       const ok = await sbMetrics.updateMetric(EDITING_METRIC.id, patch);
       if (!ok) throw new Error('Update failed');
       // Handle primary flip separately (atomic-ish via sbMetrics.setPrimary)
@@ -7394,12 +7743,32 @@ async function saveMetric() {
         name, type, direction, unit, category_id,
         position: pos,
         show_in_quick,
+        input_style,
+        role: NL_ROLE || 'neutral',
         is_primary: false,
         archived: false
       });
       if (!created) throw new Error('Create failed');
+      logEvent('metric_created', { type, via: NL_ROLE ? 'nl_helper' : 'manual' });
       // Apply primary after create if requested
       if (want_primary) await sbMetrics.setPrimary(created.id);
+      // If their description mentioned a related second thing, offer it now so
+      // both sides of the relationship get tracked (that's what makes the
+      // pattern engine able to connect them).
+      if (PENDING_SECOND_METRIC) {
+        const sm = PENDING_SECOND_METRIC;
+        PENDING_SECOND_METRIC = null;
+        if (confirm('Also add "' + sm.name + '" so Stilte can look for the pattern between them?')) {
+          await sbMetrics.createMetric({
+            name: sm.name, type: sm.type, direction: sm.direction, unit: sm.unit,
+            category_id, position: pos + 1,
+            show_in_quick: true,
+            input_style: sm.input_style || 'default',
+            role: sm.role || 'neutral',
+            is_primary: false, archived: false
+          });
+        }
+      }
     }
 
     closeMetricEditor();
@@ -8346,7 +8715,7 @@ let ONB = null;
 function maybeStartOnboarding() {
   if (!currentUser) return;
   if ((METRICS_CACHE || []).filter(m => !m.archived).length > 0) return; // already set up
-  ONB = { step: 0, purpose: '', condition: '', areas: [], cycle: '', lifestyle: [], freeText: '', suggestions: [], checked: {}, primaryIdx: 0 };
+  ONB = { step: 0, purpose: '', conditions: [], areas: [], cycle: '', lifestyle: [], freeText: '', suggestions: [], checked: {}, primaryIdx: 0 };
   const ov = document.getElementById('onboarding-overlay');
   if (ov) { ov.style.display = 'flex'; onbRender(); }
 }
@@ -8357,7 +8726,18 @@ function onbToggle(kind, value, single) {
     const arr = ONB[kind];
     const i = arr.indexOf(value);
     if (i >= 0) arr.splice(i, 1);
-    else { if (kind === 'areas' && arr.length >= 5) return; arr.push(value); }
+    else {
+      if (kind === 'areas' && arr.length >= 5) return;
+      if (kind === 'conditions') {
+        // "Something else / not sure" stands alone; real conditions cap at 4
+        if (value === 'Something else / not sure') { ONB.conditions = [value]; onbRender(); return; }
+        const realCount = arr.filter(v => v !== 'Something else / not sure').length;
+        if (realCount >= 4) { showToast('Up to four to start with — you can add more later'); return; }
+        const j = arr.indexOf('Something else / not sure');
+        if (j >= 0) arr.splice(j, 1);
+      }
+      arr.push(value);
+    }
   }
   onbRender();
 }
@@ -8374,11 +8754,14 @@ function onbBuildSuggestions() {
   const seen = new Set();
   const add = (m) => { const k = m.name.trim().toLowerCase(); if (!k || seen.has(k)) return; seen.add(k); list.push(m); };
 
-  const profile = ONB.condition && ONB_CONDITION_PROFILES[ONB.condition];
-  if (profile) {
-    // Condition path: Track outcomes + Watch influences, all in the daily quick set.
-    profile.track.forEach(m => add({ ...m, role: m.role || 'outcome', show_in_quick: true }));
-    profile.watch.forEach(m => add({ ...m, role: m.role || 'influence', show_in_quick: true }));
+  // Selected condition profiles, in the order they were picked. Multiple
+  // conditions merge into one journal: all Track outcomes first, then all
+  // Watch influences. The dedupe (by name) collapses the shared influence
+  // palette, so e.g. Sleep quality appears once even across three profiles.
+  const profiles = (ONB.conditions || []).filter(k => ONB_CONDITION_PROFILES[k]).map(k => ONB_CONDITION_PROFILES[k]);
+  if (profiles.length) {
+    profiles.forEach(p => p.track.forEach(m => add({ ...m, role: m.role || 'outcome', show_in_quick: true })));
+    profiles.forEach(p => p.watch.forEach(m => add({ ...m, role: m.role || 'influence', show_in_quick: true })));
   } else {
     // General / "something else" path: Wellbeing + area-based outcomes.
     add({ name: 'Wellbeing', type: 'scale_10', direction: 'higher_better', cat: 'Physical', role: 'outcome', show_in_quick: true });
@@ -8427,9 +8810,9 @@ function onbRender() {
     if (onbWantsCondition()) {
       const grp = ONB.purpose.indexOf('recovery') >= 0 ? 'recovery' : 'chronic';
       const keys = Object.keys(ONB_CONDITION_PROFILES).filter(k => ONB_CONDITION_PROFILES[k].group === grp);
-      h = `<div class="onb-h">What are you focusing on?</div>
-      <div class="onb-sub">Pick the closest. We'll set up what to track for it, plus the everyday factors that tend to affect it — so Stilte can work out what's driving it. All editable later.</div>
-      <div class="onb-options">${keys.map(v => opt('condition', v, true)).join('')}${opt('condition', 'Something else / not sure', true)}</div>
+      h = `<div class="onb-h">What are you managing?</div>
+      <div class="onb-sub">Pick everything that applies — many people are managing more than one thing at once, and that's exactly what Stilte is built for. We'll combine them into one journal and look for patterns across the lot, including how they affect each other.</div>
+      <div class="onb-options">${keys.map(v => opt('conditions', v, false)).join('')}${opt('conditions', 'Something else / not sure', false)}</div>
       ${nav('Next', 'onbGo(1)')}`;
     } else {
       h = `<div class="onb-h">Which areas matter most?</div>
@@ -8488,8 +8871,8 @@ function onbRender() {
 
 async function onbFinish() {
   if (ONB.purpose) {
-    const cond = ONB_CONDITION_PROFILES[ONB.condition] ? ONB.condition : '';
-    try { await auth.updateUserMetadata({ health_goal: ONB.purpose, health_condition: cond, whatsnew_seen: latestNoteId() }); } catch (e) { console.error(e); }
+    const conds = (ONB.conditions || []).filter(k => ONB_CONDITION_PROFILES[k]);
+    try { await auth.updateUserMetadata({ health_goal: ONB.purpose, health_condition: conds.join(', '), whatsnew_seen: latestNoteId() }); } catch (e) { console.error(e); }
   }
   let chosen = ONB.suggestions.filter((m, i) => ONB.checked[i]);
   if (!chosen.length) { await onbSeed([
@@ -8549,25 +8932,40 @@ async function onbSeed(metrics, primaryPos) {
     if (created && idx === primaryPos) primaryId = created.id;
   }
   if (primaryId) { try { await sbMetrics.setPrimary(primaryId); } catch (e) {} }
-  // For a condition profile, point the Trends focus at the main outcome so the app
-  // immediately centres on what they came to understand.
-  if (primaryId && ONB && ONB.condition && ONB_CONDITION_PROFILES[ONB.condition]) {
+  // For condition profiles, point the Trends focus at the main outcome (the
+  // first-picked condition's primary) so the app immediately centres on it.
+  const onbConds = (ONB && ONB.conditions || []).filter(k => ONB_CONDITION_PROFILES[k]);
+  if (primaryId && onbConds.length) {
     try { await auth.updateUserMetadata({ focus_metric_id: primaryId }); } catch (e) {}
   }
   try { await refreshMetricsCache(); } catch (e) {}
   try { await loadValues(); } catch (e) {}
+  logEvent('onboarding_completed', { conditions: onbConds.length ? onbConds : null, metrics: metrics.length });
   // Short, skippable orientation before the first check-in.
   onbStartTour();
 }
 
 // ── ORIENTATION TOUR ─────────────────────────────────────────────────────────
-// A few plain, skippable cards shown once at the end of onboarding. Calm, no
-// jargon — just where things live and what to expect.
+// Four skippable cards at the end of onboarding. These carry the foundational
+// ideas of the app — why daily logging matters, the quick check-in escape
+// hatch, how patterns build, and Track vs Watch — in plain language.
 const ONB_TOUR = [
-  { h: 'Check in each day', sub: 'A short daily check-in is the heart of Stilte. Tap Check in on the Home screen, or the + button, whenever suits you — it only takes a moment.' },
-  { h: 'Watch your trends build', sub: 'As you log, the Trends tab fills in with your patterns and what tends to help. The more you check in, the clearer it gets.' },
-  { h: 'Make it yours', sub: 'Everything you track is yours to change. Add, rename or remove what you track anytime in Customise.' },
-  { h: 'Insights come with time', sub: 'After about a week of logging, Stilte starts surfacing personalised insights. Until then, every entry is helping it learn what is normal for you.' }
+  { h: 'Check in each day — it\'s everything', paras: [
+    'The daily check-in is the heart of Stilte. It works by comparing your days, so every entry is a data point — and consistency matters far more than detail. A few taps most days beats a perfect entry once a week.',
+    'Having a rough day, or just short on time? Switch to the quick check-in — only your essentials, done in well under a minute. Missed a day entirely? Change the date at the top of the check-in to fill it in later.'
+  ]},
+  { h: 'Track and Watch — two sides of every answer', paras: [
+    'You\'re tracking two kinds of things. Track is what you want to understand: your pain, your mood, your symptoms. Watch is the everyday stuff that might be driving it: sleep, caffeine, stress, exertion.',
+    'Both sides matter equally. Logging the everyday factors is how Stilte works out what helps and what hurts — that\'s where the real answers come from. You can change what you track anytime in Customise.'
+  ]},
+  { h: 'Your patterns build in Trends', paras: [
+    'As your days accumulate, the Trends tab starts connecting what you do with how you feel — including effects that arrive late, like a food that upsets your gut two days on, or overdoing it showing up tomorrow.',
+    'Stilte is honest with you: it only calls a pattern when your data genuinely supports it, which usually starts in your second week. No made-up insights, ever — the wait is what makes the answers trustworthy.'
+  ]},
+  { h: 'It all builds towards answers', paras: [
+    'From about two weeks in, the picture sharpens: patterns in Trends, AI insights when you ask for them, and Discovery — suggestions for new factors worth watching when nothing obvious has shown up yet.',
+    'And it\'s yours. Your data stays private, you can share a doctor-ready summary from the Share tab, and you can delete your account and everything in it at any time.'
+  ]}
 ];
 let ONB_TOUR_I = 0;
 
@@ -8582,11 +8980,12 @@ function onbRenderTour() {
   if (!body) { onbFinishTour(); return; }
   const c = ONB_TOUR[ONB_TOUR_I];
   const last = ONB_TOUR_I === ONB_TOUR.length - 1;
+  const paras = (c.paras || [c.sub]).map(p => '<div class="onb-sub">' + escapeHtml(p) + '</div>').join('');
   body.innerHTML =
     '<div class="onb-tour-step">' + (ONB_TOUR_I + 1) + ' of ' + ONB_TOUR.length + '</div>' +
     '<div class="onb-h">' + escapeHtml(c.h) + '</div>' +
-    '<div class="onb-sub">' + escapeHtml(c.sub) + '</div>' +
-    '<div class="onb-nav"><button class="submit-btn" style="flex:1" onclick="onbTourNext()">' + (last ? 'Start using Stilte' : 'Next') + '</button></div>' +
+    paras +
+    '<div class="onb-nav"><button class="submit-btn" style="flex:1" onclick="onbTourNext()">' + (last ? 'Start your first check-in' : 'Next') + '</button></div>' +
     '<button class="onb-skip" onclick="onbFinishTour()">Skip</button>';
 }
 function onbTourNext() {
