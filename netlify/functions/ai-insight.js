@@ -296,7 +296,7 @@ async function handleFeedbackList(event, body) {
   const callerId = await verifyCaller(event);
   if (!callerId || callerId !== ADMIN_USER_ID) return json(403, { error: 'forbidden' });
   const status = body && body.status;
-  let q = 'feedback?select=id,kind,message,status,admin_note,app_version,created_at&order=created_at.desc&limit=200';
+  let q = 'feedback?select=id,kind,message,status,admin_note,response,response_at,app_version,created_at&order=created_at.desc&limit=200';
   if (status && status !== 'all' && FEEDBACK_STATUSES.includes(status)) {
     q += `&status=eq.${status}`;
   }
@@ -322,6 +322,13 @@ async function handleFeedbackUpdate(event, body) {
   }
   if (body.note !== undefined) {
     patch.admin_note = (body.note === null || body.note === '') ? null : String(body.note).slice(0, 2000);
+  }
+  if (body.response !== undefined) {
+    // A reply to the submitter — visible to them in-app. Clearing it also
+    // clears the timestamp so the unread badge can't ghost.
+    patch.response = (body.response === null || body.response === '') ? null : String(body.response).slice(0, 2000);
+    patch.response_at = patch.response ? new Date().toISOString() : null;
+    if (!patch.response) patch.response_seen_at = null;
   }
   if (!Object.keys(patch).length) return json(400, { error: 'nothing_to_update' });
   try {
@@ -414,6 +421,13 @@ exports.handler = async function(event) {
   // File analysis (Pro) — separate path: no prompt, no monthly insight cap.
   if (type === 'extract_file') {
     return await handleFileExtraction(userId, body);
+  }
+  // Metric setup helper — a setup feature, not an insight, so it's available on
+  // every tier (gating "help me set this up" would defeat the point), always on
+  // Haiku with a tiny token budget, doesn't touch the monthly insight cap, and
+  // sits behind the same global circuit breaker.
+  if (type === 'interpret') {
+    return await handleInterpret(userId, body);
   }
   if (!prompt) return json(400, { error: 'missing_prompt' });
   if (type === 'daily' && !entryDate) {
@@ -686,6 +700,157 @@ Valid "type" values: scale_10, yes_no, number, tag_list. Include "unit" only for
   const usage = await getUsageSummary(userId, tier, tierConfig, extraCreditsStandard, extraCreditsAdvanced);
   return json(200, { content, fromCache: false, usage });
 };
+
+// ============================================================================
+// Metric setup helper ("interpret"): turn a plain-language description of what
+// someone wants to track into a ready-to-save metric definition.
+// Body: { userId, type:'interpret', description }
+// Returns: { content: { metric, note, second_metric, relationship_note } }
+// ============================================================================
+async function handleInterpret(userId, body) {
+  const description = (body.description || '').toString().trim();
+  if (!description) return json(400, { error: 'missing_description' });
+  if (description.length > 400) {
+    return json(400, { error: 'description_too_long', message: 'Keep the description under 400 characters.' });
+  }
+
+  // Global circuit breaker (same daily spend cap as everything else)
+  const today = todayDateUtc();
+  try {
+    const spendRows = await sb(`ai_spend_daily?spend_date=eq.${today}&select=spend_usd`);
+    const todaySpend = spendRows && spendRows[0] ? Number(spendRows[0].spend_usd) : 0;
+    if (todaySpend >= DAILY_SPEND_CAP_USD) {
+      return json(503, { error: 'circuit_breaker', message: 'AI temporarily unavailable. Try again tomorrow.' });
+    }
+  } catch (e) {
+    console.error('Circuit breaker check failed:', e.message);
+    return json(503, { error: 'circuit_breaker_check_failed' });
+  }
+
+  const model = 'claude-haiku-4-5';
+  const systemPrompt = `You turn a person's plain-language description of something they want to track in a daily health journal into a metric definition. Respond with ONLY a JSON object, no markdown fences, no preamble.
+
+Schema:
+{
+  "metric": {
+    "name": string,            // short, clear, Title case, max 40 chars; quietly fix obvious typos
+    "type": "scale_10" | "yes_no" | "number" | "free_text" | "tag_list",
+    "direction": "higher_better" | "lower_better" | "neutral" | null,  // only for scale_10/number, else null
+    "unit": string | null,     // only for number (e.g. "hours", "cups", "mg"), else null
+    "input_style": "default" | "body_map" | "head_map" | "hand_map",   // diagrams only for tag_list location metrics
+    "role": "outcome" | "influence" | "neutral"
+  },
+  "note": string,              // one friendly sentence explaining the setup choice, Australian English
+  "second_metric": same shape as "metric" | null,
+  "relationship_note": string | null
+}
+
+Rules:
+- Feelings, severity, quality (mood, pain, energy, how happy) -> scale_10 with sensible direction (pain/stress: lower_better; happiness/energy: higher_better).
+- Quantities -> number with a unit. Did/didn't happen -> yes_no. Free notes -> free_text.
+- "Where" something occurs -> tag_list with a diagram: head pain/headache -> head_map; hand or finger joints -> hand_map; other body locations -> body_map; non-location categories -> default.
+- role: symptoms and how they feel = "outcome"; behaviours, exposures, habits = "influence"; locations and notes = "neutral".
+- second_metric: ONLY when the description clearly names a second distinct thing whose relationship to the first they want to understand (e.g. "how happy I am at work, I think it affects how happy I am at home" -> first metric "Happiness at work", second "Happiness at home", relationship_note explaining Stilte will look for the pattern between them once both are logged). Otherwise null.
+- Never invent things they didn't mention. JSON only.`;
+
+  let apiResponse;
+  try {
+    const resp = await fetch(ANTHROPIC_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 500,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: description }]
+      })
+    });
+    if (!resp.ok) {
+      const txt = await resp.text();
+      console.error('Anthropic API error (interpret):', resp.status, txt);
+      return json(502, { error: 'anthropic_error' });
+    }
+    apiResponse = await resp.json();
+  } catch (e) {
+    console.error('Anthropic call failed (interpret):', e.message);
+    await logServerError('interpret', e, userId);
+    return json(502, { error: 'anthropic_call_failed' });
+  }
+
+  const raw = apiResponse.content && apiResponse.content[0] && apiResponse.content[0].text;
+  if (!raw) return json(502, { error: 'no_content_in_response' });
+
+  // Parse + sanitise: never trust model output blindly; clamp every field to
+  // the allowed values so the client can apply it without validation logic.
+  const TYPES = ['scale_10', 'yes_no', 'number', 'free_text', 'tag_list'];
+  const DIRS = ['higher_better', 'lower_better', 'neutral'];
+  const STYLES = ['default', 'body_map', 'head_map', 'hand_map'];
+  const ROLES = ['outcome', 'influence', 'neutral'];
+  const clampMetric = (m) => {
+    if (!m || typeof m !== 'object' || !m.name) return null;
+    const type = TYPES.includes(m.type) ? m.type : 'scale_10';
+    return {
+      name: String(m.name).slice(0, 40).trim(),
+      type,
+      direction: (type === 'scale_10' || type === 'number') && DIRS.includes(m.direction) ? m.direction : null,
+      unit: type === 'number' && m.unit ? String(m.unit).slice(0, 20) : null,
+      input_style: type === 'tag_list' && STYLES.includes(m.input_style) ? m.input_style : 'default',
+      role: ROLES.includes(m.role) ? m.role : 'neutral'
+    };
+  };
+  let parsed;
+  try {
+    parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
+  } catch (e) {
+    return json(502, { error: 'interpret_parse_failed' });
+  }
+  const metric = clampMetric(parsed.metric);
+  if (!metric) return json(502, { error: 'interpret_no_metric' });
+  const content = {
+    metric,
+    note: parsed.note ? String(parsed.note).slice(0, 300) : '',
+    second_metric: clampMetric(parsed.second_metric),
+    relationship_note: parsed.relationship_note ? String(parsed.relationship_note).slice(0, 300) : null
+  };
+
+  // Record spend so the circuit breaker sees these calls too
+  const inputTokens = apiResponse.usage?.input_tokens || 0;
+  const outputTokens = apiResponse.usage?.output_tokens || 0;
+  const pricing = MODEL_PRICING[model];
+  const callCostUsd = pricing
+    ? (inputTokens * pricing.input / 1_000_000) + (outputTokens * pricing.output / 1_000_000)
+    : 0;
+  try {
+    const spendRows = await sb(`ai_spend_daily?spend_date=eq.${today}&select=spend_usd,call_count`);
+    if (spendRows && spendRows[0]) {
+      const newSpend = Number(spendRows[0].spend_usd) + callCostUsd;
+      await sb(`ai_spend_daily?spend_date=eq.${today}`, {
+        method: 'PATCH',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({
+          spend_usd: newSpend,
+          call_count: spendRows[0].call_count + 1,
+          tripped_at: newSpend >= DAILY_SPEND_CAP_USD ? new Date().toISOString() : null,
+          updated_at: new Date().toISOString()
+        })
+      });
+    } else {
+      await sb('ai_spend_daily', {
+        method: 'POST',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({ spend_date: today, spend_usd: callCostUsd, call_count: 1 })
+      });
+    }
+  } catch (e) {
+    console.error('Spend tracking failed (non-fatal):', e.message);
+  }
+
+  return json(200, { content });
+}
 
 // ============================================================================
 // File extraction (Pro): summarise one uploaded document and store the text.
