@@ -667,6 +667,14 @@
     color: var(--muted);
     line-height: 1.5;
   }
+  .infgap-card { background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; }
+  #home-influence-gap .infgap-card { margin-bottom: 16px; }
+  .infgap-title { font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+  .infgap-body { font-size: 13px; line-height: 1.55; color: var(--text); }
+  .infgap-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+  .infgap-chip { font-size: 12px; padding: 4px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 999px; color: var(--text); }
+  .infgap-add { width: 100%; padding: 10px; border: none; border-radius: 9px; background: var(--accent); color: #fff; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+  .infgap-add:disabled { opacity: 0.6; }
 
   /* Insight unlock progress */
   .unlock-progress { padding: 2px 0; }
@@ -2191,6 +2199,9 @@
     <!-- Building-your-picture journey card (first two weeks only) -->
     <div class="card" id="journey-card" style="display:none;"></div>
 
+    <!-- Balanced-logging nudge: home surface (mirrors the Trends one) -->
+    <div id="home-influence-gap" style="display:none;"></div>
+
     <!-- Today's medications (quick tick; shown only when meds are set up) -->
     <div class="card" id="home-meds-card" style="display:none;">
       <div class="card-title">Today's medications</div>
@@ -2480,13 +2491,25 @@
         </div>
         <div class="pw-form-msg" id="pw-form-msg"></div>
       </div>
+      <div class="settings-row clickable" id="accesscode-row" onclick="toggleAccessCode()">
+        <div class="settings-row-stack">
+          <div class="settings-row-hint">Access code</div>
+          <div class="settings-row-label" id="settings-tier-label">Free plan</div>
+        </div>
+        <div class="settings-chev">›</div>
+      </div>
+      <div class="pw-form" id="accesscode-form">
+        <input type="text" id="accesscode-input" placeholder="Enter access code" maxlength="40" autocapitalize="characters" autocomplete="off">
+        <div class="pw-form-actions">
+          <button class="secondary" onclick="cancelAccessCode()">Cancel</button>
+          <button class="primary" onclick="submitAccessCode()">Apply</button>
+        </div>
+        <div class="pw-form-msg" id="accesscode-form-msg"></div>
+      </div>
       <div class="settings-row clickable settings-signout" onclick="signOut()">
         <div class="settings-row-label settings-signout">Sign out</div>
         <div class="settings-chev">›</div>
       </div>
-    </div>
-
-    <div class="settings-section-title">Medical records</div>
     <div class="settings-card">
       <div class="settings-row clickable" onclick="openRecords()">
         <div class="settings-row-label">Tests, scans &amp; letters</div>
@@ -3365,6 +3388,11 @@ function applyBranding() {
     setText('settings-email', currentUser.email || '—');
     const fnEl = document.getElementById('settings-first-name');
     if (fnEl) fnEl.textContent = userName() || 'Not set';
+    const tierEl = document.getElementById('settings-tier-label');
+    if (tierEl) {
+      const labels = { pro: 'Stilte Pro', plus: 'Stilte+', free: 'Free plan' };
+      tierEl.textContent = labels[USER_TIER] || 'Free plan';
+    }
   }
 }
 
@@ -3413,12 +3441,19 @@ if (window.matchMedia) {
 
 // ── DATA ──────────────────────────────────────────────────────────────────────
 async function loadData() {
+  // Make sure the access token is valid BEFORE fanning out to the data loads.
+  // On a fresh restore the stored token can be milliseconds past its refresh
+  // boundary; without this, the first call of the session can 401 (showing a
+  // spurious error and silently dropping the user to the 'free' tier), then
+  // succeed on retry. Priming the token here removes that first-try race.
+  try { await ensureFreshToken(); } catch (e) {}
   // Load metric definitions + all metric values (the v0.5.0 read model)
   try { await refreshMetricsCache(); } catch (e) {}
   try { await loadValues(); } catch (e) {}
-  // Load AI tier + monthly usage in parallel (non-blocking — AI features will
-  // still render with the default 'free' tier if this fails)
-  loadAiUsage().catch(e => console.error('AI usage load failed:', e));
+  // Load AI tier + monthly usage. Awaited (not fire-and-forget) so the tier is
+  // known before the UI gates AI features — prevents a paid/Pro user being
+  // shown the trial-ended lock because their tier hadn't loaded yet.
+  try { await loadAiUsage(); } catch (e) { console.error('AI usage load failed:', e); }
   initApp();
 }
 
@@ -5244,6 +5279,19 @@ function renderJourneyCard() {
   card.style.display = 'block';
 }
 
+// Surface the balanced-logging nudge on Home too — but only once the user has
+// logged enough to have hit the wall (>=3 days), so it reads as helpful rather
+// than premature. Same diagnosis and one-tap fix as the Trends surface. Shown
+// below the journey card; hidden the moment the journal is balanced.
+function renderHomeInfluenceGap() {
+  const host = document.getElementById('home-influence-gap');
+  if (!host) return;
+  const gap = (distinctLoggedDays() >= 3) ? influenceGap() : null;
+  if (!gap) { host.style.display = 'none'; host.innerHTML = ''; return; }
+  host.innerHTML = influenceGapCardHtml(gap);
+  host.style.display = 'block';
+}
+
 // Show a gentle Home notice when the founder has replied to this person's
 // feedback and they haven't seen it yet. Fire-and-forget; never blocks render.
 function checkFeedbackReplies() {
@@ -5259,6 +5307,7 @@ function checkFeedbackReplies() {
 function renderHome() {
   renderWhatsNew();
   renderJourneyCard();
+  renderHomeInfluenceGap();
   checkFeedbackReplies();
   const latest = getLatest();
   const last7 = getLast7();
@@ -5998,6 +6047,32 @@ function patternLeadIn(p, factorHtml) {
 function wordsOf(str) {
   return new Set((str || '').toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length > 3));
 }
+// Two metrics belong to the same bodily/topic domain if their names share a
+// word OR map to the same synonym group. Used to suppress mechanically-obvious
+// correlations (e.g. "No bleeding" vs "Menstrual comfort" — true by definition,
+// not an insight; it makes the engine look naive and erodes trust in real ones).
+const DOMAIN_SYNONYMS = [
+  ['menstrual', 'period', 'bleeding', 'cycle', 'menstruation', 'flow', 'cramps'],
+  ['headache', 'migraine', 'head'],
+  ['gut', 'stomach', 'bowel', 'digestive', 'nausea', 'ibs', 'abdominal'],
+  ['heart', 'palpitation', 'palpitations', 'cardiac', 'chest'],
+  ['mood', 'anxiety', 'depression', 'mental', 'emotional'],
+  ['sleep', 'insomnia', 'tired', 'fatigue', 'rest'],
+  ['joint', 'arthritis', 'spinal', 'spine', 'back', 'knee', 'ankle']
+];
+function domainOf(text) {
+  const w = (text || '').toLowerCase();
+  const hits = new Set();
+  DOMAIN_SYNONYMS.forEach((group, i) => { if (group.some(term => w.includes(term))) hits.add(i); });
+  return hits;
+}
+function sameDomain(a, b) {
+  if (sharesWord(a, b)) return true;
+  const da = domainOf(a), db = domainOf(b);
+  for (const d of da) if (db.has(d)) return true;
+  return false;
+}
+
 function sharesWord(a, b) {
   const wa = wordsOf(a);
   for (const w of wordsOf(b)) if (wa.has(w)) return true;
@@ -6046,19 +6121,28 @@ async function loadAiUsage() {
   if (!currentUser) return;
   try {
     if (!await ensureFreshToken()) return;
-    // Fetch tier
-    const tierResp = await fetch(`${SUPABASE_URL}/rest/v1/user_tiers?user_id=eq.${currentUser.id}&select=tier,extra_credits_standard,extra_credits_advanced`, {
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentSession.access_token}` }
-    });
-    let tier = 'free', extraStd = 0, extraAdv = 0;
-    if (tierResp.ok) {
-      const rows = await tierResp.json();
-      if (rows && rows[0]) {
-        tier = rows[0].tier || 'free';
-        extraStd = rows[0].extra_credits_standard || 0;
-        extraAdv = rows[0].extra_credits_advanced || 0;
-      }
+    // Fetch tier — retry once on transient failure rather than silently falling
+    // back to 'free', which would lock a paying user out of what they paid for.
+    let tier = 'free', extraStd = 0, extraAdv = 0, tierOk = false;
+    for (let attempt = 0; attempt < 2 && !tierOk; attempt++) {
+      try {
+        const tierResp = await fetch(`${SUPABASE_URL}/rest/v1/user_tiers?user_id=eq.${currentUser.id}&select=tier,extra_credits_standard,extra_credits_advanced`, {
+          headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentSession.access_token}` }
+        });
+        if (tierResp.ok) {
+          const rows = await tierResp.json();
+          if (rows && rows[0]) {
+            tier = rows[0].tier || 'free';
+            extraStd = rows[0].extra_credits_standard || 0;
+            extraAdv = rows[0].extra_credits_advanced || 0;
+          }
+          tierOk = true; // a clean 200 (even with no row = genuine free user) is authoritative
+        }
+      } catch (e) { /* retry once */ }
     }
+    // If both attempts failed outright, keep whatever tier we already had cached
+    // rather than downgrading mid-session.
+    if (!tierOk && (USER_TIER === 'plus' || USER_TIER === 'pro')) tier = USER_TIER;
     USER_TIER = tier;
 
     // Fetch current month's usage
@@ -6600,7 +6684,13 @@ function computePatterns() {
         let good = null;
         if (O.direction === 'higher_better') good = (rawDirection === 'higher');
         else if (O.direction === 'lower_better') good = (rawDirection === 'lower');
-        const sameSystem = sharesWord(F.metricName, O.name) || sharesWord(F.label, O.name);
+        // Suppress mechanically-obvious links: when the factor and the outcome
+        // are the same bodily domain (e.g. "No bleeding" -> "Menstrual comfort",
+        // or a symptom tag vs that same symptom's severity), the correlation is
+        // true by definition, not a discovery. Drop it entirely rather than just
+        // down-ranking, so it never reaches the user.
+        if (sameDomain(F.metricName, O.name) || sameDomain(F.label, O.name)) return;
+        const sameSystem = false; // same-domain pairs are now dropped above
 
         results.push({
           factor: F.label, factorMetric: F.metricName, factorKind: F.kind || 'tag',
@@ -6714,6 +6804,118 @@ function renderHelpful() {
     `<div class="pattern-disclaimer">A reflection of your own past entries, not a recommendation or medical advice. What lines up with good days for you is personal — use your own judgement.</div>`;
 }
 
+// ── INFLUENCE BALANCE (the both-sides-of-the-equation problem) ────────────────
+// Stilte can only find patterns if users log influences (causes) as well as
+// outcomes (symptoms). Most people instinctively track only symptoms, which
+// silently starves the engine and makes the whole product look like it doesn't
+// work. This detects the imbalance and offers a one-tap fix. Strategic: this is
+// the difference between "patterns never appear" and "patterns appear".
+function influenceMetricsActive() {
+  return (METRICS_CACHE || []).filter(m => !m.archived && m.role === 'influence');
+}
+function outcomeMetricsAll() {
+  return (METRICS_CACHE || []).filter(m => !m.archived && m.role === 'outcome');
+}
+// How many distinct days in the recent window had ANY influence logged.
+function influenceLoggedDays() {
+  const infIds = new Set(influenceMetricsActive().map(m => m.id));
+  if (!infIds.size) return 0;
+  const days = new Set();
+  (VALUES || []).forEach(v => {
+    if (!infIds.has(v.metric_id)) return;
+    const has = v.value_number != null || v.value_bool != null ||
+      (Array.isArray(v.value_tags) && v.value_tags.length) ||
+      (v.value_text && v.value_text.trim());
+    if (has) days.add(v.entry_date);
+  });
+  return days.size;
+}
+// The diagnosis: is this journal too one-sided for the engine to work?
+// Returns null if balanced, else { reason, suggestions:[INF keys] }.
+function influenceGap() {
+  const outcomes = outcomeMetricsAll().length;
+  const influences = influenceMetricsActive().length;
+  if (outcomes === 0) return null; // nothing to explain yet
+  const loggedDays = recentLoggedDays();
+  const infDays = influenceLoggedDays();
+
+  // Case A: barely any influence metrics exist relative to outcomes.
+  const tooFewMetrics = influences < 2 || influences < Math.ceil(outcomes / 4);
+  // Case B: influences exist but aren't being logged (created then ignored).
+  const loggedButIgnored = influences >= 2 && loggedDays >= 5 && infDays < loggedDays * 0.4;
+
+  if (!tooFewMetrics && !loggedButIgnored) return null;
+
+  // Suggest influences they don't already have, drawn from the universal core.
+  const have = new Set(influenceMetricsActive().map(m => (m.name || '').toLowerCase()));
+  const coreOrder = ['sleepQuality', 'stress', 'caffeine', 'water', 'exercise', 'alcohol'];
+  const suggestions = coreOrder.filter(k => INF[k] && !have.has(INF[k].name.toLowerCase())).slice(0, 4);
+
+  return {
+    reason: tooFewMetrics ? 'few_metrics' : 'not_logging',
+    suggestions
+  };
+}
+
+// One-tap: create the suggested influence metrics, pre-set as influences in the
+// quick check-in, then refresh everything so they appear immediately.
+async function addSuggestedInfluences(keys) {
+  if (!keys || !keys.length) return;
+  const btn = document.getElementById('infgap-add-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Adding\u2026'; }
+  try {
+    await ensureFreshToken();
+    let cat = (CATEGORIES_CACHE || []).find(c => /life|diet/i.test(c.name));
+    if (!cat) cat = (CATEGORIES_CACHE || [])[0];
+    if (!cat) { try { cat = await sbMetrics.createCategory({ name: 'Lifestyle', position: (CATEGORIES_CACHE || []).length }); } catch (e) {} }
+    let pos = (METRICS_CACHE || []).length;
+    for (const k of keys) {
+      const d = INF[k];
+      if (!d) continue;
+      try {
+        await sbMetrics.createMetric({
+          name: d.name, type: d.type,
+          direction: (d.type === 'scale_10' || d.type === 'number') ? (d.direction || 'neutral') : null,
+          unit: d.unit || null, numeric_mode: 'linear',
+          category_id: cat ? cat.id : null, position: pos++,
+          is_primary: false, show_in_quick: true, archived: false,
+          role: 'influence', input_style: 'default',
+          options: d.type === 'tag_list' ? [] : null
+        });
+      } catch (e) {}
+    }
+    try { await refreshMetricsCache(); } catch (e) {}
+    try { await loadValues(); } catch (e) {}
+    logEvent('influences_added', { count: keys.length, via: 'gap_nudge' });
+    showToast(keys.length + ' added to your check-in');
+    renderPatterns();
+    renderHome();
+  } catch (e) {
+    console.error('Add influences failed:', e);
+    showToast('Could not add those \u2014 try again');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Add these to my check-in'; }
+  }
+}
+
+// The nudge card markup — shown on the patterns/trends surface when the journal
+// is too one-sided. Explains WHY (not a nag) and offers the one-tap fix.
+function influenceGapCardHtml(gap) {
+  const names = gap.suggestions.map(k => INF[k] && INF[k].name).filter(Boolean);
+  const intro = gap.reason === 'few_metrics'
+    ? 'Patterns need causes as well as symptoms. You\u2019re tracking how you feel, but few of the everyday things that might drive it \u2014 so there\u2019s nothing yet for Stilte to connect your symptoms to.'
+    : 'You\u2019ve got the right things set up, but the everyday factors aren\u2019t being logged much lately. Patterns only appear when both sides are filled in \u2014 the symptom and what might be driving it.';
+  const chips = names.map(n => '<span class="infgap-chip">' + escapeHtml(n) + '</span>').join('');
+  const action = gap.suggestions.length
+    ? '<div class="infgap-chips">' + chips + '</div>' +
+      '<button class="infgap-add" id="infgap-add-btn" onclick="addSuggestedInfluences([' +
+        gap.suggestions.map(k => '\'' + k + '\'').join(',') + '])">Add these to my check-in</button>'
+    : '<div style="font-size:12.5px;color:var(--muted);margin-top:8px;">Add a few everyday factors in your check-in \u2014 things like sleep, stress or caffeine.</div>';
+  return '<div class="infgap-card">' +
+    '<div class="infgap-title">Help Stilte find your patterns</div>' +
+    '<div class="infgap-body">' + intro + '</div>' + action + '</div>';
+}
+
 function renderPatterns() {
   const el = document.getElementById('patterns-list');
   if (!el) return;
@@ -6724,9 +6926,14 @@ function renderPatterns() {
   }
 
   const patterns = computePatterns();
+  const gap = influenceGap();
+  const gapCard = gap ? influenceGapCardHtml(gap) : '';
 
   if (!patterns.length) {
-    el.innerHTML = `<div class="patterns-empty">No clear patterns yet — we only show ones backed by enough days to trust. ${escapeHtml(dataGapAdvice())}</div>`;
+    // Lead with the actionable gap card when the journal is one-sided; that's
+    // the actual reason there are no patterns, and it's fixable in one tap.
+    el.innerHTML = gapCard ||
+      `<div class="patterns-empty">No clear patterns yet — we only show ones backed by enough days to trust. ${escapeHtml(dataGapAdvice())}</div>`;
     return;
   }
 
@@ -6741,7 +6948,7 @@ function renderPatterns() {
     </div>`;
   }).join('');
 
-  el.innerHTML = rows +
+  el.innerHTML = gapCard + rows +
     `<div class="pattern-disclaimer">These are observations from your own past entries, not predictions or medical advice. A pattern here doesn't mean one thing caused another.</div>`;
 }
 
@@ -8393,6 +8600,71 @@ async function submitFirstName() {
   } catch (e) {
     msg.textContent = 'Could not save. Please try again.';
     msg.className = 'pw-form-msg err';
+  }
+}
+
+// ── ACCESS CODE (from settings) ──────────────────────────────────────────────
+// Temporary tester codes. Submits to the redeem_access_code RPC, which writes a
+// real user_tiers row server-side (so it persists across devices and reloads and
+// runs through the same gate as a paid subscription). No client-only tier hacks.
+function toggleAccessCode() {
+  const form = document.getElementById('accesscode-form');
+  const row = document.getElementById('accesscode-row');
+  if (form.classList.contains('open')) {
+    cancelAccessCode();
+  } else {
+    form.classList.add('open');
+    row.querySelector('.settings-chev').textContent = '⌄';
+    document.getElementById('accesscode-input').focus();
+  }
+}
+
+function cancelAccessCode() {
+  const form = document.getElementById('accesscode-form');
+  const row = document.getElementById('accesscode-row');
+  form.classList.remove('open');
+  if (row) row.querySelector('.settings-chev').textContent = '›';
+  document.getElementById('accesscode-input').value = '';
+  document.getElementById('accesscode-form-msg').textContent = '';
+}
+
+async function submitAccessCode() {
+  const input = document.getElementById('accesscode-input');
+  const msg = document.getElementById('accesscode-form-msg');
+  const code = (input.value || '').trim();
+  if (!code) { msg.className = 'pw-form-msg err'; msg.textContent = 'Enter a code first.'; return; }
+  msg.className = 'pw-form-msg'; msg.textContent = 'Checking…';
+  try {
+    if (!(await ensureFreshToken())) { msg.className = 'pw-form-msg err'; msg.textContent = 'Please sign in again first.'; return; }
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/redeem_access_code`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentSession.access_token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_code: code })
+    });
+    const result = await r.json().catch(() => null);
+    if (!r.ok || typeof result !== 'string') {
+      msg.className = 'pw-form-msg err'; msg.textContent = 'Could not apply the code. Try again.';
+      return;
+    }
+    if (result === 'invalid') {
+      msg.className = 'pw-form-msg err'; msg.textContent = 'That code isn\'t valid.';
+      return;
+    }
+    if (result === 'not_authenticated') {
+      msg.className = 'pw-form-msg err'; msg.textContent = 'Please sign in again first.';
+      return;
+    }
+    if (result.indexOf('ok:') === 0) {
+      const newTier = result.slice(3);
+      await loadAiUsage();           // re-read the now-upgraded tier
+      applyBranding();               // refresh the settings tier label
+      cancelAccessCode();
+      const labels = { pro: 'Stilte Pro', plus: 'Stilte+' };
+      showToast((labels[newTier] || 'Plan') + ' unlocked');
+    }
+  } catch (e) {
+    console.error('Access code redeem failed:', e);
+    msg.className = 'pw-form-msg err'; msg.textContent = 'Connection error. Try again.';
   }
 }
 
