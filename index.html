@@ -2975,6 +2975,38 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
+// ── TEMP DIAGNOSTIC: surface any uncaught error on screen instead of a blank ──
+// (so we can read the real cause of the load crash). Safe to remove later.
+window.addEventListener('error', function (e) {
+  try {
+    var box = document.getElementById('crash-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'crash-box';
+      box.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#c0392b;color:#fff;font:12px/1.4 monospace;padding:12px;white-space:pre-wrap;word-break:break-word;max-height:60vh;overflow:auto;';
+      document.body.appendChild(box);
+    }
+    box.textContent = 'ERROR: ' + (e.message || e.error && e.error.message || 'unknown') +
+      '\nat ' + (e.filename || '') + ':' + (e.lineno || '?') + ':' + (e.colno || '?') +
+      (e.error && e.error.stack ? '\n\n' + e.error.stack : '');
+  } catch (_) {}
+});
+window.addEventListener('unhandledrejection', function (e) {
+  try {
+    var box = document.getElementById('crash-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'crash-box';
+      box.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#8e44ad;color:#fff;font:12px/1.4 monospace;padding:12px;white-space:pre-wrap;word-break:break-word;max-height:60vh;overflow:auto;';
+      document.body.appendChild(box);
+    }
+    var r = e.reason;
+    box.textContent = 'PROMISE REJECTION: ' + (r && r.message ? r.message : String(r)) +
+      (r && r.stack ? '\n\n' + r.stack : '');
+  } catch (_) {}
+});
+</script>
+<script>
 // ── SEED DATA FROM SPREADSHEET ──────────────────────────────────────────────
 // ── SUPABASE CONFIG ───────────────────────────────────────────────────────────
 const SUPABASE_URL = 'https://rpinusuayvdnckgdaksl.supabase.co';
