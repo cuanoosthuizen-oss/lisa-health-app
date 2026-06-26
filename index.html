@@ -5284,12 +5284,18 @@ function renderJourneyCard() {
 // than premature. Same diagnosis and one-tap fix as the Trends surface. Shown
 // below the journey card; hidden the moment the journal is balanced.
 function renderHomeInfluenceGap() {
-  const host = document.getElementById('home-influence-gap');
-  if (!host) return;
-  const gap = (distinctLoggedDays() >= 3) ? influenceGap() : null;
-  if (!gap) { host.style.display = 'none'; host.innerHTML = ''; return; }
-  host.innerHTML = influenceGapCardHtml(gap);
-  host.style.display = 'block';
+  try {
+    const host = document.getElementById('home-influence-gap');
+    if (!host) return;
+    const gap = (distinctLoggedDays() >= 3) ? influenceGap() : null;
+    if (!gap) { host.style.display = 'none'; host.innerHTML = ''; return; }
+    host.innerHTML = influenceGapCardHtml(gap);
+    host.style.display = 'block';
+  } catch (e) {
+    console.error('influence gap (home) failed:', e);
+    const host = document.getElementById('home-influence-gap');
+    if (host) { host.style.display = 'none'; host.innerHTML = ''; }
+  }
 }
 
 // Show a gentle Home notice when the founder has replied to this person's
@@ -6833,6 +6839,7 @@ function influenceLoggedDays() {
 // The diagnosis: is this journal too one-sided for the engine to work?
 // Returns null if balanced, else { reason, suggestions:[INF keys] }.
 function influenceGap() {
+  if (!Array.isArray(METRICS_CACHE) || !Array.isArray(VALUES)) return null;
   const outcomes = outcomeMetricsAll().length;
   const influences = influenceMetricsActive().length;
   if (outcomes === 0) return null; // nothing to explain yet
@@ -6926,7 +6933,8 @@ function renderPatterns() {
   }
 
   const patterns = computePatterns();
-  const gap = influenceGap();
+  let gap = null;
+  try { gap = influenceGap(); } catch (e) { console.error('influence gap (trends) failed:', e); }
   const gapCard = gap ? influenceGapCardHtml(gap) : '';
 
   if (!patterns.length) {
@@ -9276,17 +9284,19 @@ function onbFinishTour() {
 
 
 function initApp() {
-  applyBranding();
-  renderHome();
-  updateProfileInitial();
+  try { applyBranding(); } catch (e) { console.error('applyBranding failed:', e); }
+  try { renderHome(); } catch (e) { console.error('renderHome failed:', e); }
+  try { updateProfileInitial(); } catch (e) { console.error('updateProfileInitial failed:', e); }
   // Initialise date pickers to today and set their trigger labels
-  const ci = document.getElementById('checkin-date');
-  const dp = document.getElementById('day-picker');
-  if (ci && !ci.value) ci.value = today();
-  if (dp && !dp.value) dp.value = today();
-  updateDateTrigger('checkin-date');
-  updateDateTrigger('day-picker');
-  maybeStartOnboarding();
+  try {
+    const ci = document.getElementById('checkin-date');
+    const dp = document.getElementById('day-picker');
+    if (ci && !ci.value) ci.value = today();
+    if (dp && !dp.value) dp.value = today();
+    updateDateTrigger('checkin-date');
+    updateDateTrigger('day-picker');
+  } catch (e) { console.error('date picker init failed:', e); }
+  try { maybeStartOnboarding(); } catch (e) { console.error('maybeStartOnboarding failed:', e); }
 }
 
 async function bootstrap() {
