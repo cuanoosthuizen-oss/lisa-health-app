@@ -4917,7 +4917,8 @@ const ADMIN_VIEW_IDS = ['view-aoverview', 'view-afeedback', 'view-aissues'];
 // hidden, admin nav shown. Views are shown with explicit inline display so this
 // does not depend on the .view.active stylesheet rule.
 function enterAdminConsole(tab) {
-  if (!isAdmin()) return;
+  if (!isAdmin()) return; // reparent-admin-fix
+  ['view-aoverview','view-afeedback','view-aissues'].forEach(function(id){var el=document.getElementById(id); if(el && el.parentElement && el.parentElement.id!=='app'){document.getElementById('app').appendChild(el);}});
   ADMIN_MODE = true;
   document.body.classList.add('admin-mode');
   document.body.classList.remove('settings-open');
