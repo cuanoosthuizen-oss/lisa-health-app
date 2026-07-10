@@ -3137,7 +3137,7 @@ async function ensureFreshToken() {
 // from the `sb` wrapper above so the old check-in flow is undisturbed.
 async function _fetch(path, options = {}) {
   if (!await ensureFreshToken()) return null;
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+  const _doReq = () => fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
     ...options,
     headers: {
       apikey: SUPABASE_KEY,
@@ -3146,6 +3146,8 @@ async function _fetch(path, options = {}) {
       ...(options.headers || {})
     }
   });
+  let r = await _doReq();
+  if (r.status === 401) { /*cold-start-retry-fix*/ try { const fresh = await auth.getSession(); if (fresh) { currentSession = fresh; currentUser = fresh.user; } } catch(e){} r = await _doReq(); }
   if (!r.ok) {
     console.error('Supabase request failed:', path, r.status, await r.text());
     return null;
