@@ -5397,7 +5397,7 @@ function renderHome() {
   const patternCard = document.getElementById('top-pattern-card');
   const patternBody = document.getElementById('top-pattern-body');
   if (insightsUnlocked()) {
-    const patterns = computePatterns();
+    const patterns = []; /*stopgap-skip-home-patterns*/
     if (patterns.length > 0) {
       const p = patterns[0];
       const dirColor = p.good === true ? 'var(--good)' : p.good === false ? 'var(--accent2)' : 'var(--muted)';
