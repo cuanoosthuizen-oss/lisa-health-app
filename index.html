@@ -9368,6 +9368,7 @@ async function bootstrap() {
 // users not yet signed in — userName() returns '' so name-dependent bits
 // gracefully no-op until signup/signin completes).
 applyBranding();
+(function(){/*lisa-error-capture*/var _ce=console.error;console.error=function(){try{var a=Array.prototype.slice.call(arguments);var msg=a.map(function(x){return (x&&x.message)?x.message:String(x);}).join(' ');if(msg.indexOf('failed:')!==-1&&typeof logClientError==='function'){var eo=null;for(var j=0;j<a.length;j++){if(a[j]&&a[j].stack){eo=a[j];break;}}logClientError('render-capture', msg.slice(0,200), eo&&eo.stack);}}catch(_){}return _ce.apply(console,arguments);};})();
 bootstrap();
 </script>
 </body>
