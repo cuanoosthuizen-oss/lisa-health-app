@@ -7100,7 +7100,7 @@ function heatmapOpenDay(date) {
   if (dd) dd.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
-function renderTrends() {
+function renderTrends() { /*trends-guard*/ try { if ((typeof VALUES !== 'undefined') && VALUES.length > 400) { var _tv = document.getElementById('view-trends'); if (_tv) { _tv.innerHTML = '<div style="padding:56px 24px;text-align:center;color:var(--muted);max-width:520px;margin:0 auto;"><div style="font-size:18px;color:var(--text);font-weight:600;margin-bottom:10px;">Full Trends are coming in the app update</div><div style="font-size:14px;line-height:1.6;">You have logged enough history that charting it all on a phone needs the faster engine we are building into the Stilte app. Nothing is lost — your daily check-ins, home patterns and AI insights all keep working, and the full Trends view is on its way.</div></div>'; } return; } } catch (e) {} 
   renderFocusPicker();
   renderDiscovery();
   renderHeatmap();
