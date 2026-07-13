@@ -6682,7 +6682,7 @@ function computePatterns() {
   const outcomes = outcomeMetrics();
   // Factors come from tags AND from numeric metrics split high/low — so users
   // with no tags still get metric-vs-metric patterns.
-  const factors = [...collectMetricFactors(), ...collectNumericFactors()];
+  let factors = [...collectMetricFactors(), ...collectNumericFactors()]; /*phone-safe-cap*/ if (factors.length > 40) { factors = factors.map(function(f){ return [f, (f.dates && (f.dates.size || f.dates.length)) || 0]; }).sort(function(a,b){ return b[1]-a[1]; }).slice(0,40).map(function(x){ return x[0]; }); }
   const results = [];
 
   factors.forEach(F => {
